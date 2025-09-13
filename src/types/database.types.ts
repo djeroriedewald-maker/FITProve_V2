@@ -6,6 +6,8 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
+export type PostType = 'workout' | 'achievement' | 'general';
+
 export interface Database {
   public: {
     Tables: {
@@ -14,22 +16,121 @@ export interface Database {
           id: string
           email: string
           name: string | null
+          display_name: string | null
+          username: string | null
+          bio: string | null
           avatar_url: string | null
+          fitness_goals: string[]
+          level: number
+          stats: {
+            workoutsCompleted: number
+            totalMinutes: number
+            streakDays: number
+            achievementsCount: number
+            followersCount: number
+            followingCount: number
+          } | null
+          achievements: Array<{
+            id: string
+            title: string
+            description: string
+            icon: string
+            unlockedAt: string | null
+            progress?: {
+              current: number
+              target: number
+            }
+          }> | null
+          recent_workouts: Array<{
+            id: string
+            type: string
+            title: string
+            duration: number
+            caloriesBurned: number
+            completedAt: string
+          }> | null
           created_at: string
+          updated_at: string
         }
         Insert: {
           id: string
           email: string
           name?: string | null
+          display_name?: string | null
+          username?: string | null
+          bio?: string | null
           avatar_url?: string | null
+          fitness_goals?: string[]
+          level?: number
+          stats?: {
+            workoutsCompleted: number
+            totalMinutes: number
+            streakDays: number
+            achievementsCount: number
+            followersCount: number
+            followingCount: number
+          } | null
+          achievements?: Array<{
+            id: string
+            title: string
+            description: string
+            icon: string
+            unlockedAt: string | null
+            progress?: {
+              current: number
+              target: number
+            }
+          }> | null
+          recent_workouts?: Array<{
+            id: string
+            type: string
+            title: string
+            duration: number
+            caloriesBurned: number
+            completedAt: string
+          }> | null
           created_at?: string
+          updated_at?: string
         }
         Update: {
           id?: string
           email?: string
           name?: string | null
+          display_name?: string | null
+          username?: string | null
+          bio?: string | null
           avatar_url?: string | null
+          fitness_goals?: string[]
+          level?: number
+          stats?: {
+            workoutsCompleted: number
+            totalMinutes: number
+            streakDays: number
+            achievementsCount: number
+            followersCount: number
+            followingCount: number
+          } | null
+          achievements?: Array<{
+            id: string
+            title: string
+            description: string
+            icon: string
+            unlockedAt: string | null
+            progress?: {
+              current: number
+              target: number
+            }
+          }> | null
+          recent_workouts?: Array<{
+            id: string
+            type: string
+            title: string
+            duration: number
+            caloriesBurned: number
+            completedAt: string
+          }> | null
           created_at?: string
+          updated_at?: string
         }
       }
       exercises: {
@@ -203,6 +304,122 @@ export interface Database {
           icon_url?: string
         }
       }
+      posts: {
+        Row: {
+          id: string;
+          user_id: string;
+          content: string | null;
+          media_url: string[] | null;
+          type: PostType;
+          workout_id: string | null;
+          achievement_id: string | null;
+          created_at: string;
+          updated_at: string;
+          likes_count: number;
+          comments_count: number;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          content?: string | null;
+          media_url?: string[] | null;
+          type: PostType;
+          workout_id?: string | null;
+          achievement_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          likes_count?: number;
+          comments_count?: number;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          content?: string | null;
+          media_url?: string[] | null;
+          type?: PostType;
+          workout_id?: string | null;
+          achievement_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          likes_count?: number;
+          comments_count?: number;
+        };
+      };
+      comments: {
+        Row: {
+          id: string;
+          post_id: string;
+          user_id: string;
+          content: string;
+          parent_id: string | null;
+          created_at: string;
+          updated_at: string;
+          likes_count: number;
+        };
+        Insert: {
+          id?: string;
+          post_id: string;
+          user_id: string;
+          content: string;
+          parent_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          likes_count?: number;
+        };
+        Update: {
+          id?: string;
+          post_id?: string;
+          user_id?: string;
+          content?: string;
+          parent_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          likes_count?: number;
+        };
+      };
+      likes: {
+        Row: {
+          id: string;
+          user_id: string;
+          post_id: string | null;
+          comment_id: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          post_id?: string | null;
+          comment_id?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          post_id?: string | null;
+          comment_id?: string | null;
+          created_at?: string;
+        };
+      };
+      followers: {
+        Row: {
+          id: string;
+          follower_id: string;
+          following_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          follower_id: string;
+          following_id: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          follower_id?: string;
+          following_id?: string;
+          created_at?: string;
+        };
+      };
       user_badges: {
         Row: {
           id: string

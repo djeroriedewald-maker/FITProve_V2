@@ -12,20 +12,33 @@ export default defineConfig({
         name: 'FITProve',
         short_name: 'FITProve',
         description: 'Your personal fitness tracking companion',
-        theme_color: '#ffffff',
-        background_color: '#ffffff',
+        theme_color: '#4f46e5',
+        background_color: '#1f2937',
         display: 'standalone',
         icons: [
           {
-            src: 'pwa-192x192.png',
+            src: '/icons/manifest-icon-192.png',
             sizes: '192x192',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'any'
           },
           {
-            src: 'pwa-512x512.png',
+            src: '/icons/manifest-icon-192.maskable.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'maskable'
+          },
+          {
+            src: '/icons/manifest-icon-512.png',
             sizes: '512x512',
             type: 'image/png',
-            purpose: 'any maskable'
+            purpose: 'any'
+          },
+          {
+            src: '/icons/manifest-icon-512.maskable.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable'
           }
         ]
       },

@@ -1,4 +1,5 @@
 import { Clock, Heart, Dumbbell, Flame } from 'lucide-react';
+import { AnimatedCounter } from './AnimatedCounter';
 
 interface StatCardProps {
   icon: typeof Heart | typeof Dumbbell | typeof Flame | typeof Clock;
@@ -8,6 +9,9 @@ interface StatCardProps {
   description?: string;
   className?: string;
   iconClassName?: string;
+  animate?: boolean;
+  suffix?: string;
+  prefix?: string;
 }
 
 export const StatCard = ({
@@ -17,7 +21,10 @@ export const StatCard = ({
   trend,
   description,
   className = "",
-  iconClassName = "text-primary"
+  iconClassName = "text-primary",
+  animate = false,
+  prefix = "",
+  suffix = ""
 }: StatCardProps) => {
   return (
     <div className={`group p-6 rounded-xl bg-white/90 dark:bg-gray-800/90 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-100 dark:border-gray-700 ${className}`}>
@@ -28,7 +35,13 @@ export const StatCard = ({
           </div>
           <div>
             <h3 className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">{title}</h3>
-            <p className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{value}</p>
+            <p className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
+              {typeof value === 'number' && animate ? (
+                <AnimatedCounter end={value} prefix={prefix} suffix={suffix} />
+              ) : (
+                value
+              )}
+            </p>
           </div>
         </div>
         {trend && (

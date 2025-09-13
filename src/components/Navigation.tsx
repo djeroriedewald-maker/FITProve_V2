@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Dumbbell, BarChart2, Newspaper, Layers } from 'lucide-react';
+import { Home, Dumbbell, BarChart2, Newspaper, Layers, User } from 'lucide-react';
 
 const navigationItems = [
   { name: 'Home', icon: Home, path: '/' },
@@ -8,6 +8,7 @@ const navigationItems = [
   { name: 'Stats', icon: BarChart2, path: '/stats' },
   { name: 'News', icon: Newspaper, path: '/news' },
   { name: 'Modules', icon: Layers, path: '/modules' },
+  { name: 'Profile', icon: User, path: '/profile' },
 ];
 
 export function Navigation() {
@@ -25,7 +26,7 @@ export function Navigation() {
               <Link
                 key={item.name}
                 to={item.path}
-                className={`flex flex-col items-center justify-center flex-1 h-full space-y-1 transition-all duration-200 ${
+                className={`flex flex-col items-center justify-center flex-1 h-full space-y-1 transition-all duration-200 active:opacity-70 touch-manipulation min-h-[44px] ${
                   isActive
                     ? 'text-primary'
                     : 'text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary'

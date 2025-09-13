@@ -2,17 +2,23 @@ import React from 'react';
 import { useAuth } from '../contexts/AuthContext';
 
 export function SignInForm() {
-  const { signIn, error } = useAuth();
+  const { signIn, error: authError } = useAuth();
   const [email, setEmail] = React.useState('');
   const [message, setMessage] = React.useState('');
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setMessage(''); // Clear previous messages
+    if (!email) {
+      setMessage('Please enter your email address');
+      return;
+    }
     try {
       await signIn(email);
       setMessage('Check your email for the login link!');
     } catch (err) {
-      setMessage('Error sending login link. Please try again.');
+      const errorMessage = err instanceof Error ? err.message : 'Error sending login link. Please try again.';
+      setMessage(errorMessage);
     }
   };
 
@@ -50,8 +56,8 @@ export function SignInForm() {
 
           {message && (
             <div className="text-sm text-center">
-              <p className={error ? 'text-red-500' : 'text-green-500'}>
-                {message}
+              <p className={authError || message.includes('Error') ? 'text-red-500' : 'text-green-500'}>
+                {message || (authError && authError.message)}
               </p>
             </div>
           )}
