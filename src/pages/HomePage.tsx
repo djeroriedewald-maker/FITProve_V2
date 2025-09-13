@@ -65,20 +65,20 @@ export const HomePage = () => {
           <img
             src="/images/hero.webp"
             alt="Hero background"
-            className="w-full h-full object-cover opacity-20 dark:opacity-10"
+            className="w-full h-full object-cover opacity-30 dark:opacity-20"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-primary/30 to-purple-500/30 mix-blend-multiply" />
+          <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-purple-500/20 mix-blend-overlay" />
         </div>
         
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-3xl mx-auto text-center">
-            <h2 className="text-4xl md:text-6xl font-bold mb-6">
+            <h2 className="text-4xl md:text-6xl font-bold mb-6 text-gray-900 dark:text-white">
               Transform Your{" "}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-purple-600">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-purple-600 dark:from-primary dark:to-purple-400">
                 Fitness Journey
               </span>
             </h2>
-            <p className="text-xl text-gray-600 dark:text-gray-300 mb-8">
+            <p className="text-xl text-gray-700 dark:text-gray-200 mb-8">
               Track, analyze, and improve your workouts with intelligent insights
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
