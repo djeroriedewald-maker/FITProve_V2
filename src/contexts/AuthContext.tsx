@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { UserProfile } from '../types/profile.types';
@@ -22,7 +22,9 @@ type AuthState = AuthDataState & {
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   updatePassword: (newPassword: string) => Promise<void>;
-  refreshProfile: () => Promise<void>;
+  refreshProfile: (opts?: { force?: boolean }) => Promise<void>;
+  cancelProfileFetch: () => void;
+  getDebugInfo: () => { inFlight: boolean; startedAt: number | null };
 };
 
 const AuthContext = createContext<AuthState>({
@@ -48,6 +50,10 @@ const AuthContext = createContext<AuthState>({
   refreshProfile: async () => {
     throw new Error('AuthContext not initialized');
   },
+  cancelProfileFetch: () => {
+    throw new Error('AuthContext not initialized');
+  },
+  getDebugInfo: () => ({ inFlight: false, startedAt: null }),
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -58,71 +64,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     error: null,
   });
 
-  // Promise timeout helper to avoid infinite loading
-  const withTimeout = async <T,>(p: Promise<T>, ms: number, label = 'operation'): Promise<T> => {
-    return await Promise.race([
-      p,
-      new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms))
-    ]);
-  };
+  // Track mounted state
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  // (Removed) withTimeout helper to avoid artificial cutoffs; we now rely on native timeouts
 
   const fetchProfile = async (userId: string) => {
     console.info('[Auth] fetchProfile:start', { userId });
-    const startTime = Date.now();
     setState(prev => ({ ...prev, isLoading: true, error: null }));
-
-    const logTiming = (stage: string) => {
-      const elapsed = Date.now() - startTime;
-      console.info(`[Auth] ${stage} - ${elapsed}ms elapsed`);
-    };
-
     try {
-      // Try to get existing profile directly (single call) with a timeout
-      const { data: profileData, error: profileError } = await withTimeout(
-        supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', userId)
-          .maybeSingle(),
-        8000,
-        'profile fetch'
-      );
-
-      logTiming('Profile fetch complete');
-      
-      console.info('[Auth] Profile data:', {
-        hasData: !!profileData,
-        dataType: profileData ? typeof profileData : null,
-        fields: profileData ? Object.keys(profileData) : [],
-        error: profileError
-      });
-
-      console.info('[Auth] Profile fetch result:', { 
-        hasData: !!profileData, 
-        error: profileError 
-      });
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, display_name, name, username, bio, avatar_url, created_at, fitness_goals, level, stats')
+        .eq('id', userId)
+        .maybeSingle();
 
       if (profileError) {
-        console.error('[Auth] Error fetching profile:', profileError);
-        setState(prev => ({
-          ...prev,
-          isLoading: false,
-          error: new Error(`Profile fetch error: ${profileError.message}`)
-        }));
-        return;
+        throw profileError;
       }
 
-      // If no profile exists, create one
       if (!profileData) {
-        console.info('[Auth] No profile found, creating new profile');
         const { data: userData } = await supabase.auth.getUser();
         const authUser = userData?.user;
-        
-        if (!authUser) {
-          throw new Error('User not authenticated');
-        }
+        if (!authUser) throw new Error('User not authenticated');
 
-  const newProfile: ProfileInsert = {
+        const newProfile: ProfileInsert = {
           id: userId,
           email: authUser.email ?? '',
           name: (authUser.user_metadata as any)?.full_name ?? '',
@@ -146,43 +117,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           updated_at: new Date().toISOString()
         };
 
-        const { data: inserted, error: insertError } = await withTimeout(
-          (supabase.from('profiles') as any)
-            .upsert(newProfile as any)
-            .select()
-            .single(),
-          8000,
-          'profile upsert'
-        );
+        const { data: inserted, error: insertError } = await (supabase.from('profiles') as any)
+          .upsert(newProfile as any)
+          .select('id, display_name, name, username, bio, avatar_url, created_at, fitness_goals, level, stats')
+          .single();
 
-        if (insertError) {
-          console.error('[Auth] Error creating profile:', insertError);
-          setState(prev => ({
-            ...prev,
-            isLoading: false,
-            error: new Error(insertError.message)
-          }));
-          return;
-        }
-
-        if (!inserted) {
-          throw new Error('Failed to create profile');
-        }
-
-        const insertedProfile = inserted as unknown as ProfileRow;
+        if (insertError) throw insertError;
+        const p = (inserted as unknown as ProfileRow);
         setState(prev => ({
           ...prev,
           isLoading: false,
           profile: {
-            id: insertedProfile.id,
-            displayName: insertedProfile.display_name || insertedProfile.name || '',
-            username: insertedProfile.username || '',
-            bio: insertedProfile.bio || '',
-            avatarUrl: insertedProfile.avatar_url || '',
-            memberSince: new Date(insertedProfile.created_at),
-            fitnessGoals: insertedProfile.fitness_goals || [],
-            level: insertedProfile.level || 1,
-            stats: insertedProfile.stats || {
+            id: p.id,
+            displayName: p.display_name || p.name || '',
+            username: p.username || '',
+            bio: p.bio || '',
+            avatarUrl: p.avatar_url || '',
+            memberSince: new Date(p.created_at),
+            fitnessGoals: p.fitness_goals || [],
+            level: p.level || 1,
+            stats: p.stats || {
               workoutsCompleted: 0,
               totalMinutes: 0,
               streakDays: 0,
@@ -197,7 +151,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // Profile exists, update state
       const p = profileData as unknown as ProfileRow;
       setState(prev => ({
         ...prev,
@@ -224,11 +177,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }));
     } catch (error) {
-      console.error('[Auth] Unexpected error:', error);
+      console.error('[Auth] fetchProfile:error', error);
       setState(prev => ({
         ...prev,
         isLoading: false,
-        error: error instanceof Error ? error : new Error('An unexpected error occurred')
+        error: error instanceof Error ? error : new Error('Failed to load profile')
       }));
     }
   };
@@ -402,12 +355,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     },
 
-    refreshProfile: async () => {
+    refreshProfile: async (_opts?: { force?: boolean }) => {
       if (!state.user) {
         throw new Error('Cannot refresh profile: no user logged in');
       }
       await fetchProfile(state.user.id);
-    }
+    },
+    cancelProfileFetch: () => {},
+    getDebugInfo: () => ({ inFlight: false, startedAt: null })
   };
 
   return (

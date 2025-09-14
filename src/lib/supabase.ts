@@ -12,8 +12,8 @@ const getEnvVar = (key: string) => {
   return null;
 };
 
-const supabaseUrl = getEnvVar('VITE_SUPABASE_URL') || 'https://kktyvxhwhuejotsqnbhn.supabase.co';
-const supabaseKey = getEnvVar('VITE_SUPABASE_ANON_KEY') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtrdHl2eGh3aHVlam90c3FuYmhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3NDUyMjcsImV4cCI6MjA3MzMyMTIyN30.yyrVRMUFC4owgaAZi6ifLCPYDPzdBVC2XzOsG5hR39E';
+export const supabaseUrl = getEnvVar('VITE_SUPABASE_URL') || 'https://kktyvxhwhuejotsqnbhn.supabase.co';
+export const supabaseKey = getEnvVar('VITE_SUPABASE_ANON_KEY') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtrdHl2eGh3aHVlam90c3FuYmhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3NDUyMjcsImV4cCI6MjA3MzMyMTIyN30.yyrVRMUFC4owgaAZi6ifLCPYDPzdBVC2XzOsG5hR39E';
 
 export const supabase = createClient<Database>(supabaseUrl, supabaseKey, {
   auth: {

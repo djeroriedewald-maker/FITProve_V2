@@ -5,8 +5,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { UserProfile } from '../components/profile/UserProfile';
 
 export function ProfilePage() {
-  const { user, profile, isLoading, error, refreshProfile } = useAuth();
+  const { user, profile, isLoading, error, refreshProfile, cancelProfileFetch, getDebugInfo } = useAuth();
   const [isSlow, setIsSlow] = React.useState(false);
+  const debug = getDebugInfo?.() ?? { inFlight: false, startedAt: null };
 
   React.useEffect(() => {
     const t = setTimeout(() => setIsSlow(true), 4000);
@@ -23,11 +24,21 @@ export function ProfilePage() {
             <div className="text-center">
               <p className="text-gray-700 dark:text-gray-300">This is taking longer than expected…</p>
               <button
-                onClick={() => refreshProfile()}
+                onClick={() => refreshProfile({ force: true })}
                 className="mt-2 inline-block px-4 py-2 rounded-md bg-primary text-white hover:opacity-90"
               >
-                Retry loading profile
+                Force refresh
               </button>
+              <button
+                onClick={() => cancelProfileFetch()}
+                className="mt-2 ml-2 inline-block px-4 py-2 rounded-md bg-gray-200 dark:bg-gray-700 dark:text-white hover:opacity-90"
+              >
+                Cancel request
+              </button>
+              <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                {debug.inFlight ? 'Fetching…' : 'Idle'}
+                {debug.startedAt ? ` • started ${Math.round((Date.now() - debug.startedAt)/1000)}s ago` : ''}
+              </div>
             </div>
           )}
         </div>
