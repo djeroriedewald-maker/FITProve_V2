@@ -76,6 +76,19 @@ export type RecentWorkout = {
 }
 
 /**
+ * Auto-post settings structure
+ */
+export type AutoPostSettings = {
+  enabled: boolean
+  onWorkoutCompletion: boolean
+  onMilestones: boolean
+  onStreaks: boolean
+  minDurationMinutes: number
+  minCalories: number
+  cooldownHours: number
+}
+
+/**
  * Base user profile structure
  */
 export type BaseProfile = {
@@ -91,6 +104,7 @@ export type BaseProfile = {
   stats: ProfileStats
   achievements: Achievement[]
   recent_workouts: RecentWorkout[]
+  auto_post_settings: AutoPostSettings
   created_at: Timestamp
   updated_at: Timestamp
 }
@@ -362,20 +376,26 @@ export interface Database {
       likes: {
         Row: {
           id: string
-          post_id: string
+          post_id: string | null
+          comment_id: string | null
           user_id: string
+          reaction_type: string
           created_at: Timestamp
         }
         Insert: {
           id?: string
-          post_id: string
+          post_id?: string | null
+          comment_id?: string | null
           user_id: string
+          reaction_type?: string
           created_at?: Timestamp
         }
         Update: {
           id?: string
-          post_id?: string
+          post_id?: string | null
+          comment_id?: string | null
           user_id?: string
+          reaction_type?: string
           created_at?: string
         }
         Relationships: []
@@ -422,12 +442,80 @@ export interface Database {
         }
         Relationships: []
       }
+      notifications: {
+        Row: {
+          id: string
+          user_id: string
+          type: string
+          title: string
+          message: string
+          data: Json
+          read: boolean
+          created_at: Timestamp
+          post_id: string | null
+          comment_id: string | null
+          from_user_id: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          type: string
+          title: string
+          message: string
+          data?: Json
+          read?: boolean
+          created_at?: Timestamp
+          post_id?: string | null
+          comment_id?: string | null
+          from_user_id?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          type?: string
+          title?: string
+          message?: string
+          data?: Json
+          read?: boolean
+          created_at?: Timestamp
+          post_id?: string | null
+          comment_id?: string | null
+          from_user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_unread_notification_count: {
+        Args: {}
+        Returns: number
+      }
+      mark_notification_read: {
+        Args: {
+          notification_id: string
+        }
+        Returns: void
+      }
+      mark_all_notifications_read: {
+        Args: {}
+        Returns: void
+      }
+      create_notification: {
+        Args: {
+          p_user_id: string
+          p_type: string
+          p_title: string
+          p_message: string
+          p_data?: Json
+          p_post_id?: string
+          p_comment_id?: string
+          p_from_user_id?: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never

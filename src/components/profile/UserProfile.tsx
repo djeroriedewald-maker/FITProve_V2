@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Edit, Share2, Loader2 } from 'lucide-react';
+import { Edit, Share2, Loader2, Settings, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { UserProfile as IUserProfile } from '../../types/profile.types';
 import { UserStatsGrid } from './UserStatsGrid';
 import { AchievementsGrid } from './AchievementsGrid';
 import { WorkoutHistoryList } from './WorkoutHistoryList';
 import { EditProfileModal } from './EditProfileModal';
+import { AutoPostSettingsModal } from './AutoPostSettingsModal';
+import { ManualWorkoutPostModal } from '../social/ManualWorkoutPostModal';
 import { useAuth } from '../../contexts/AuthContext';
 import { updateUserProfile } from '../../lib/api.ts';
 
@@ -17,6 +19,8 @@ interface UserProfileProps {
 
 export const UserProfile: React.FC<UserProfileProps> = ({ profile, isOwnProfile = false }) => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isAutoPostSettingsOpen, setIsAutoPostSettingsOpen] = useState(false);
+  const [isManualPostModalOpen, setIsManualPostModalOpen] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const { user, refreshProfile } = useAuth();
 
@@ -68,6 +72,13 @@ export const UserProfile: React.FC<UserProfileProps> = ({ profile, isOwnProfile 
     });
   };
 
+  const handlePostCreated = (_postId: string) => {
+    toast.success('Workout post aangemaakt!', {
+      description: `Je post is succesvol gedeeld met de community.`
+    });
+    // Optionally refresh the social feed or navigate to the post
+  };
+
   return (
     <div className="w-full py-8">
       <EditProfileModal 
@@ -76,6 +87,17 @@ export const UserProfile: React.FC<UserProfileProps> = ({ profile, isOwnProfile 
         profile={profile}
         onSave={handleProfileUpdate}
         isUpdating={isUpdating}
+      />
+      
+      <AutoPostSettingsModal
+        isOpen={isAutoPostSettingsOpen}
+        onClose={() => setIsAutoPostSettingsOpen(false)}
+      />
+      
+      <ManualWorkoutPostModal
+        isOpen={isManualPostModalOpen}
+        onClose={() => setIsManualPostModalOpen(false)}
+        onPostCreated={handlePostCreated}
       />
       {/* Header Section */}
       <div className="relative mb-8">
@@ -121,26 +143,47 @@ export const UserProfile: React.FC<UserProfileProps> = ({ profile, isOwnProfile 
             </motion.div>
           </div>
 
-          <div className="flex space-x-2">
+          <div className="flex flex-wrap gap-2">
             {isOwnProfile ? (
-              <button 
-                onClick={() => setIsEditModalOpen(true)}
-                disabled={isUpdating}
-                className="px-4 py-2 bg-primary text-white rounded-lg shadow hover:shadow-lg transition-shadow disabled:opacity-50"
-              >
-                {isUpdating ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <Edit className="w-5 h-5" />
-                )}
-              </button>
+              <>
+                <button 
+                  onClick={() => setIsEditModalOpen(true)}
+                  disabled={isUpdating}
+                  className="px-4 py-2 bg-primary text-white rounded-lg shadow hover:shadow-lg transition-shadow disabled:opacity-50 flex items-center space-x-2"
+                >
+                  {isUpdating ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <Edit className="w-5 h-5" />
+                  )}
+                  <span>Bewerken</span>
+                </button>
+                
+                <button 
+                  onClick={() => setIsManualPostModalOpen(true)}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg shadow hover:shadow-lg transition-shadow flex items-center space-x-2"
+                >
+                  <Zap className="w-5 h-5" />
+                  <span>Workout Post</span>
+                </button>
+                
+                <button 
+                  onClick={() => setIsAutoPostSettingsOpen(true)}
+                  className="px-4 py-2 bg-gray-600 text-white rounded-lg shadow hover:shadow-lg transition-shadow flex items-center space-x-2"
+                >
+                  <Settings className="w-5 h-5" />
+                  <span>Auto-Posts</span>
+                </button>
+              </>
             ) : (
               <button className="px-4 py-2 bg-primary text-white rounded-lg shadow hover:shadow-lg transition-shadow">
                 Follow
               </button>
             )}
-            <button className="px-4 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-lg shadow hover:shadow-lg transition-shadow border border-gray-200 dark:border-gray-700">
+            
+            <button className="px-4 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-lg shadow hover:shadow-lg transition-shadow border border-gray-200 dark:border-gray-700 flex items-center space-x-2">
               <Share2 className="w-5 h-5" />
+              <span>Share</span>
             </button>
           </div>
         </div>

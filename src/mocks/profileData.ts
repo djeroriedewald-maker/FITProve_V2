@@ -5,7 +5,7 @@ export const mockUserProfile: UserProfile = {
   username: 'fitprove_user',
   displayName: 'John Doe',
   bio: 'Passionate about fitness and healthy living. Always striving to improve and inspire others.',
-  avatarUrl: '/images/avatar-placeholder.jpg',
+  avatarUrl: '/default-avatar.svg',
   memberSince: new Date('2025-01-01'),
   level: 15,
   stats: {

@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Heart, MessageCircle, Share, MoreHorizontal, Calendar, Trophy, Camera, Edit3, Trash2 } from 'lucide-react';
-import { Post, CreatePostData } from '../../types/social.types';
+import { MessageCircle, Share, MoreHorizontal, Calendar, Trophy, Camera, Edit3, Trash2 } from 'lucide-react';
+import { Post, CreatePostData, ReactionType } from '../../types/social.types';
 import { useAuth } from '../../contexts/AuthContext';
 import { fetchPosts, createPost, toggleLike, updatePost, deletePost } from '../../lib/api';
-import { EditPostModal, DeleteConfirmation } from './';
+import { EditPostModal, DeleteConfirmation, ReactionButton } from './';
+import { CommentsSection } from './CommentsSection';
 import { formatDistanceToNow } from 'date-fns';
 
 export function SocialFeed() {
@@ -62,22 +63,52 @@ export function SocialFeed() {
     }
   };
 
-  const handleToggleLike = async (postId: string) => {
+  const handleToggleReaction = async (postId: string, reactionType: ReactionType) => {
     if (!user) return;
 
     try {
-      await toggleLike({ postId });
-      setPosts(posts.map(post => 
-        post.id === postId 
-          ? { 
-              ...post, 
-              isLiked: !post.isLiked,
-              likes_count: post.isLiked ? post.likes_count - 1 : post.likes_count + 1
-            }
-          : post
-      ));
+      await toggleLike({ postId, reactionType });
+      
+      // Optimistically update the UI
+      setPosts(posts.map(post => {
+        if (post.id !== postId) return post;
+        
+        // Ensure reactionCounts exist with default values
+        const currentCounts = post.reactionCounts || { like: 0, love: 0, fire: 0, strong: 0 };
+        const newReactionCounts = { ...currentCounts };
+        const wasUserReaction = post.userReaction === reactionType;
+        
+        // Remove previous reaction count if user had a different reaction
+        if (post.userReaction && post.userReaction !== reactionType) {
+          newReactionCounts[post.userReaction] = Math.max(0, (newReactionCounts[post.userReaction] || 0) - 1);
+        }
+        
+        // Toggle the current reaction
+        if (wasUserReaction) {
+          // Remove reaction
+          newReactionCounts[reactionType] = Math.max(0, (newReactionCounts[reactionType] || 0) - 1);
+          return {
+            ...post,
+            userReaction: null,
+            isLiked: false,
+            reactionCounts: newReactionCounts,
+            likes_count: Math.max(0, post.likes_count - 1)
+          };
+        } else {
+          // Add reaction
+          newReactionCounts[reactionType] = (newReactionCounts[reactionType] || 0) + 1;
+          const wasLiked = post.isLiked;
+          return {
+            ...post,
+            userReaction: reactionType,
+            isLiked: true,
+            reactionCounts: newReactionCounts,
+            likes_count: wasLiked ? post.likes_count : post.likes_count + 1
+          };
+        }
+      }));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to toggle like');
+      setError(err instanceof Error ? err.message : 'Failed to toggle reaction');
     }
   };
 
@@ -344,22 +375,12 @@ export function SocialFeed() {
               <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-700">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-6">
-                    <button
-                      onClick={() => handleToggleLike(post.id)}
-                      className={`flex items-center space-x-2 transition-colors ${
-                        post.isLiked
-                          ? 'text-red-500'
-                          : 'text-gray-500 hover:text-red-500'
-                      }`}
-                    >
-                      <Heart className={`w-5 h-5 ${post.isLiked ? 'fill-current' : ''}`} />
-                      <span className="text-sm font-medium">{post.likes_count}</span>
-                    </button>
-                    
-                    <button className="flex items-center space-x-2 text-gray-500 hover:text-blue-500 transition-colors">
-                      <MessageCircle className="w-5 h-5" />
-                      <span className="text-sm font-medium">{post.comments_count}</span>
-                    </button>
+                    <ReactionButton
+                      onReactionToggle={(reactionType) => handleToggleReaction(post.id, reactionType)}
+                      currentReaction={post.userReaction}
+                      reactionCounts={post.reactionCounts}
+                      totalLikes={post.likes_count}
+                    />
                     
                     <button className="flex items-center space-x-2 text-gray-500 hover:text-green-500 transition-colors">
                       <Share className="w-5 h-5" />
@@ -367,6 +388,12 @@ export function SocialFeed() {
                   </div>
                 </div>
               </div>
+
+              {/* Comments Section */}
+              <CommentsSection 
+                postId={post.id}
+                commentsCount={post.comments_count}
+              />
             </div>
           ))
         )}

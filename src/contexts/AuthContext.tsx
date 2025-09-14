@@ -77,6 +77,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const fetchProfile = async (userId: string) => {
     console.info('[Auth] fetchProfile:start', { userId });
     setState(prev => ({ ...prev, isLoading: true, error: null }));
+    
+    // Set a timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      setState(prev => ({
+        ...prev,
+        isLoading: false,
+        error: new Error('Profile loading timed out. Please try again.')
+      }));
+    }, 10000); // 10 second timeout
+    
     try {
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
@@ -178,11 +188,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }));
     } catch (error) {
       console.error('[Auth] fetchProfile:error', error);
-      setState(prev => ({
-        ...prev,
-        isLoading: false,
-        error: error instanceof Error ? error : new Error('Failed to load profile')
+      setState(prev => ({ 
+        ...prev, 
+        isLoading: false, 
+        error: error instanceof Error ? error : new Error('Failed to load profile') 
       }));
+    } finally {
+      clearTimeout(timeoutId);
     }
   };
 
@@ -215,13 +227,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           ...prev, 
           user: null, 
           profile: null, 
-          isLoading: false 
+          isLoading: false,
+          error: null
         }));
+      } else if (event === 'TOKEN_REFRESHED' && session?.user) {
+        // Session was refreshed, ensure user state is current
+        setState(prev => ({ ...prev, user: session.user }));
+      } else if (event === 'USER_UPDATED' && session?.user) {
+        // User data was updated
+        setState(prev => ({ ...prev, user: session.user }));
+        await fetchProfile(session.user.id);
       }
     });
 
+    // Session health check interval
+    const sessionHealthCheck = setInterval(async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) {
+          console.warn('[Auth] Session health check failed:', error);
+          // If session is invalid, sign out
+          setState(prev => ({ 
+            ...prev, 
+            user: null, 
+            profile: null, 
+            isLoading: false,
+            error: new Error('Session expired. Please sign in again.')
+          }));
+          return;
+        }
+
+        // If we have a user but no session, there's an issue
+        if (state.user && !session) {
+          console.warn('[Auth] User exists but session is null, signing out');
+          setState(prev => ({ 
+            ...prev, 
+            user: null, 
+            profile: null, 
+            isLoading: false,
+            error: new Error('Session expired. Please sign in again.')
+          }));
+        }
+      } catch (error) {
+        console.error('[Auth] Session health check error:', error);
+      }
+    }, 60000); // Check every minute
+
     return () => {
       subscription.unsubscribe();
+      clearInterval(sessionHealthCheck);
     };
   }, []);
 

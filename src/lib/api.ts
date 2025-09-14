@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 import { UserProfile } from '../types/profile.types';
-import { Post, CreatePostData, CreateCommentData, ToggleLikeData } from '../types/social.types';
+import { Post, CreatePostData, CreateCommentData, ToggleLikeData, Comment } from '../types/social.types';
 import type { Database } from '../types/database.types';
 import { SupabaseClient } from '@supabase/supabase-js';
 
@@ -222,25 +222,59 @@ export async function fetchPosts(): Promise<Post[]> {
       .select('id, display_name, username, avatar_url')
       .in('id', userIds);
 
-    // Get current user to check if they liked each post
+    // Get current user to check their reactions on each post
     const { data: { user } } = await supabase.auth.getUser();
     
-    let userLikes: string[] = [];
+    let userReactions: Map<string, string> = new Map();
     if (user) {
       const { data: likes } = await supabase
         .from('likes')
-        .select('post_id')
+        .select('post_id, reaction_type')
         .eq('user_id', user.id)
         .in('post_id', posts?.map(p => p.id) || []);
       
-      userLikes = likes?.map(l => l.post_id) || [];
+      userReactions = new Map(
+        likes?.filter(l => l.post_id).map(l => [l.post_id!, l.reaction_type]) || []
+      );
     }
+
+    // Get reaction counts for all posts
+    const postIds = posts?.map(p => p.id) || [];
+    const { data: allReactions } = await supabase
+      .from('likes')
+      .select('post_id, reaction_type')
+      .in('post_id', postIds);
+
+    // Build reaction counts map
+    const reactionCountsMap = new Map<string, Record<string, number>>();
+    allReactions?.forEach(reaction => {
+      if (!reaction.post_id) return; // Skip reactions without post_id
+      
+      if (!reactionCountsMap.has(reaction.post_id)) {
+        reactionCountsMap.set(reaction.post_id, {
+          like: 0,
+          love: 0,
+          fire: 0,
+          strong: 0
+        });
+      }
+      const counts = reactionCountsMap.get(reaction.post_id)!;
+      counts[reaction.reaction_type] = (counts[reaction.reaction_type] || 0) + 1;
+    });
 
     // Create a map of profiles for easy lookup
     const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
 
     return posts?.map(post => {
       const profile = profileMap.get(post.user_id);
+      const userReaction = userReactions.get(post.id) || null;
+      const reactionCounts = reactionCountsMap.get(post.id) || {
+        like: 0,
+        love: 0,
+        fire: 0,
+        strong: 0
+      };
+
       return {
         ...post,
         author: {
@@ -249,7 +283,9 @@ export async function fetchPosts(): Promise<Post[]> {
           username: profile?.username || 'unknown',
           avatarUrl: profile?.avatar_url || null
         },
-        isLiked: userLikes.includes(post.id)
+        isLiked: userReaction !== null,
+        userReaction: userReaction as any,
+        reactionCounts: reactionCounts as any
       };
     }) || [];
   } catch (error) {
@@ -263,16 +299,25 @@ export async function createPost(postData: CreatePostData): Promise<Post> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
+    // Prepare post data with only the fields that exist in the database
+    const insertData: any = {
+      user_id: user.id,
+      content: postData.content,
+      media_url: postData.mediaUrls,
+      type: postData.type
+    };
+
+    // Only add workout_id and achievement_id if they're provided and not null
+    if (postData.workoutId) {
+      insertData.workout_id = postData.workoutId;
+    }
+    if (postData.achievementId) {
+      insertData.achievement_id = postData.achievementId;
+    }
+
     const { data: post, error } = await supabase
       .from('posts')
-      .insert({
-        user_id: user.id,
-        content: postData.content,
-        media_url: postData.mediaUrls,
-        type: postData.type,
-        workout_id: postData.workoutId,
-        achievement_id: postData.achievementId
-      })
+      .insert(insertData)
       .select('*')
       .single();
 
@@ -307,35 +352,83 @@ export async function toggleLike(data: ToggleLikeData): Promise<void> {
     if (!user) throw new Error('User not authenticated');
 
     if (data.postId) {
-      // Check if like already exists
-      const { data: existingLike } = await supabase
+      // Check if user already has ANY reaction on this post
+      const { data: existingReaction } = await supabase
         .from('likes')
-        .select('id')
+        .select('id, reaction_type')
         .eq('user_id', user.id)
         .eq('post_id', data.postId)
         .maybeSingle();
 
-      if (existingLike) {
-        // Unlike
-        const { error } = await supabase
-          .from('likes')
-          .delete()
-          .eq('id', existingLike.id);
-        if (error) throw error;
+      if (existingReaction) {
+        if (existingReaction.reaction_type === data.reactionType) {
+          // Same reaction - remove it (toggle off)
+          const { error } = await supabase
+            .from('likes')
+            .delete()
+            .eq('id', existingReaction.id);
+          if (error) throw error;
+        } else {
+          // Different reaction - update to new reaction type
+          const { error } = await supabase
+            .from('likes')
+            .update({ reaction_type: data.reactionType })
+            .eq('id', existingReaction.id);
+          if (error) throw error;
+        }
       } else {
-        // Like
+        // No existing reaction - create new one
         const { error } = await supabase
           .from('likes')
           .insert({
             user_id: user.id,
-            post_id: data.postId
+            post_id: data.postId,
+            reaction_type: data.reactionType
+          });
+        if (error) throw error;
+      }
+    }
+
+    if (data.commentId) {
+      // Similar logic for comments
+      const { data: existingReaction } = await supabase
+        .from('likes')
+        .select('id, reaction_type')
+        .eq('user_id', user.id)
+        .eq('comment_id', data.commentId)
+        .maybeSingle();
+
+      if (existingReaction) {
+        if (existingReaction.reaction_type === data.reactionType) {
+          // Same reaction - remove it (toggle off)
+          const { error } = await supabase
+            .from('likes')
+            .delete()
+            .eq('id', existingReaction.id);
+          if (error) throw error;
+        } else {
+          // Different reaction - update to new reaction type
+          const { error } = await supabase
+            .from('likes')
+            .update({ reaction_type: data.reactionType })
+            .eq('id', existingReaction.id);
+          if (error) throw error;
+        }
+      } else {
+        // No existing reaction - create new one
+        const { error } = await supabase
+          .from('likes')
+          .insert({
+            user_id: user.id,
+            comment_id: data.commentId,
+            reaction_type: data.reactionType
           });
         if (error) throw error;
       }
     }
   } catch (error) {
-    console.error('Error toggling like:', error);
-    throw new Error('Failed to toggle like');
+    console.error('Error toggling reaction:', error);
+    throw new Error('Failed to toggle reaction');
   }
 }
 
@@ -357,6 +450,76 @@ export async function createComment(commentData: CreateCommentData): Promise<voi
   } catch (error) {
     console.error('Error creating comment:', error);
     throw new Error('Failed to create comment');
+  }
+}
+
+export async function getComments(postId: string): Promise<Comment[]> {
+  try {
+    // Get comments
+    const { data: comments, error: commentsError } = await supabase
+      .from('comments')
+      .select('*')
+      .eq('post_id', postId)
+      .order('created_at', { ascending: true });
+
+    if (commentsError) throw commentsError;
+    if (!comments || comments.length === 0) return [];
+
+    // Get unique user IDs
+    const userIds = [...new Set(comments.map(c => c.user_id))];
+    
+    // Get user profiles
+    const { data: profiles, error: profilesError } = await supabase
+      .from('profiles')
+      .select('id, name, avatar_url')
+      .in('id', userIds);
+
+    if (profilesError) throw profilesError;
+
+    // Create profile lookup map
+    const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+
+    // Build a nested structure for replies
+    const commentsMap = new Map<string, Comment>();
+    const rootComments: Comment[] = [];
+
+    // First pass: create all comment objects
+    comments.forEach(comment => {
+      const profile = profileMap.get(comment.user_id);
+      const commentObj: Comment = {
+        ...comment,
+        author: {
+          id: comment.user_id,
+          displayName: profile?.name || 'Anonymous',
+          username: profile?.name || 'anonymous',
+          avatarUrl: profile?.avatar_url || null
+        },
+        replies: []
+      };
+      commentsMap.set(comment.id, commentObj);
+    });
+
+    // Second pass: nest replies under parent comments
+    comments.forEach(comment => {
+      const commentObj = commentsMap.get(comment.id)!;
+      
+      if (comment.parent_id) {
+        // This is a reply
+        const parentComment = commentsMap.get(comment.parent_id);
+        if (parentComment) {
+          parentComment.replies = parentComment.replies || [];
+          parentComment.replies.push(commentObj);
+        }
+      } else {
+        // This is a root comment
+        rootComments.push(commentObj);
+      }
+    });
+
+    return rootComments;
+  } catch (error) {
+    console.error('Error fetching comments:', error);
+    throw new Error('Failed to fetch comments');
   }
 }
 
