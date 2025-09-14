@@ -4,7 +4,7 @@ type DbPost = Database['public']['Tables']['posts']['Row'];
 type DbComment = Database['public']['Tables']['comments']['Row'];
 type DbLike = Database['public']['Tables']['likes']['Row'];
 
-export interface Post extends Omit<DbPost, 'user_id'> {
+export interface Post extends DbPost {
   author: {
     id: string;
     displayName: string;

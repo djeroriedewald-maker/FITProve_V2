@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { UserProfile } from '../types/profile.types';
+import { Post, CreatePostData, CreateCommentData, ToggleLikeData } from '../types/social.types';
 import type { Database } from '../types/database.types';
 import { SupabaseClient } from '@supabase/supabase-js';
 
@@ -199,5 +200,221 @@ export async function updateUserProfile({
       data: null,
       error: error instanceof Error ? error : new Error('Failed to update profile')
     };
+  }
+}
+
+// Social API Functions
+
+export async function fetchPosts(): Promise<Post[]> {
+  try {
+    const { data: posts, error } = await supabase
+      .from('posts')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    if (error) throw error;
+
+    // Get all user profiles for the posts
+    const userIds = posts?.map(p => p.user_id) || [];
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, display_name, username, avatar_url')
+      .in('id', userIds);
+
+    // Get current user to check if they liked each post
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    let userLikes: string[] = [];
+    if (user) {
+      const { data: likes } = await supabase
+        .from('likes')
+        .select('post_id')
+        .eq('user_id', user.id)
+        .in('post_id', posts?.map(p => p.id) || []);
+      
+      userLikes = likes?.map(l => l.post_id) || [];
+    }
+
+    // Create a map of profiles for easy lookup
+    const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+
+    return posts?.map(post => {
+      const profile = profileMap.get(post.user_id);
+      return {
+        ...post,
+        author: {
+          id: profile?.id || post.user_id,
+          displayName: profile?.display_name || 'Unknown User',
+          username: profile?.username || 'unknown',
+          avatarUrl: profile?.avatar_url || null
+        },
+        isLiked: userLikes.includes(post.id)
+      };
+    }) || [];
+  } catch (error) {
+    console.error('Error fetching posts:', error);
+    throw new Error('Failed to fetch posts');
+  }
+}
+
+export async function createPost(postData: CreatePostData): Promise<Post> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+
+    const { data: post, error } = await supabase
+      .from('posts')
+      .insert({
+        user_id: user.id,
+        content: postData.content,
+        media_url: postData.mediaUrls,
+        type: postData.type,
+        workout_id: postData.workoutId,
+        achievement_id: postData.achievementId
+      })
+      .select('*')
+      .single();
+
+    if (error) throw error;
+
+    // Get the user profile for the author
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('id, display_name, username, avatar_url')
+      .eq('id', user.id)
+      .single();
+
+    return {
+      ...post,
+      author: {
+        id: profile?.id || user.id,
+        displayName: profile?.display_name || 'Unknown User',
+        username: profile?.username || 'unknown',
+        avatarUrl: profile?.avatar_url || null
+      },
+      isLiked: false
+    };
+  } catch (error) {
+    console.error('Error creating post:', error);
+    throw new Error('Failed to create post');
+  }
+}
+
+export async function toggleLike(data: ToggleLikeData): Promise<void> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+
+    if (data.postId) {
+      // Check if like already exists
+      const { data: existingLike } = await supabase
+        .from('likes')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('post_id', data.postId)
+        .maybeSingle();
+
+      if (existingLike) {
+        // Unlike
+        const { error } = await supabase
+          .from('likes')
+          .delete()
+          .eq('id', existingLike.id);
+        if (error) throw error;
+      } else {
+        // Like
+        const { error } = await supabase
+          .from('likes')
+          .insert({
+            user_id: user.id,
+            post_id: data.postId
+          });
+        if (error) throw error;
+      }
+    }
+  } catch (error) {
+    console.error('Error toggling like:', error);
+    throw new Error('Failed to toggle like');
+  }
+}
+
+export async function createComment(commentData: CreateCommentData): Promise<void> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+
+    const { error } = await supabase
+      .from('comments')
+      .insert({
+        user_id: user.id,
+        post_id: commentData.postId,
+        content: commentData.content,
+        parent_id: commentData.parentId
+      });
+
+    if (error) throw error;
+  } catch (error) {
+    console.error('Error creating comment:', error);
+    throw new Error('Failed to create comment');
+  }
+}
+
+export async function updatePost(postId: string, content: string): Promise<Post> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+
+    const { data: post, error } = await supabase
+      .from('posts')
+      .update({ 
+        content,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', postId)
+      .eq('user_id', user.id) // Ensure user can only edit their own posts
+      .select('*')
+      .single();
+
+    if (error) throw error;
+
+    // Get the user profile for the author
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('id, display_name, username, avatar_url')
+      .eq('id', user.id)
+      .single();
+
+    return {
+      ...post,
+      author: {
+        id: profile?.id || user.id,
+        displayName: profile?.display_name || 'Unknown User',
+        username: profile?.username || 'unknown',
+        avatarUrl: profile?.avatar_url || null
+      },
+      isLiked: false // Will be updated by the component
+    };
+  } catch (error) {
+    console.error('Error updating post:', error);
+    throw new Error('Failed to update post');
+  }
+}
+
+export async function deletePost(postId: string): Promise<void> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+
+    const { error } = await supabase
+      .from('posts')
+      .delete()
+      .eq('id', postId)
+      .eq('user_id', user.id); // Ensure user can only delete their own posts
+
+    if (error) throw error;
+  } catch (error) {
+    console.error('Error deleting post:', error);
+    throw new Error('Failed to delete post');
   }
 }
