@@ -7,7 +7,7 @@ interface EditProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
   profile: UserProfile;
-  onSave: (updatedProfile: Partial<UserProfile>) => void;
+  onSave: (updatedProfile: Partial<UserProfile> & { avatarFile?: File | null }) => void;
   isUpdating?: boolean;
 }
 
@@ -59,7 +59,6 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
     
     try {
       if (formData.avatarFile) {
-        // We already have a blob URL in formData.avatarUrl
         await onSave(formData);
         
         // Clean up the blob URL after saving

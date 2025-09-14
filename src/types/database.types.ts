@@ -1,137 +1,138 @@
+/**
+ * Core type definitions for the FITProve database schema.
+ * This file is auto-generated and should not be modified directly.
+ * @package fitprove
+ */
+
+/**
+ * Generic JSON value type used by Supabase
+ */
 export type Json =
   | string
   | number
   | boolean
   | null
-  | { [key: string]: Json | undefined }
-  | Json[]
+  | { readonly [key: string]: Json | undefined }
+  | readonly Json[]
 
-export type PostType = 'workout' | 'achievement' | 'general';
+/**
+ * Represents a UTC timestamp string in ISO 8601 format
+ * @example "2025-09-14T12:00:00Z"
+ */
+export type Timestamp = string
 
+/**
+ * Available post types in the system
+ */
+export type PostType = 'workout' | 'achievement' | 'general'
+
+/**
+ * Status of a workout session
+ */
+export type SessionStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled'
+
+/**
+ * Type of workout block
+ */
+export type BlockType = 'exercise' | 'rest' | 'circuit' | 'superset'
+
+/**
+ * User fitness statistics
+ */
+export type ProfileStats = {
+  workoutsCompleted: number
+  totalMinutes: number
+  streakDays: number
+  achievementsCount: number
+  followersCount: number
+  followingCount: number
+}
+
+/**
+ * Achievement data structure
+ */
+export type Achievement = {
+  id: string
+  title: string
+  description: string
+  icon: string
+  unlockedAt: Timestamp | null
+  progress?: {
+    current: number
+    target: number
+  }
+}
+
+/**
+ * Recent workout summary
+ */
+export type RecentWorkout = {
+  id: string
+  type: string
+  title: string
+  duration: number
+  caloriesBurned: number
+  completedAt: Timestamp
+}
+
+/**
+ * Base user profile structure
+ */
+export type BaseProfile = {
+  id: string
+  email: string | null
+  name: string | null
+  display_name: string | null
+  username: string | null
+  bio: string | null
+  avatar_url: string | null
+  fitness_goals: string[]
+  level: number
+  stats: ProfileStats
+  achievements: Achievement[]
+  recent_workouts: RecentWorkout[]
+  created_at: Timestamp
+  updated_at: Timestamp
+}
+
+/**
+ * Supabase database schema definition
+ */
 export interface Database {
   public: {
     Tables: {
       profiles: {
+        Row: BaseProfile
+        Insert: Partial<BaseProfile>
+        Update: Partial<BaseProfile>
+        Relationships: []
+      }
+      sessions: {
         Row: {
           id: string
-          email: string
-          name: string | null
-          display_name: string | null
-          username: string | null
-          bio: string | null
-          avatar_url: string | null
-          fitness_goals: string[]
-          level: number
-          stats: {
-            workoutsCompleted: number
-            totalMinutes: number
-            streakDays: number
-            achievementsCount: number
-            followersCount: number
-            followingCount: number
-          } | null
-          achievements: Array<{
-            id: string
-            title: string
-            description: string
-            icon: string
-            unlockedAt: string | null
-            progress?: {
-              current: number
-              target: number
-            }
-          }> | null
-          recent_workouts: Array<{
-            id: string
-            type: string
-            title: string
-            duration: number
-            caloriesBurned: number
-            completedAt: string
-          }> | null
-          created_at: string
-          updated_at: string
+          user_id: string
+          workout_id: string
+          started_at: Timestamp
+          completed_at: Timestamp | null
+          status: SessionStatus
         }
         Insert: {
-          id: string
-          email: string
-          name?: string | null
-          display_name?: string | null
-          username?: string | null
-          bio?: string | null
-          avatar_url?: string | null
-          fitness_goals?: string[]
-          level?: number
-          stats?: {
-            workoutsCompleted: number
-            totalMinutes: number
-            streakDays: number
-            achievementsCount: number
-            followersCount: number
-            followingCount: number
-          } | null
-          achievements?: Array<{
-            id: string
-            title: string
-            description: string
-            icon: string
-            unlockedAt: string | null
-            progress?: {
-              current: number
-              target: number
-            }
-          }> | null
-          recent_workouts?: Array<{
-            id: string
-            type: string
-            title: string
-            duration: number
-            caloriesBurned: number
-            completedAt: string
-          }> | null
-          created_at?: string
-          updated_at?: string
+          id?: string
+          user_id: string
+          workout_id: string
+          started_at?: Timestamp
+          completed_at?: Timestamp | null
+          status: SessionStatus
         }
         Update: {
           id?: string
-          email?: string
-          name?: string | null
-          display_name?: string | null
-          username?: string | null
-          bio?: string | null
-          avatar_url?: string | null
-          fitness_goals?: string[]
-          level?: number
-          stats?: {
-            workoutsCompleted: number
-            totalMinutes: number
-            streakDays: number
-            achievementsCount: number
-            followersCount: number
-            followingCount: number
-          } | null
-          achievements?: Array<{
-            id: string
-            title: string
-            description: string
-            icon: string
-            unlockedAt: string | null
-            progress?: {
-              current: number
-              target: number
-            }
-          }> | null
-          recent_workouts?: Array<{
-            id: string
-            type: string
-            title: string
-            duration: number
-            caloriesBurned: number
-            completedAt: string
-          }> | null
-          created_at?: string
-          updated_at?: string
+          user_id?: string
+          workout_id?: string
+          started_at?: Timestamp
+          completed_at?: Timestamp | null
+          status?: SessionStatus
         }
+        Relationships: []
       }
       exercises: {
         Row: {
@@ -140,7 +141,7 @@ export interface Database {
           primary_muscle: string
           equipment: string | null
           media_url: string | null
-          created_at: string
+          created_at: Timestamp
         }
         Insert: {
           id?: string
@@ -148,7 +149,7 @@ export interface Database {
           primary_muscle: string
           equipment?: string | null
           media_url?: string | null
-          created_at?: string
+          created_at?: Timestamp
         }
         Update: {
           id?: string
@@ -156,8 +157,9 @@ export interface Database {
           primary_muscle?: string
           equipment?: string | null
           media_url?: string | null
-          created_at?: string
+          created_at?: Timestamp
         }
+        Relationships: []
       }
       workouts: {
         Row: {
@@ -168,7 +170,7 @@ export interface Database {
           duration_min: number
           tags: string[]
           signature: string
-          created_at: string
+          created_at: Timestamp
         }
         Insert: {
           id?: string
@@ -178,7 +180,7 @@ export interface Database {
           duration_min: number
           tags: string[]
           signature: string
-          created_at?: string
+          created_at?: Timestamp
         }
         Update: {
           id?: string
@@ -188,66 +190,42 @@ export interface Database {
           duration_min?: number
           tags?: string[]
           signature?: string
-          created_at?: string
+          created_at?: Timestamp
         }
+        Relationships: []
       }
       workout_blocks: {
         Row: {
           id: string
           workout_id: string
           order: number
-          type: string
+          type: BlockType
           target: string | null
           reps: number | null
           time_sec: number | null
-          created_at: string
+          created_at: Timestamp
         }
         Insert: {
           id?: string
           workout_id: string
           order: number
-          type: string
+          type: BlockType
           target?: string | null
           reps?: number | null
           time_sec?: number | null
-          created_at?: string
+          created_at?: Timestamp
         }
         Update: {
           id?: string
           workout_id?: string
           order?: number
-          type?: string
+          type?: BlockType
           target?: string | null
           reps?: number | null
           time_sec?: number | null
-          created_at?: string
+          created_at?: Timestamp
         }
-      }
-      sessions: {
-        Row: {
-          id: string
-          user_id: string
-          workout_id: string
-          started_at: string
-          completed_at: string | null
-          status: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          workout_id: string
-          started_at?: string
-          completed_at?: string | null
-          status: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          workout_id?: string
-          started_at?: string
-          completed_at?: string | null
-          status?: string
-        }
+        Relationships: []
       }
       session_sets: {
         Row: {
@@ -280,6 +258,7 @@ export interface Database {
           time_sec?: number | null
           rpe?: number | null
         }
+        Relationships: []
       }
       badges: {
         Row: {
@@ -303,142 +282,145 @@ export interface Database {
           description?: string
           icon_url?: string
         }
+        Relationships: []
       }
       posts: {
         Row: {
-          id: string;
-          user_id: string;
-          content: string | null;
-          media_url: string[] | null;
-          type: PostType;
-          workout_id: string | null;
-          achievement_id: string | null;
-          created_at: string;
-          updated_at: string;
-          likes_count: number;
-          comments_count: number;
-        };
-        Insert: {
-          id?: string;
-          user_id: string;
-          content?: string | null;
-          media_url?: string[] | null;
-          type: PostType;
-          workout_id?: string | null;
-          achievement_id?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          likes_count?: number;
-          comments_count?: number;
-        };
-        Update: {
-          id?: string;
-          user_id?: string;
-          content?: string | null;
-          media_url?: string[] | null;
-          type?: PostType;
-          workout_id?: string | null;
-          achievement_id?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          likes_count?: number;
-          comments_count?: number;
-        };
-      };
-      comments: {
-        Row: {
-          id: string;
-          post_id: string;
-          user_id: string;
-          content: string;
-          parent_id: string | null;
-          created_at: string;
-          updated_at: string;
-          likes_count: number;
-        };
-        Insert: {
-          id?: string;
-          post_id: string;
-          user_id: string;
-          content: string;
-          parent_id?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          likes_count?: number;
-        };
-        Update: {
-          id?: string;
-          post_id?: string;
-          user_id?: string;
-          content?: string;
-          parent_id?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          likes_count?: number;
-        };
-      };
-      likes: {
-        Row: {
-          id: string;
-          user_id: string;
-          post_id: string | null;
-          comment_id: string | null;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          user_id: string;
-          post_id?: string | null;
-          comment_id?: string | null;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          user_id?: string;
-          post_id?: string | null;
-          comment_id?: string | null;
-          created_at?: string;
-        };
-      };
-      followers: {
-        Row: {
-          id: string;
-          follower_id: string;
-          following_id: string;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          follower_id: string;
-          following_id: string;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          follower_id?: string;
-          following_id?: string;
-          created_at?: string;
-        };
-      };
-      user_badges: {
-        Row: {
           id: string
           user_id: string
-          badge_id: string
-          earned_at: string
+          content: string | null
+          media_url: string[] | null
+          type: PostType
+          workout_id: string | null
+          achievement_id: string | null
+          created_at: Timestamp
+          updated_at: Timestamp
+          likes_count: number
+          comments_count: number
         }
         Insert: {
           id?: string
           user_id: string
-          badge_id: string
-          earned_at?: string
+          content?: string | null
+          media_url?: string[] | null
+          type: PostType
+          workout_id?: string | null
+          achievement_id?: string | null
+          created_at?: Timestamp
+          updated_at?: Timestamp
+          likes_count?: number
+          comments_count?: number
         }
         Update: {
           id?: string
           user_id?: string
-          badge_id?: string
-          earned_at?: string
+          content?: string | null
+          media_url?: string[] | null
+          type?: PostType
+          workout_id?: string | null
+          achievement_id?: string | null
+          created_at?: Timestamp
+          updated_at?: Timestamp
+          likes_count?: number
+          comments_count?: number
         }
+        Relationships: []
+      }
+      comments: {
+        Row: {
+          id: string
+          post_id: string
+          user_id: string
+          content: string
+          parent_id: string | null
+          created_at: Timestamp
+          updated_at: Timestamp
+          likes_count: number
+        }
+        Insert: {
+          id?: string
+          post_id: string
+          user_id: string
+          content: string
+          parent_id?: string | null
+          created_at?: Timestamp
+          updated_at?: Timestamp
+          likes_count?: number
+        }
+        Update: {
+          id?: string
+          post_id?: string
+          user_id?: string
+          content?: string
+          parent_id?: string | null
+          created_at?: Timestamp
+          updated_at?: Timestamp
+          likes_count?: number
+        }
+        Relationships: []
+      }
+      likes: {
+        Row: {
+          id: string
+          post_id: string
+          user_id: string
+          created_at: Timestamp
+        }
+        Insert: {
+          id?: string
+          post_id: string
+          user_id: string
+          created_at?: Timestamp
+        }
+        Update: {
+          id?: string
+          post_id?: string
+          user_id?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      followers: {
+        Row: {
+          id: string
+          follower_id: string
+          following_id: string
+          created_at: Timestamp
+        }
+        Insert: {
+          id?: string
+          follower_id: string
+          following_id: string
+          created_at?: Timestamp
+        }
+        Update: {
+          id?: string
+          follower_id?: string
+          following_id?: string
+          created_at?: Timestamp
+        }
+        Relationships: []
+      }
+      user_badges: {
+        Row: {
+          id: string
+          user_id: string
+          badge_name: string
+          awarded_at: Timestamp
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          badge_name: string
+          awarded_at?: Timestamp
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          badge_name?: string
+          awarded_at?: Timestamp
+        }
+        Relationships: []
       }
     }
     Views: {

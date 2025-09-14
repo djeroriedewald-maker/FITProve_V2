@@ -8,7 +8,7 @@ import { AchievementsGrid } from './AchievementsGrid';
 import { WorkoutHistoryList } from './WorkoutHistoryList';
 import { EditProfileModal } from './EditProfileModal';
 import { useAuth } from '../../contexts/AuthContext';
-import { updateUserProfile } from '../../lib/api';
+import { updateUserProfile } from '../../lib/api.ts';
 
 interface UserProfileProps {
   profile: IUserProfile;
@@ -20,7 +20,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ profile, isOwnProfile 
   const [isUpdating, setIsUpdating] = useState(false);
   const { user, refreshProfile } = useAuth();
 
-  const handleProfileUpdate = async (updatedProfile: Partial<IUserProfile>) => {
+  const handleProfileUpdate = async (updatedProfile: Partial<IUserProfile> & { avatarFile?: File | null }) => {
     if (!user) return;
     
     const promise = new Promise((resolve, reject) => {
@@ -32,8 +32,9 @@ export const UserProfile: React.FC<UserProfileProps> = ({ profile, isOwnProfile 
         bio: updatedProfile.bio || profile.bio,
         avatarUrl: updatedProfile.avatarUrl || profile.avatarUrl,
         fitnessGoals: updatedProfile.fitnessGoals || profile.fitnessGoals,
+        avatarFile: (updatedProfile as any).avatarFile || null,
       })
-        .then(({ data, error }) => {
+        .then(({ data, error }: { data: IUserProfile | null; error: Error | null }) => {
           if (error) {
             console.error('Profile update error:', error);
             reject(error);
@@ -48,7 +49,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ profile, isOwnProfile 
               });
           }
         })
-        .catch((err) => {
+        .catch((err: unknown) => {
           console.error('Profile update caught error:', err);
           reject(err);
         })

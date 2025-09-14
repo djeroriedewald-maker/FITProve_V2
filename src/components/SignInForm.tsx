@@ -14,10 +14,10 @@ export function SignInForm() {
 
   // If already authenticated, redirect away from signin
   React.useEffect(() => {
-    if (user) {
+    if (user && !loading) {
       navigate('/', { replace: true });
     }
-  }, [user, navigate]);
+  }, [user, loading, navigate]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -30,13 +30,13 @@ export function SignInForm() {
     try {
       if (mode === 'signin') {
         await signInWithPassword(email, password);
-        navigate('/');
+        // Navigation will happen automatically via useEffect when user is set
       } else if (mode === 'signup') {
         const { requiresEmailConfirmation } = await signUp(email, password, fullName);
         if (requiresEmailConfirmation) {
           setMessage('Please check your inbox to confirm your email before signing in.');
         } else {
-          navigate('/');
+          navigate('/', { replace: true });
         }
       } else if (mode === 'forgot') {
         if (!email) {

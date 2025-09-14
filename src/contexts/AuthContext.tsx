@@ -1,11 +1,13 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { User } from '@supabase/supabase-js';
+import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { UserProfile } from '../types/profile.types';
-import { Database } from '../types/database.types';
+import { Profiles } from '../types/schema.types';
 
-type ProfilesRow = Database['public']['Tables']['profiles']['Row'];
-type ProfilesInsert = Database['public']['Tables']['profiles']['Insert'];
+type ProfileRow = Profiles['Row'];
+type ProfileInsert = Profiles['Insert'];
+
+
 
 type AuthDataState = {
   user: User | null;
@@ -14,12 +16,8 @@ type AuthDataState = {
   error: Error | null;
 };
 
-type AuthState = {
-  user: User | null;
-  profile: UserProfile | null;
-  isLoading: boolean;
-  error: Error | null;
-  signInWithPassword: (email: string, password: string) => Promise<void>;
+type AuthState = AuthDataState & {
+  signInWithPassword: (email: string, password: string) => Promise<Session | null>;
   signUp: (email: string, password: string, fullName?: string) => Promise<{ requiresEmailConfirmation: boolean }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
@@ -60,71 +58,131 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     error: null,
   });
 
+  // Promise timeout helper to avoid infinite loading
+  const withTimeout = async <T,>(p: Promise<T>, ms: number, label = 'operation'): Promise<T> => {
+    return await Promise.race([
+      p,
+      new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms))
+    ]);
+  };
+
   const fetchProfile = async (userId: string) => {
     console.info('[Auth] fetchProfile:start', { userId });
+    const startTime = Date.now();
+    setState(prev => ({ ...prev, isLoading: true, error: null }));
+
+    const logTiming = (stage: string) => {
+      const elapsed = Date.now() - startTime;
+      console.info(`[Auth] ${stage} - ${elapsed}ms elapsed`);
+    };
+
     try {
-      // Try to get existing profile; do not throw if none
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle();
-
-      if (error) {
-        console.error('[Auth] fetchProfile:error selecting profile', error);
-        throw error;
-      }
-
-      let profileRow = data as Database['public']['Tables']['profiles']['Row'] | null;
-
-      // If no profile row, create a minimal one
-      if (!profileRow) {
-        console.info('[Auth] fetchProfile:no row; creating minimal profile');
-        const { data: userData } = await supabase.auth.getUser();
-        const authUser = userData?.user || null;
-        const minimal: ProfilesInsert = {
-          id: userId,
-          email: authUser?.email ?? '',
-          name: (authUser?.user_metadata as any)?.full_name ?? null,
-          avatar_url: (authUser?.user_metadata as any)?.avatar_url ?? null,
-        };
-
-        const { data: inserted, error: upsertError } = await supabase
+      // Try to get existing profile directly (single call) with a timeout
+      const { data: profileData, error: profileError } = await withTimeout(
+        supabase
           .from('profiles')
-          // TypeScript helper types are not aligning; cast to any to avoid 'never' overload
-          .upsert([minimal] as any, { onConflict: 'id' })
           .select('*')
-          .single();
+          .eq('id', userId)
+          .maybeSingle(),
+        8000,
+        'profile fetch'
+      );
 
-        if (upsertError) {
-          console.error('[Auth] fetchProfile:upsert error', upsertError);
-          setState(prev => ({ ...prev, error: upsertError }));
-          return;
-        }
-  profileRow = inserted as ProfilesRow;
-      }
+      logTiming('Profile fetch complete');
+      
+      console.info('[Auth] Profile data:', {
+        hasData: !!profileData,
+        dataType: profileData ? typeof profileData : null,
+        fields: profileData ? Object.keys(profileData) : [],
+        error: profileError
+      });
 
-      if (profileRow) {
-        const profileData = profileRow as Database['public']['Tables']['profiles']['Row'];
+      console.info('[Auth] Profile fetch result:', { 
+        hasData: !!profileData, 
+        error: profileError 
+      });
+
+      if (profileError) {
+        console.error('[Auth] Error fetching profile:', profileError);
         setState(prev => ({
           ...prev,
+          isLoading: false,
+          error: new Error(`Profile fetch error: ${profileError.message}`)
+        }));
+        return;
+      }
+
+      // If no profile exists, create one
+      if (!profileData) {
+        console.info('[Auth] No profile found, creating new profile');
+        const { data: userData } = await supabase.auth.getUser();
+        const authUser = userData?.user;
+        
+        if (!authUser) {
+          throw new Error('User not authenticated');
+        }
+
+  const newProfile: ProfileInsert = {
+          id: userId,
+          email: authUser.email ?? '',
+          name: (authUser.user_metadata as any)?.full_name ?? '',
+          display_name: (authUser.user_metadata as any)?.full_name ?? '',
+          username: `user_${userId.split('-')[0]}`,
+          bio: '',
+          avatar_url: (authUser.user_metadata as any)?.avatar_url ?? null,
+          fitness_goals: [],
+          level: 1,
+          stats: {
+            workoutsCompleted: 0,
+            totalMinutes: 0,
+            streakDays: 0,
+            achievementsCount: 0,
+            followersCount: 0,
+            followingCount: 0
+          },
+          achievements: [],
+          recent_workouts: [],
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+
+        const { data: inserted, error: insertError } = await withTimeout(
+          (supabase.from('profiles') as any)
+            .upsert(newProfile as any)
+            .select()
+            .single(),
+          8000,
+          'profile upsert'
+        );
+
+        if (insertError) {
+          console.error('[Auth] Error creating profile:', insertError);
+          setState(prev => ({
+            ...prev,
+            isLoading: false,
+            error: new Error(insertError.message)
+          }));
+          return;
+        }
+
+        if (!inserted) {
+          throw new Error('Failed to create profile');
+        }
+
+        const insertedProfile = inserted as unknown as ProfileRow;
+        setState(prev => ({
+          ...prev,
+          isLoading: false,
           profile: {
-            id: profileData.id,
-            displayName: profileData.display_name || profileData.name || '',
-            username: profileData.username || '',
-            bio: profileData.bio || '',
-            avatarUrl: profileData.avatar_url || '',
-            memberSince: new Date(profileData.created_at),
-            fitnessGoals: profileData.fitness_goals || [],
-            level: profileData.level || 1,
-            stats: profileData.stats ? {
-              workoutsCompleted: profileData.stats.workoutsCompleted || 0,
-              totalMinutes: profileData.stats.totalMinutes || 0,
-              streakDays: profileData.stats.streakDays || 0,
-              achievementsCount: profileData.stats.achievementsCount || 0,
-              followersCount: profileData.stats.followersCount || 0,
-              followingCount: profileData.stats.followingCount || 0
-            } : {
+            id: insertedProfile.id,
+            displayName: insertedProfile.display_name || insertedProfile.name || '',
+            username: insertedProfile.username || '',
+            bio: insertedProfile.bio || '',
+            avatarUrl: insertedProfile.avatar_url || '',
+            memberSince: new Date(insertedProfile.created_at),
+            fitnessGoals: insertedProfile.fitness_goals || [],
+            level: insertedProfile.level || 1,
+            stats: insertedProfile.stats || {
               workoutsCompleted: 0,
               totalMinutes: 0,
               streakDays: 0,
@@ -132,199 +190,237 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               followersCount: 0,
               followingCount: 0
             },
-            achievements: (profileData.achievements || []).map(achievement => ({
-              id: achievement.id,
-              title: achievement.title,
-              description: achievement.description,
-              icon: achievement.icon,
-              unlockedAt: achievement.unlockedAt ? new Date(achievement.unlockedAt) : null,
-              progress: achievement.progress
-            })),
-            recentWorkouts: (profileData.recent_workouts || []).map(workout => ({
-              id: workout.id,
-              type: workout.type,
-              title: workout.title,
-              duration: workout.duration,
-              caloriesBurned: workout.caloriesBurned,
-              completedAt: new Date(workout.completedAt)
-            }))
-          },
+            achievements: [],
+            recentWorkouts: []
+          }
         }));
-        console.info('[Auth] fetchProfile:success');
-      }
-    } catch (error) {
-      console.error('[Auth] fetchProfile:caught error', error);
-      setState(prev => ({
-        ...prev,
-        error: error instanceof Error ? error : new Error('Failed to fetch profile'),
-      }));
-    }
-  };
-
-  const signInWithPassword = async (email: string, password: string) => {
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) {
-        setState(prev => ({ ...prev, error }));
-        throw error;
-      }
-
-      // Session/user will be handled by onAuthStateChange; no direct state set needed
-      if (!data?.session) {
-        // If no session returned, credentials may be invalid or email not confirmed
-        // Let caller decide message; ensure error present if needed
         return;
       }
-    } catch (error) {
+
+      // Profile exists, update state
+      const p = profileData as unknown as ProfileRow;
       setState(prev => ({
         ...prev,
-        error: error instanceof Error ? error : new Error('Failed to sign in'),
+        isLoading: false,
+        profile: {
+          id: p.id,
+          displayName: p.display_name || p.name || '',
+          username: p.username || '',
+          bio: p.bio || '',
+          avatarUrl: p.avatar_url || '',
+          memberSince: new Date(p.created_at),
+          fitnessGoals: p.fitness_goals || [],
+          level: p.level || 1,
+          stats: p.stats || {
+            workoutsCompleted: 0,
+            totalMinutes: 0,
+            streakDays: 0,
+            achievementsCount: 0,
+            followersCount: 0,
+            followingCount: 0
+          },
+          achievements: [],
+          recentWorkouts: []
+        }
       }));
-      throw error;
-    }
-  };
-
-  const signUp = async (email: string, password: string, fullName?: string) => {
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: fullName ? { full_name: fullName } : undefined,
-          emailRedirectTo: window.location.origin,
-        },
-      });
-
-      if (error) {
-        setState(prev => ({ ...prev, error }));
-        throw error;
-      }
-
-      // If email confirmations are required, session will be null
-      const requiresEmailConfirmation = !data.session;
-      return { requiresEmailConfirmation };
     } catch (error) {
+      console.error('[Auth] Unexpected error:', error);
       setState(prev => ({
         ...prev,
-        error: error instanceof Error ? error : new Error('Failed to sign up'),
+        isLoading: false,
+        error: error instanceof Error ? error : new Error('An unexpected error occurred')
       }));
-      throw error;
-    }
-  };
-
-  const signOut = async () => {
-    await supabase.auth.signOut();
-  };
-
-  const resetPassword = async (email: string) => {
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
-      });
-      if (error) {
-        setState(prev => ({ ...prev, error }));
-        throw error;
-      }
-    } catch (error) {
-      setState(prev => ({
-        ...prev,
-        error: error instanceof Error ? error : new Error('Failed to request password reset'),
-      }));
-      throw error;
-    }
-  };
-
-  const updatePassword = async (newPassword: string) => {
-    try {
-      const { error } = await supabase.auth.updateUser({ password: newPassword });
-      if (error) {
-        setState(prev => ({ ...prev, error }));
-        throw error;
-      }
-    } catch (error) {
-      setState(prev => ({
-        ...prev,
-        error: error instanceof Error ? error : new Error('Failed to update password'),
-      }));
-      throw error;
-    }
-  };
-
-  const refreshProfile = async () => {
-    if (state.user) {
-      await fetchProfile(state.user.id);
     }
   };
 
   useEffect(() => {
-    // Safety timeout to avoid being stuck in loading forever
-    const safety = setTimeout(() => {
-      setState(prev => (prev.isLoading ? { ...prev, isLoading: false } : prev));
-    }, 6000);
+    // Check initial session
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        console.error('[Auth] Session check error:', error);
+        setState(prev => ({ ...prev, error, isLoading: false }));
+        return;
+      }
 
-    // Check active sessions and sets the user
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      console.info('[Auth] getSession', { hasSession: !!session });
       if (session?.user) {
-        await fetchProfile(session.user.id);
-        setState(prev => ({
-          ...prev,
-          user: session.user,
-          isLoading: false,
-        }));
+        setState(prev => ({ ...prev, user: session.user }));
+        fetchProfile(session.user.id).catch(console.error);
       } else {
-        setState(prev => ({
-          ...prev,
-          user: null,
-          profile: null,
-          isLoading: false,
-        }));
+        setState(prev => ({ ...prev, isLoading: false }));
       }
     });
 
-    // Listen for changes on auth state
+    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.info('[Auth] onAuthStateChange', { event, hasSession: !!session });
-      if (session?.user) {
+      
+      if (event === 'SIGNED_IN' && session?.user) {
+        setState(prev => ({ ...prev, user: session.user }));
         await fetchProfile(session.user.id);
-        setState(prev => ({
-          ...prev,
-          user: session.user,
-          isLoading: false,
-        }));
-      } else {
-        setState(prev => ({
-          ...prev,
-          user: null,
-          profile: null,
-          isLoading: false,
+      } else if (event === 'SIGNED_OUT') {
+        setState(prev => ({ 
+          ...prev, 
+          user: null, 
+          profile: null, 
+          isLoading: false 
         }));
       }
     });
 
     return () => {
-      clearTimeout(safety);
       subscription.unsubscribe();
     };
   }, []);
 
+  const value: AuthState = {
+    ...state,
+    signInWithPassword: async (email: string, password: string) => {
+      setState(prev => ({ ...prev, isLoading: true, error: null }));
+      try {
+        console.info('[Auth] signInWithPassword:start', { email });
+        const { data, error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (signInError) {
+          console.error('[Auth] signInWithPassword:error', signInError);
+          setState(prev => ({ ...prev, error: signInError, isLoading: false }));
+          throw signInError;
+        }
+
+        if (data?.session) {
+          console.info('[Auth] signInWithPassword:success', { userId: data.session.user.id });
+          setState(prev => ({
+            ...prev,
+            user: data.session.user,
+          }));
+
+          try {
+            await fetchProfile(data.session.user.id);
+          } catch (error) {
+            console.warn('[Auth] Profile fetch failed during sign in - will retry', error);
+            // Non-fatal error - auth succeeded
+          }
+
+          return data.session;
+        }
+
+        setState(prev => ({ ...prev, isLoading: false }));
+        throw new Error('No session returned after sign in');
+      } catch (error) {
+        setState(prev => ({
+          ...prev,
+          isLoading: false,
+          error: error instanceof Error ? error : new Error('Sign in failed')
+        }));
+        throw error;
+      }
+    },
+
+    signUp: async (email: string, password: string, fullName?: string) => {
+      setState(prev => ({ ...prev, isLoading: true, error: null }));
+      try {
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              full_name: fullName,
+            },
+          },
+        });
+
+        if (error) throw error;
+
+        setState(prev => ({ ...prev, isLoading: false }));
+        return {
+          requiresEmailConfirmation: data.user?.identities?.length === 0
+        };
+      } catch (error) {
+        setState(prev => ({
+          ...prev,
+          isLoading: false,
+          error: error instanceof Error ? error : new Error('Sign up failed')
+        }));
+        throw error;
+      }
+    },
+
+    signOut: async () => {
+      setState(prev => ({ ...prev, isLoading: true, error: null }));
+      try {
+        const { error } = await supabase.auth.signOut();
+        if (error) throw error;
+        setState(prev => ({
+          ...prev,
+          user: null,
+          profile: null,
+          isLoading: false
+        }));
+      } catch (error) {
+        setState(prev => ({
+          ...prev,
+          isLoading: false,
+          error: error instanceof Error ? error : new Error('Sign out failed')
+        }));
+        throw error;
+      }
+    },
+
+    resetPassword: async (email: string) => {
+      setState(prev => ({ ...prev, isLoading: true, error: null }));
+      try {
+        const { error } = await supabase.auth.resetPasswordForEmail(email);
+        if (error) throw error;
+        setState(prev => ({ ...prev, isLoading: false }));
+      } catch (error) {
+        setState(prev => ({
+          ...prev,
+          isLoading: false,
+          error: error instanceof Error ? error : new Error('Password reset failed')
+        }));
+        throw error;
+      }
+    },
+
+    updatePassword: async (newPassword: string) => {
+      setState(prev => ({ ...prev, isLoading: true, error: null }));
+      try {
+        const { error } = await supabase.auth.updateUser({
+          password: newPassword
+        });
+        if (error) throw error;
+        setState(prev => ({ ...prev, isLoading: false }));
+      } catch (error) {
+        setState(prev => ({
+          ...prev,
+          isLoading: false,
+          error: error instanceof Error ? error : new Error('Password update failed')
+        }));
+        throw error;
+      }
+    },
+
+    refreshProfile: async () => {
+      if (!state.user) {
+        throw new Error('Cannot refresh profile: no user logged in');
+      }
+      await fetchProfile(state.user.id);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ ...state, refreshProfile, signInWithPassword, signUp, signOut, resetPassword, updatePassword }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
 }
 
-function useAuth() {
+export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-}
-
-export { useAuth };
+};

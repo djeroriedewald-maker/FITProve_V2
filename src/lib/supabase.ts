@@ -1,16 +1,19 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '../types/database.types';
 
-if (!import.meta.env.VITE_SUPABASE_URL) {
-  throw new Error('Missing environment variable: VITE_SUPABASE_URL');
-}
-if (!import.meta.env.VITE_SUPABASE_ANON_KEY) {
-  throw new Error('Missing environment variable: VITE_SUPABASE_ANON_KEY');
-}
+// Get environment variables from either Vite or Node process
+const getEnvVar = (key: string) => {
+  if (typeof process !== 'undefined' && process.env && process.env[key]) {
+    return process.env[key];
+  }
+  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key]) {
+    return import.meta.env[key];
+  }
+  return null;
+};
 
-// Create a single instance of the Supabase client with proper types
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = getEnvVar('VITE_SUPABASE_URL') || 'https://kktyvxhwhuejotsqnbhn.supabase.co';
+const supabaseKey = getEnvVar('VITE_SUPABASE_ANON_KEY') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtrdHl2eGh3aHVlam90c3FuYmhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3NDUyMjcsImV4cCI6MjA3MzMyMTIyN30.yyrVRMUFC4owgaAZi6ifLCPYDPzdBVC2XzOsG5hR39E';
 
 export const supabase = createClient<Database>(supabaseUrl, supabaseKey, {
   auth: {

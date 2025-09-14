@@ -20,6 +20,7 @@ interface UpdateProfileParams {
   bio: string | null;
   avatarUrl: string;
   fitnessGoals: string[];
+  avatarFile?: File | null;
 }
 
 export async function updateUserProfile({
@@ -29,6 +30,7 @@ export async function updateUserProfile({
   bio,
   avatarUrl,
   fitnessGoals,
+  avatarFile,
 }: UpdateProfileParams): Promise<{ data: UserProfile | null; error: Error | null }> {
   try {
     // First, check if the username is already taken (excluding current user)
@@ -37,9 +39,11 @@ export async function updateUserProfile({
       .select('id')
       .eq('username', username)
       .neq('id', userId)
-      .single();
+      .maybeSingle();
 
-    if (checkError && checkError.message !== 'No rows found') {
+    if (checkError) {
+      // maybeSingle should not error on zero rows; only propagate real errors (e.g., RLS, network)
+      console.error('Username availability check error:', checkError);
       throw new Error('Failed to check username availability');
     }
 
@@ -49,40 +53,69 @@ export async function updateUserProfile({
 
     // Handle avatar upload
     let finalAvatarUrl = avatarUrl;
-    if (avatarUrl.startsWith('blob:') || avatarUrl.startsWith('data:')) {
+    if (avatarFile || avatarUrl.startsWith('blob:') || avatarUrl.startsWith('data:')) {
       try {
-        // Convert blob URL to File object
-        const response = await fetch(avatarUrl);
-        const blob = await response.blob();
-        
+        // Prefer provided File directly; otherwise fetch blob/data URL and create a File
+        let fileToUpload: File;
+        let mime: string;
+        if (avatarFile) {
+          fileToUpload = avatarFile;
+          mime = avatarFile.type || 'image/png';
+        } else {
+          const response = await fetch(avatarUrl);
+          if (!response.ok) {
+            throw new Error(`Failed to fetch avatar blob (${response.status})`);
+          }
+          const blob = await response.blob();
+          mime = blob.type || 'image/png';
+          const fallbackExt = (mime.split('/')?.[1] || 'png').toLowerCase();
+          const tempName = `avatar_tmp.${fallbackExt}`;
+          fileToUpload = new File([blob], tempName, { type: mime });
+        }
+
         // Create a unique filename with timestamp and userId
-        const timestamp = new Date().getTime();
-        const extension = blob.type.split('/')[1] || 'jpg';
+        const timestamp = Date.now();
+        const extension = (mime.split('/')?.[1] || 'png').toLowerCase();
         const filename = `avatar_${timestamp}.${extension}`;
         const filePath = `${userId}/${filename}`;
-        const file = new File([blob], filename, { type: blob.type });
 
-        // Delete old avatar if it exists
-        const { data: oldFiles } = await supabase.storage
-          .from('avatars')
-          .list(userId);
-          
-        if (oldFiles?.length) {
-          await supabase.storage
+        // Best-effort: delete old avatar files; ignore permission/bucket errors
+        try {
+          const { data: oldFiles, error: listErr } = await supabase.storage
             .from('avatars')
-            .remove(oldFiles.map(f => `${userId}/${f.name}`));
+            .list(userId);
+          if (listErr) {
+            console.warn('Avatar list warning:', listErr.message);
+          } else if (oldFiles?.length) {
+            const paths = oldFiles.map(f => `${userId}/${f.name}`);
+            const { error: removeErr } = await supabase.storage
+              .from('avatars')
+              .remove(paths);
+            if (removeErr) {
+              console.warn('Avatar remove warning:', removeErr.message);
+            }
+          }
+        } catch (inner) {
+          console.warn('Avatar cleanup skipped due to error:', inner);
         }
 
         // Upload new avatar with correct content type
         const { error: uploadError } = await supabase.storage
           .from('avatars')
-          .upload(filePath, file, {
+          .upload(filePath, fileToUpload, {
             cacheControl: '3600',
-            contentType: blob.type,
+            contentType: mime,
             upsert: true,
           });
 
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          console.error('Avatar upload error:', uploadError);
+          // Provide clearer guidance if the bucket is missing or policies deny access
+          if (/resource was not found|bucket/i.test(uploadError.message)) {
+            throw new Error("Avatar upload failed: storage bucket 'avatars' not found or not accessible. Please create the bucket and policies.");
+          }
+          throw new Error(`Avatar upload failed: ${uploadError.message}`);
+        }
 
         // Get the public URL with cache busting
         const { data: { publicUrl } } = supabase.storage
@@ -92,8 +125,8 @@ export async function updateUserProfile({
         // Add timestamp to prevent browser caching
         finalAvatarUrl = `${publicUrl}?t=${timestamp}`;
       } catch (error) {
-        console.error('Avatar upload error:', error);
-        throw new Error('Failed to upload avatar image');
+        console.error('Avatar upload exception:', error);
+        throw error instanceof Error ? error : new Error('Failed to upload avatar image');
       }
     }
 

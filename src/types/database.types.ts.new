@@ -1,0 +1,265 @@
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[];
+
+export interface Database {
+  public: {
+    Tables: {
+      profiles: {
+        Row: {
+          id: string;
+          email: string | null;
+          name: string | null;
+          display_name: string | null;
+          username: string | null;
+          bio: string | null;
+          avatar_url: string | null;
+          fitness_goals: string[];
+          level: number;
+          stats: {
+            workoutsCompleted: number;
+            totalMinutes: number;
+            streakDays: number;
+            achievementsCount: number;
+            followersCount: number;
+            followingCount: number;
+          };
+          achievements: {
+            id: string;
+            title: string;
+            description: string;
+            icon: string;
+            unlockedAt: string | null;
+            progress?: {
+              current: number;
+              target: number;
+            };
+          }[];
+          recent_workouts: {
+            id: string;
+            type: string;
+            title: string;
+            duration: number;
+            caloriesBurned: number;
+            completedAt: string;
+          }[];
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id: string;
+          email?: string | null;
+          name?: string | null;
+          display_name?: string | null;
+          username?: string | null;
+          bio?: string | null;
+          avatar_url?: string | null;
+          fitness_goals?: string[];
+          level?: number;
+          stats?: {
+            workoutsCompleted: number;
+            totalMinutes: number;
+            streakDays: number;
+            achievementsCount: number;
+            followersCount: number;
+            followingCount: number;
+          };
+          achievements?: {
+            id: string;
+            title: string;
+            description: string;
+            icon: string;
+            unlockedAt: string | null;
+            progress?: {
+              current: number;
+              target: number;
+            };
+          }[];
+          recent_workouts?: {
+            id: string;
+            type: string;
+            title: string;
+            duration: number;
+            caloriesBurned: number;
+            completedAt: string;
+          }[];
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          email?: string | null;
+          name?: string | null;
+          display_name?: string | null;
+          username?: string | null;
+          bio?: string | null;
+          avatar_url?: string | null;
+          fitness_goals?: string[];
+          level?: number;
+          stats?: {
+            workoutsCompleted: number;
+            totalMinutes: number;
+            streakDays: number;
+            achievementsCount: number;
+            followersCount: number;
+            followingCount: number;
+          };
+          achievements?: {
+            id: string;
+            title: string;
+            description: string;
+            icon: string;
+            unlockedAt: string | null;
+            progress?: {
+              current: number;
+              target: number;
+            };
+          }[];
+          recent_workouts?: {
+            id: string;
+            type: string;
+            title: string;
+            duration: number;
+            caloriesBurned: number;
+            completedAt: string;
+          }[];
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      sessions: {
+        Row: {
+          id: string;
+          user_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          created_at?: string;
+        };
+      };
+      user_badges: {
+        Row: {
+          id: string;
+          user_id: string;
+          badge_name: string;
+          awarded_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          badge_name: string;
+          awarded_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          badge_name?: string;
+          awarded_at?: string;
+        };
+      };
+      posts: {
+        Row: {
+          id: string;
+          user_id: string;
+          content: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          content: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          content?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      comments: {
+        Row: {
+          id: string;
+          post_id: string;
+          user_id: string;
+          content: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          post_id: string;
+          user_id: string;
+          content: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          post_id?: string;
+          user_id?: string;
+          content?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      likes: {
+        Row: {
+          id: string;
+          post_id: string;
+          user_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          post_id: string;
+          user_id: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          post_id?: string;
+          user_id?: string;
+          created_at?: string;
+        };
+      };
+      followers: {
+        Row: {
+          id: string;
+          follower_id: string;
+          following_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          follower_id: string;
+          following_id: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          follower_id?: string;
+          following_id?: string;
+          created_at?: string;
+        };
+      };
+    };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
+    Enums: Record<string, never>;
+  };
+}
