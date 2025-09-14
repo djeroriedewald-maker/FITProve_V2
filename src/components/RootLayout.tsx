@@ -2,6 +2,7 @@
 import { Outlet } from 'react-router-dom';
 import { Navigation } from './Navigation';
 import { Toaster } from 'sonner';
+import { Header } from './Header';
 
 export function RootLayout() {
   return (
@@ -17,7 +18,8 @@ export function RootLayout() {
           className: 'dark:bg-gray-800 dark:text-white dark:border-gray-700'
         }}
       />
-      <div className="pt-4 pb-20">
+      <Header />
+      <div className="pt-20 pb-20">
         <Outlet />
       </div>
       <Navigation />

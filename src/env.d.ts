@@ -12,4 +12,3 @@ interface ImportMeta {
 
 declare module '*.webp';
 declare module '*.svg';
-}

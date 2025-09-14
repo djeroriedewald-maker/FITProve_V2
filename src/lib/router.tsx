@@ -3,6 +3,7 @@ import { HomePage } from '../pages/HomePage';
 import { ProfilePage } from '../pages/ProfilePage';
 import { SignInForm } from '../components/SignInForm';
 import { RootLayout } from '../components/RootLayout';
+import { ResetPasswordPage } from '../pages/ResetPasswordPage';
 
 export const router = createBrowserRouter(
   [
@@ -17,6 +18,7 @@ export const router = createBrowserRouter(
         { path: 'news', element: <div className="p-4">News Page (Coming Soon)</div> },
         { path: 'modules', element: <div className="p-4">Modules Page (Coming Soon)</div> },
         { path: 'signin', element: <SignInForm /> }
+        ,{ path: 'reset-password', element: <ResetPasswordPage /> }
       ]
     }
   ],

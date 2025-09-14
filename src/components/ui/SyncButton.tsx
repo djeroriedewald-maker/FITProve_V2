@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { RotateCw } from 'lucide-react';
 
 export const SyncButton = () => {

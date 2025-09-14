@@ -7,12 +7,23 @@ import { Database } from '../types/database.types';
 type ProfilesRow = Database['public']['Tables']['profiles']['Row'];
 type ProfilesInsert = Database['public']['Tables']['profiles']['Insert'];
 
+type AuthDataState = {
+  user: User | null;
+  profile: UserProfile | null;
+  isLoading: boolean;
+  error: Error | null;
+};
+
 type AuthState = {
   user: User | null;
   profile: UserProfile | null;
   isLoading: boolean;
   error: Error | null;
-  signIn: (email: string) => Promise<void>;
+  signInWithPassword: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string, fullName?: string) => Promise<{ requiresEmailConfirmation: boolean }>;
+  signOut: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
+  updatePassword: (newPassword: string) => Promise<void>;
   refreshProfile: () => Promise<void>;
 };
 
@@ -21,7 +32,19 @@ const AuthContext = createContext<AuthState>({
   profile: null,
   isLoading: true,
   error: null,
-  signIn: async () => {
+  signInWithPassword: async () => {
+    throw new Error('AuthContext not initialized');
+  },
+  signUp: async () => {
+    throw new Error('AuthContext not initialized');
+  },
+  signOut: async () => {
+    throw new Error('AuthContext not initialized');
+  },
+  resetPassword: async () => {
+    throw new Error('AuthContext not initialized');
+  },
+  updatePassword: async () => {
     throw new Error('AuthContext not initialized');
   },
   refreshProfile: async () => {
@@ -30,7 +53,7 @@ const AuthContext = createContext<AuthState>({
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<Omit<AuthState, 'refreshProfile' | 'signIn'>>({
+  const [state, setState] = useState<AuthDataState>({
     user: null,
     profile: null,
     isLoading: true,
@@ -138,12 +161,70 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signIn = async (email: string) => {
+  const signInWithPassword = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithOtp({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
+        password,
       });
 
+      if (error) {
+        setState(prev => ({ ...prev, error }));
+        throw error;
+      }
+
+      // Session/user will be handled by onAuthStateChange; no direct state set needed
+      if (!data?.session) {
+        // If no session returned, credentials may be invalid or email not confirmed
+        // Let caller decide message; ensure error present if needed
+        return;
+      }
+    } catch (error) {
+      setState(prev => ({
+        ...prev,
+        error: error instanceof Error ? error : new Error('Failed to sign in'),
+      }));
+      throw error;
+    }
+  };
+
+  const signUp = async (email: string, password: string, fullName?: string) => {
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: fullName ? { full_name: fullName } : undefined,
+          emailRedirectTo: window.location.origin,
+        },
+      });
+
+      if (error) {
+        setState(prev => ({ ...prev, error }));
+        throw error;
+      }
+
+      // If email confirmations are required, session will be null
+      const requiresEmailConfirmation = !data.session;
+      return { requiresEmailConfirmation };
+    } catch (error) {
+      setState(prev => ({
+        ...prev,
+        error: error instanceof Error ? error : new Error('Failed to sign up'),
+      }));
+      throw error;
+    }
+  };
+
+  const signOut = async () => {
+    await supabase.auth.signOut();
+  };
+
+  const resetPassword = async (email: string) => {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
       if (error) {
         setState(prev => ({ ...prev, error }));
         throw error;
@@ -151,7 +232,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       setState(prev => ({
         ...prev,
-        error: error instanceof Error ? error : new Error('Failed to sign in'),
+        error: error instanceof Error ? error : new Error('Failed to request password reset'),
+      }));
+      throw error;
+    }
+  };
+
+  const updatePassword = async (newPassword: string) => {
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) {
+        setState(prev => ({ ...prev, error }));
+        throw error;
+      }
+    } catch (error) {
+      setState(prev => ({
+        ...prev,
+        error: error instanceof Error ? error : new Error('Failed to update password'),
       }));
       throw error;
     }
@@ -216,7 +313,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ ...state, refreshProfile, signIn }}>
+    <AuthContext.Provider value={{ ...state, refreshProfile, signInWithPassword, signUp, signOut, resetPassword, updatePassword }}>
       {children}
     </AuthContext.Provider>
   );

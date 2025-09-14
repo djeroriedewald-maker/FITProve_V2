@@ -1,4 +1,3 @@
-import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Home, Dumbbell, BarChart2, Newspaper, Layers, User } from 'lucide-react';
 

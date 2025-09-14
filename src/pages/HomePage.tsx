@@ -7,11 +7,6 @@ import { FloatingActionButton } from '../components/ui/FloatingActionButton';
 import { CommunityHighlights } from '../components/ui/CommunityHighlights';
 import { StatCard } from '../components/ui/StatCard';
 import { UpcomingEvents } from '../components/ui/UpcomingEvents';
-import { ThemeToggle } from '../components/ui/ThemeToggle';
-
-import { NotificationDropdown } from '../components/ui/NotificationDropdown';
-import { SyncButton } from '../components/ui/SyncButton';
-import { ProfileMenu } from '../components/ui/ProfileMenu';
 
 export const HomePage = () => {
   const upcomingEvents = [
@@ -36,35 +31,9 @@ export const HomePage = () => {
   ];
 
   return (
-    <div className="min-h-screen pt-16 pb-16 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
-      {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 backdrop-blur-lg bg-white/90 dark:bg-gray-800/90 shadow-lg border-b border-gray-200 dark:border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            {/* Logo */}
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
-              FITProve
-            </h1>
+    <div className="min-h-screen pt-4 pb-16 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
 
-            {/* Right side navigation items */}
-            <div className="flex items-center space-x-6">
-              {/* Theme Toggle */}
-              <ThemeToggle />
-
-              {/* Notifications */}
-              <NotificationDropdown />
-
-              {/* Sync Button */}
-              <SyncButton />
-
-              {/* Profile/Avatar */}
-              <ProfileMenu />
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Hero Section */}
+  {/* Hero Section */}
       <section className="relative overflow-hidden py-16 sm:py-20 md:py-32">
         <div className="absolute inset-0">
           <ProgressiveImage
