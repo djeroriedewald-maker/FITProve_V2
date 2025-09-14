@@ -39,9 +39,10 @@ export const HomePage = () => {
           <ProgressiveImage
             src="/images/hero.webp"
             alt="Hero background"
-            className="w-full h-full object-cover opacity-30 dark:opacity-20"
+            className="w-full h-full object-cover opacity-50 dark:opacity-40"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-purple-500/20 mix-blend-overlay" />
+          <div className="absolute inset-0 bg-gradient-to-r from-primary/30 to-purple-500/30 mix-blend-overlay" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/20 dark:from-black/20 dark:via-transparent dark:to-black/40" />
         </div>
         
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
