@@ -9,7 +9,7 @@ import {
   Clock, 
   Target, 
   TrendingUp,
-  Muscle,
+  Flame,
   BookOpen,
   Wrench
 } from 'lucide-react';
@@ -257,7 +257,7 @@ export function WorkoutPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="text-center">
               <div className="bg-white/20 rounded-full p-4 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                <Muscle className="h-8 w-8" />
+                <Flame className="h-8 w-8" />
               </div>
               <h3 className="font-semibold mb-2">Expert Designed</h3>
               <p className="text-sm opacity-90">Created by certified trainers and fitness professionals</p>
