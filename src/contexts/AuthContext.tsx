@@ -199,6 +199,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
+    let isInitialized = false;
+    
     // Check initial session
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (error) {
@@ -207,22 +209,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      isInitialized = true;
       if (session?.user) {
+        console.info('[Auth] Initial session found, user logged in');
         setState(prev => ({ ...prev, user: session.user }));
         fetchProfile(session.user.id).catch(console.error);
       } else {
+        console.info('[Auth] No initial session, user logged out');
         setState(prev => ({ ...prev, isLoading: false }));
       }
     });
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.info('[Auth] onAuthStateChange', { event, hasSession: !!session });
+      console.info('[Auth] onAuthStateChange', { event, hasSession: !!session, isInitialized });
       
       if (event === 'SIGNED_IN' && session?.user) {
+        console.info('[Auth] User signed in');
         setState(prev => ({ ...prev, user: session.user }));
         await fetchProfile(session.user.id);
       } else if (event === 'SIGNED_OUT') {
+        console.info('[Auth] User signed out');
         setState(prev => ({ 
           ...prev, 
           user: null, 
@@ -232,50 +239,120 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }));
       } else if (event === 'TOKEN_REFRESHED' && session?.user) {
         // Session was refreshed, ensure user state is current
+        console.info('[Auth] Token refreshed');
         setState(prev => ({ ...prev, user: session.user }));
       } else if (event === 'USER_UPDATED' && session?.user) {
         // User data was updated
+        console.info('[Auth] User updated');
         setState(prev => ({ ...prev, user: session.user }));
         await fetchProfile(session.user.id);
       }
     });
 
-    // Session health check interval
+    // Handle app focus/visibility changes (when switching between apps)
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible' && isInitialized) {
+        console.info('[Auth] App became visible, checking session');
+        try {
+          const { data: { session }, error } = await supabase.auth.getSession();
+          if (!error && session?.user) {
+            setState(prev => {
+              if (!prev.user) {
+                console.info('[Auth] Restoring user session on app focus');
+                fetchProfile(session.user.id).catch(console.error);
+                return { ...prev, user: session.user };
+              }
+              return prev;
+            });
+          }
+        } catch (error) {
+          console.error('[Auth] Error checking session on visibility change:', error);
+        }
+      }
+    };
+
+    // Handle window focus (when switching back to tab/app)
+    const handleFocus = async () => {
+      if (isInitialized) {
+        console.info('[Auth] Window focused, checking session');
+        try {
+          const { data: { session }, error } = await supabase.auth.getSession();
+          if (!error && session?.user) {
+            setState(prev => {
+              if (!prev.user) {
+                console.info('[Auth] Restoring user session on window focus');
+                fetchProfile(session.user.id).catch(console.error);
+                return { ...prev, user: session.user };
+              }
+              return prev;
+            });
+          }
+        } catch (error) {
+          console.error('[Auth] Error checking session on focus:', error);
+        }
+      }
+    };
+
+    // Add event listeners for app switching
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+
+    // Session health check interval - less aggressive
     const sessionHealthCheck = setInterval(async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) {
           console.warn('[Auth] Session health check failed:', error);
-          // If session is invalid, sign out
-          setState(prev => ({ 
-            ...prev, 
-            user: null, 
-            profile: null, 
-            isLoading: false,
-            error: new Error('Session expired. Please sign in again.')
-          }));
+          // Only sign out if error indicates invalid session
+          if (error.message.includes('invalid') || error.message.includes('expired')) {
+            console.warn('[Auth] Session invalid, signing out');
+            setState(prev => ({ 
+              ...prev, 
+              user: null, 
+              profile: null, 
+              isLoading: false,
+              error: new Error('Session expired. Please sign in again.')
+            }));
+          }
           return;
         }
 
-        // If we have a user but no session, there's an issue
-        if (state.user && !session) {
-          console.warn('[Auth] User exists but session is null, signing out');
-          setState(prev => ({ 
-            ...prev, 
-            user: null, 
-            profile: null, 
-            isLoading: false,
-            error: new Error('Session expired. Please sign in again.')
-          }));
+        // Only check session consistency if we've been initialized
+        if (isInitialized) {
+          // Check if session state is inconsistent
+          setState(prev => {
+            const currentHasUser = !!prev.user;
+            const sessionHasUser = !!session?.user;
+            
+            if (currentHasUser && !sessionHasUser) {
+              console.warn('[Auth] User exists but session is null, signing out');
+              return { 
+                ...prev, 
+                user: null, 
+                profile: null, 
+                isLoading: false,
+                error: new Error('Session expired. Please sign in again.')
+              };
+            } else if (!currentHasUser && sessionHasUser) {
+              console.info('[Auth] Session exists but no user state, restoring user');
+              // This can happen on app resume - restore the user
+              fetchProfile(session.user.id).catch(console.error);
+              return { ...prev, user: session.user };
+            }
+            
+            return prev;
+          });
         }
       } catch (error) {
         console.error('[Auth] Session health check error:', error);
       }
-    }, 60000); // Check every minute
+    }, 5 * 60 * 1000); // Check every 5 minutes instead of 1 minute
 
     return () => {
       subscription.unsubscribe();
       clearInterval(sessionHealthCheck);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
     };
   }, []);
 
