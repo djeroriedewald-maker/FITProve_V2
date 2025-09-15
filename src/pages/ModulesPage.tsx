@@ -25,7 +25,7 @@ const moduleCategories: ModuleCategory[] = [
     id: 'workout',
     title: 'Workout',
     description: 'Exercise library and workout programs to build strength, endurance, and achieve your fitness goals.',
-    image: '/images/workout.webp',
+    image: '/images/workout_1.webp',
     icon: Dumbbell,
     color: 'text-orange-600',
     gradient: 'from-orange-500/20 to-red-500/20',
