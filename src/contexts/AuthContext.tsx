@@ -81,6 +81,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // (Removed) withTimeout helper to avoid artificial cutoffs; we now rely on native timeouts
 
   const fetchProfile = async (userId: string, force: boolean = false) => {
+    // If we already have a profile for this user and not forcing, skip
+    if (!force && state.profile?.id === userId && !state.error) {
+      console.info('[Auth] fetchProfile:skip - profile already loaded', { userId });
+      return;
+    }
+
     // Prevent multiple simultaneous fetches for the same user
     if (!force && fetchingProfileRef.current === userId) {
       console.info('[Auth] fetchProfile:skip - already fetching for user', { userId });
@@ -263,8 +269,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isInitialized = true;
       if (session?.user) {
         console.info('[Auth] Initial session found, user logged in');
-        setState(prev => ({ ...prev, user: session.user }));
-        fetchProfile(session.user.id).catch(console.error);
+        setState(prev => {
+          const newState = { ...prev, user: session.user };
+          // Only fetch profile if we don't already have one for this user
+          if (!prev.profile || prev.profile.id !== session.user.id) {
+            fetchProfile(session.user.id).catch(console.error);
+          }
+          return newState;
+        });
       } else {
         console.info('[Auth] No initial session, user logged out');
         setState(prev => ({ ...prev, isLoading: false }));
@@ -277,8 +289,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (event === 'SIGNED_IN' && session?.user) {
         console.info('[Auth] User signed in');
-        setState(prev => ({ ...prev, user: session.user }));
-        await fetchProfile(session.user.id);
+        setState(prev => {
+          const newState = { ...prev, user: session.user };
+          // Only fetch profile if we don't already have one for this user
+          if (!prev.profile || prev.profile.id !== session.user.id) {
+            fetchProfile(session.user.id).catch(console.error);
+          }
+          return newState;
+        });
       } else if (event === 'SIGNED_OUT') {
         console.info('[Auth] User signed out');
         setState(prev => ({ 
