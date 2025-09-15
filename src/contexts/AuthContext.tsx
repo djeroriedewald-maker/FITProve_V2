@@ -66,26 +66,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Track mounted state
   const isMountedRef = useRef(true);
+  const fetchingProfileRef = useRef<string | null>(null); // Track which profile is being fetched
+  const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
   useEffect(() => {
     return () => {
       isMountedRef.current = false;
+      if (fetchTimeoutRef.current) {
+        clearTimeout(fetchTimeoutRef.current);
+      }
     };
   }, []);
 
   // (Removed) withTimeout helper to avoid artificial cutoffs; we now rely on native timeouts
 
-  const fetchProfile = async (userId: string) => {
-    console.info('[Auth] fetchProfile:start', { userId });
-    setState(prev => ({ ...prev, isLoading: true, error: null }));
+  const fetchProfile = async (userId: string, force: boolean = false) => {
+    // Prevent multiple simultaneous fetches for the same user
+    if (!force && fetchingProfileRef.current === userId) {
+      console.info('[Auth] fetchProfile:skip - already fetching for user', { userId });
+      return;
+    }
+
+    console.info('[Auth] fetchProfile:start', { userId, force });
+    fetchingProfileRef.current = userId;
     
-    // Set a timeout to prevent infinite loading
-    const timeoutId = setTimeout(() => {
-      setState(prev => ({
-        ...prev,
-        isLoading: false,
-        error: new Error('Profile loading timed out. Please try again.')
-      }));
-    }, 10000); // 10 second timeout
+    // Clear any existing timeout
+    if (fetchTimeoutRef.current) {
+      clearTimeout(fetchTimeoutRef.current);
+    }
+    
+    // Only set loading if we don't already have this user's profile
+    setState(prev => {
+      if (prev.user?.id !== userId || force || !prev.profile) {
+        return { ...prev, isLoading: true, error: null };
+      }
+      return prev;
+    });
+    
+    // Set a longer timeout for profile loading
+    fetchTimeoutRef.current = setTimeout(() => {
+      if (fetchingProfileRef.current === userId) {
+        console.warn('[Auth] fetchProfile:timeout', { userId });
+        setState(prev => ({
+          ...prev,
+          isLoading: false,
+          error: new Error('Profile loading timed out. Please try again.')
+        }));
+        fetchingProfileRef.current = null;
+      }
+    }, 15000); // 15 second timeout instead of 10
     
     try {
       const { data: profileData, error: profileError } = await supabase
@@ -93,6 +122,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .select('id, display_name, name, username, bio, avatar_url, created_at, fitness_goals, level, stats')
         .eq('id', userId)
         .maybeSingle();
+
+      // Check if we're still the active fetch
+      if (fetchingProfileRef.current !== userId) {
+        console.info('[Auth] fetchProfile:cancelled - newer fetch started', { userId });
+        return;
+      }
 
       if (profileError) {
         throw profileError;
@@ -134,67 +169,83 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (insertError) throw insertError;
         const p = (inserted as unknown as ProfileRow);
-        setState(prev => ({
-          ...prev,
-          isLoading: false,
-          profile: {
-            id: p.id,
-            displayName: p.display_name || p.name || '',
-            username: p.username || '',
-            bio: p.bio || '',
-            avatarUrl: p.avatar_url || '',
-            memberSince: new Date(p.created_at),
-            fitnessGoals: p.fitness_goals || [],
-            level: p.level || 1,
-            stats: p.stats || {
-              workoutsCompleted: 0,
-              totalMinutes: 0,
-              streakDays: 0,
-              achievementsCount: 0,
-              followersCount: 0,
-              followingCount: 0
+        
+        if (fetchingProfileRef.current === userId) {
+          setState(prev => ({
+            ...prev,
+            isLoading: false,
+            profile: {
+              id: p.id,
+              displayName: p.display_name || p.name || '',
+              username: p.username || '',
+              bio: p.bio || '',
+              avatarUrl: p.avatar_url || '',
+              memberSince: new Date(p.created_at),
+              fitnessGoals: p.fitness_goals || [],
+              level: p.level || 1,
+              stats: p.stats || {
+                workoutsCompleted: 0,
+                totalMinutes: 0,
+                streakDays: 0,
+                achievementsCount: 0,
+                followersCount: 0,
+                followingCount: 0
+              },
+              achievements: [],
+              recentWorkouts: []
             },
-            achievements: [],
-            recentWorkouts: []
-          }
-        }));
-        return;
-      }
-
-      const p = profileData as unknown as ProfileRow;
-      setState(prev => ({
-        ...prev,
-        isLoading: false,
-        profile: {
-          id: p.id,
-          displayName: p.display_name || p.name || '',
-          username: p.username || '',
-          bio: p.bio || '',
-          avatarUrl: p.avatar_url || '',
-          memberSince: new Date(p.created_at),
-          fitnessGoals: p.fitness_goals || [],
-          level: p.level || 1,
-          stats: p.stats || {
-            workoutsCompleted: 0,
-            totalMinutes: 0,
-            streakDays: 0,
-            achievementsCount: 0,
-            followersCount: 0,
-            followingCount: 0
-          },
-          achievements: [],
-          recentWorkouts: []
+            error: null
+          }));
         }
-      }));
-    } catch (error) {
+      } else {
+        const p = profileData as unknown as ProfileRow;
+        if (fetchingProfileRef.current === userId) {
+          setState(prev => ({
+            ...prev,
+            isLoading: false,
+            profile: {
+              id: p.id,
+              displayName: p.display_name || p.name || '',
+              username: p.username || '',
+              bio: p.bio || '',
+              avatarUrl: p.avatar_url || '',
+              memberSince: new Date(p.created_at),
+              fitnessGoals: p.fitness_goals || [],
+              level: p.level || 1,
+              stats: p.stats || {
+                workoutsCompleted: 0,
+                totalMinutes: 0,
+                streakDays: 0,
+                achievementsCount: 0,
+                followersCount: 0,
+                followingCount: 0
+              },
+              achievements: [],
+              recentWorkouts: []
+            },
+            error: null
+          }));
+        }
+      }
+      
+      console.info('[Auth] fetchProfile:success', { userId });
+    } catch (error: any) {
       console.error('[Auth] fetchProfile:error', error);
-      setState(prev => ({ 
-        ...prev, 
-        isLoading: false, 
-        error: error instanceof Error ? error : new Error('Failed to load profile') 
-      }));
+      if (fetchingProfileRef.current === userId) {
+        setState(prev => ({ 
+          ...prev, 
+          isLoading: false, 
+          error: error instanceof Error ? error : new Error('Failed to load profile') 
+        }));
+      }
     } finally {
-      clearTimeout(timeoutId);
+      if (fetchingProfileRef.current === userId) {
+        fetchingProfileRef.current = null;
+      }
+      if (fetchTimeoutRef.current) {
+        clearTimeout(fetchTimeoutRef.current);
+        fetchTimeoutRef.current = null;
+      }
     }
   };
 
@@ -486,14 +537,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     },
 
-    refreshProfile: async (_opts?: { force?: boolean }) => {
+    refreshProfile: async (opts?: { force?: boolean }) => {
       if (!state.user) {
         throw new Error('Cannot refresh profile: no user logged in');
       }
-      await fetchProfile(state.user.id);
+      await fetchProfile(state.user.id, opts?.force);
     },
-    cancelProfileFetch: () => {},
-    getDebugInfo: () => ({ inFlight: false, startedAt: null })
+    cancelProfileFetch: () => {
+      fetchingProfileRef.current = null;
+      if (fetchTimeoutRef.current) {
+        clearTimeout(fetchTimeoutRef.current);
+        fetchTimeoutRef.current = null;
+      }
+    },
+    getDebugInfo: () => ({ 
+      inFlight: fetchingProfileRef.current !== null, 
+      startedAt: fetchingProfileRef.current ? Date.now() : null 
+    })
   };
 
   return (
