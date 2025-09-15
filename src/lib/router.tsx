@@ -4,6 +4,7 @@ import { ProfilePage } from '../pages/ProfilePage';
 import { CommunityPage } from '../pages/CommunityPage';
 import { ModulesPage } from '../pages/ModulesPage';
 import { WorkoutPage } from '../pages/WorkoutPage';
+import { ExerciseLibraryPage } from '../pages/ExerciseLibraryPage';
 import { SignInForm } from '../components/SignInForm';
 import { RootLayout } from '../components/RootLayout';
 import { ResetPasswordPage } from '../pages/ResetPasswordPage';
@@ -21,6 +22,7 @@ export const router = createBrowserRouter(
         { path: 'news', element: <div className="p-4">News Page (Coming Soon)</div> },
         { path: 'modules', element: <ModulesPage /> },
         { path: 'modules/workout', element: <WorkoutPage /> },
+        { path: 'modules/workout/exercise-library', element: <ExerciseLibraryPage /> },
         { path: 'community', element: <CommunityPage /> },
         { path: 'signin', element: <SignInForm /> }
         ,{ path: 'reset-password', element: <ResetPasswordPage /> }
