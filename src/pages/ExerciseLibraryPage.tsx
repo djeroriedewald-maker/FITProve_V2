@@ -1,7 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Filter, Grid, List, Play, Clock, Target, Dumbbell } from 'lucide-react';
-import { Exercise, MuscleGroup, EquipmentType, DifficultyLevel, ExerciseCategory } from '../types/exercise.types';
-import { exerciseLibrary } from '../data/exerciseLibrary';
+import { Exercise, MuscleGroup, EquipmentType, DifficultyLevel } from '../types/exercise.types';
+import { ExerciseService } from '../lib/exercise.service';
+import { ExerciseDetailModal } from '../components/ui/ExerciseDetailModal';
+import { ExerciseImage, useImagePreloader } from '../components/ui/ProgressiveImage';
+import { analyticsService } from '../lib/analytics.service';
+import { BackButton } from '../components/ui/BackButton';
 
 // Filter options for the UI
 const muscleGroupOptions: { value: MuscleGroup; label: string }[] = [
@@ -39,29 +43,25 @@ interface ExerciseCardProps {
   viewMode: 'grid' | 'list';
   onVideoClick: (exercise: Exercise) => void;
   onAddToWorkout: (exercise: Exercise) => void;
+  onExerciseClick: (exercise: Exercise) => void;
 }
 
-function ExerciseCard({ exercise, viewMode, onVideoClick, onAddToWorkout }: ExerciseCardProps) {
+function ExerciseCard({ exercise, viewMode, onVideoClick, onAddToWorkout, onExerciseClick }: ExerciseCardProps) {
   const difficultyColor = difficultyOptions.find(d => d.value === exercise.difficulty)?.color || 'text-gray-600';
 
   if (viewMode === 'list') {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 p-4 border border-gray-200 dark:border-gray-700">
+      <div 
+        className="bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 p-4 border border-gray-200 dark:border-gray-700 cursor-pointer"
+        onClick={() => onExerciseClick(exercise)}
+      >
         <div className="flex gap-4">
           {/* Exercise Image */}
-          <div className="flex-shrink-0 w-20 h-20 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden">
-            {exercise.image_url ? (
-              <img 
-                src={exercise.image_url} 
-                alt={exercise.name}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <Dumbbell className="w-8 h-8 text-gray-400" />
-              </div>
-            )}
-          </div>
+          <ExerciseImage
+            exercise={exercise}
+            className="flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden"
+            priority={false}
+          />
 
           {/* Exercise Info */}
           <div className="flex-grow">
@@ -131,20 +131,17 @@ function ExerciseCard({ exercise, viewMode, onVideoClick, onAddToWorkout }: Exer
 
   // Grid view
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden border border-gray-200 dark:border-gray-700 group">
+    <div 
+      className="bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden border border-gray-200 dark:border-gray-700 group cursor-pointer"
+      onClick={() => onExerciseClick(exercise)}
+    >
       {/* Exercise Image */}
-      <div className="relative h-48 bg-gray-100 dark:bg-gray-700 overflow-hidden">
-        {exercise.image_url ? (
-          <img 
-            src={exercise.image_url} 
-            alt={exercise.name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <Dumbbell className="w-12 h-12 text-gray-400" />
-          </div>
-        )}
+      <div className="relative h-48 overflow-hidden">
+        <ExerciseImage
+          exercise={exercise}
+          className="w-full h-full group-hover:scale-105 transition-transform duration-200"
+          priority={false}
+        />
         
         {/* Video Play Button */}
         {exercise.youtube_id && (
@@ -217,85 +214,157 @@ export function ExerciseLibraryPage() {
   const [selectedDifficulties, setSelectedDifficulties] = useState<DifficultyLevel[]>([]);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showFilters, setShowFilters] = useState(false);
+  
+  // State for API data
+  const [exercises, setExercises] = useState<Exercise[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [totalCount, setTotalCount] = useState(0);
 
-  // Filter exercises based on current filters
-  const filteredExercises = useMemo(() => {
-    return exerciseLibrary.filter(exercise => {
-      // Search query filter
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        const matchesSearch = 
-          exercise.name.toLowerCase().includes(query) ||
-          exercise.description.toLowerCase().includes(query) ||
-          exercise.tags.some(tag => tag.toLowerCase().includes(query)) ||
-          exercise.primary_muscles.some(muscle => muscle.toLowerCase().includes(query)) ||
-          exercise.equipment.some(eq => eq.toLowerCase().includes(query));
+  // State for exercise detail modal
+  const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Fetch exercises from Supabase
+  useEffect(() => {
+    const fetchExercises = async () => {
+      try {
+        setLoading(true);
+        setError(null);
         
-        if (!matchesSearch) return false;
-      }
+        const filters = {
+          search_query: searchQuery || undefined,
+          muscle_groups: selectedMuscleGroups.length > 0 ? selectedMuscleGroups : undefined,
+          equipment: selectedEquipment.length > 0 ? selectedEquipment : undefined,
+          difficulty: selectedDifficulties.length > 0 ? selectedDifficulties : undefined,
+        };
+        
+        const result = await ExerciseService.getExercises(filters);
+        console.log('🔍 Exercise data sample:', result.exercises.slice(0, 3).map(ex => ({
+          name: ex.name,
+          youtube_id: ex.youtube_id,
+          image_url: ex.image_url,
+          gif_url: ex.gif_url
+        })));
+        setExercises(result.exercises);
+        setTotalCount(result.total_count);
 
-      // Muscle group filter
-      if (selectedMuscleGroups.length > 0) {
-        const hasMatchingMuscle = selectedMuscleGroups.some(muscle =>
-          exercise.primary_muscles.includes(muscle) || exercise.secondary_muscles.includes(muscle)
-        );
-        if (!hasMatchingMuscle) return false;
+        // Track search/filter usage if there are active filters or search query
+        if (searchQuery || selectedMuscleGroups.length > 0 || selectedEquipment.length > 0 || selectedDifficulties.length > 0) {
+          analyticsService.trackSearch(
+            searchQuery, 
+            {
+              muscle_groups: selectedMuscleGroups,
+              equipment: selectedEquipment,
+              difficulty: selectedDifficulties
+            },
+            result.exercises.length
+          );
+        }
+      } catch (err) {
+        console.error('Error fetching exercises:', err);
+        setError('Failed to load exercises. Please try again.');
+        setExercises([]);
+      } finally {
+        setLoading(false);
       }
+    };
 
-      // Equipment filter
-      if (selectedEquipment.length > 0) {
-        const hasMatchingEquipment = selectedEquipment.some(equipment =>
-          exercise.equipment.includes(equipment)
-        );
-        if (!hasMatchingEquipment) return false;
-      }
-
-      // Difficulty filter
-      if (selectedDifficulties.length > 0) {
-        if (!selectedDifficulties.includes(exercise.difficulty)) return false;
-      }
-
-      return true;
-    });
+    fetchExercises();
   }, [searchQuery, selectedMuscleGroups, selectedEquipment, selectedDifficulties]);
 
+  // Preload images for the first few exercises for better performance
+  const imagesToPreload = exercises.slice(0, 8).map(ex => ex.image_url).filter(Boolean) as string[];
+  useImagePreloader(imagesToPreload);
+
+  // Get filtered exercises (now from state instead of local filtering)
+  const filteredExercises = exercises;
+
   const handleVideoClick = (exercise: Exercise) => {
+    analyticsService.trackExerciseInteraction(
+      exercise.id, 
+      exercise.name, 
+      'video_play'
+    );
+    
     if (exercise.youtube_id) {
       window.open(`https://www.youtube.com/watch?v=${exercise.youtube_id}`, '_blank');
     }
   };
 
   const handleAddToWorkout = (exercise: Exercise) => {
+    analyticsService.trackExerciseInteraction(
+      exercise.id, 
+      exercise.name, 
+      'add_to_workout'
+    );
+    
     // TODO: Implement workout creator integration
     console.log('Adding to workout:', exercise.name);
     // This will be connected to the workout creator later
   };
 
+  const handleExerciseClick = (exercise: Exercise) => {
+    analyticsService.trackExerciseView(exercise.id, exercise.name, viewMode);
+    analyticsService.trackExerciseInteraction(
+      exercise.id, 
+      exercise.name, 
+      'modal_open'
+    );
+    
+    setSelectedExercise(exercise);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedExercise(null);
+  };
+
   const toggleMuscleGroup = (muscle: MuscleGroup) => {
+    const isAdding = !selectedMuscleGroups.includes(muscle);
+    
     setSelectedMuscleGroups(prev =>
       prev.includes(muscle)
         ? prev.filter(m => m !== muscle)
         : [...prev, muscle]
     );
+
+    analyticsService.trackFilterUsage('muscle_group', muscle, isAdding ? 'add' : 'remove');
   };
 
   const toggleEquipment = (equipment: EquipmentType) => {
+    const isAdding = !selectedEquipment.includes(equipment);
+    
     setSelectedEquipment(prev =>
       prev.includes(equipment)
         ? prev.filter(e => e !== equipment)
         : [...prev, equipment]
     );
+
+    analyticsService.trackFilterUsage('equipment', equipment, isAdding ? 'add' : 'remove');
   };
 
   const toggleDifficulty = (difficulty: DifficultyLevel) => {
+    const isAdding = !selectedDifficulties.includes(difficulty);
+    
     setSelectedDifficulties(prev =>
       prev.includes(difficulty)
         ? prev.filter(d => d !== difficulty)
         : [...prev, difficulty]
     );
+
+    analyticsService.trackFilterUsage('difficulty', difficulty, isAdding ? 'add' : 'remove');
   };
 
   const clearAllFilters = () => {
+    analyticsService.trackEvent('clear_all_filters', {
+      previous_search: searchQuery,
+      previous_muscle_groups: selectedMuscleGroups,
+      previous_equipment: selectedEquipment,
+      previous_difficulties: selectedDifficulties
+    });
+
     setSearchQuery('');
     setSelectedMuscleGroups([]);
     setSelectedEquipment([]);
@@ -305,13 +374,18 @@ export function ExerciseLibraryPage() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 py-8">
+        {/* Back Button */}
+        <div className="mb-4">
+          <BackButton text="Back to Workout" to="/modules/workout" />
+        </div>
+        
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
             Exercise Library
           </h1>
           <p className="text-gray-600 dark:text-gray-300 mb-6">
-            Discover {exerciseLibrary.length}+ exercises with detailed instructions and video demonstrations
+            Discover {totalCount}+ exercises with detailed instructions and video demonstrations
           </p>
 
           {/* Search and Controls */}
@@ -447,30 +521,64 @@ export function ExerciseLibraryPage() {
 
         {/* Results Summary */}
         <div className="mb-6">
-          <p className="text-gray-600 dark:text-gray-300">
-            Showing {filteredExercises.length} of {exerciseLibrary.length} exercises
-          </p>
+          {loading ? (
+            <p className="text-gray-600 dark:text-gray-300">Loading exercises...</p>
+          ) : error ? (
+            <p className="text-red-600 dark:text-red-400">{error}</p>
+          ) : (
+            <p className="text-gray-600 dark:text-gray-300">
+              Showing {filteredExercises.length} of {totalCount} exercises
+            </p>
+          )}
         </div>
 
         {/* Exercise Grid/List */}
-        <div className={
-          viewMode === 'grid'
-            ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'
-            : 'space-y-4'
-        }>
-          {filteredExercises.map(exercise => (
-            <ExerciseCard
-              key={exercise.id}
-              exercise={exercise}
-              viewMode={viewMode}
-              onVideoClick={handleVideoClick}
-              onAddToWorkout={handleAddToWorkout}
-            />
-          ))}
-        </div>
+        {loading ? (
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto mb-4"></div>
+            <p className="text-gray-600 dark:text-gray-300">Loading exercises...</p>
+          </div>
+        ) : error ? (
+          <div className="text-center py-12">
+            <div className="text-red-600 dark:text-red-400 mb-4">
+              <svg className="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 19.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+              Error loading exercises
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
+              {error}
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
+        ) : (
+          <div className={
+            viewMode === 'grid'
+              ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'
+              : 'space-y-4'
+          }>
+            {filteredExercises.map(exercise => (
+              <ExerciseCard
+                key={exercise.id}
+                exercise={exercise}
+                viewMode={viewMode}
+                onVideoClick={handleVideoClick}
+                onAddToWorkout={handleAddToWorkout}
+                onExerciseClick={handleExerciseClick}
+              />
+            ))}
+          </div>
+        )}
 
         {/* No Results */}
-        {filteredExercises.length === 0 && (
+        {!loading && !error && filteredExercises.length === 0 && (
           <div className="text-center py-12">
             <Dumbbell className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
@@ -488,6 +596,14 @@ export function ExerciseLibraryPage() {
           </div>
         )}
       </div>
+
+      {/* Exercise Detail Modal */}
+      <ExerciseDetailModal
+        exercise={selectedExercise}
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        onAddToWorkout={handleAddToWorkout}
+      />
     </div>
   );
 }

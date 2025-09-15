@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Dumbbell, BarChart2, Newspaper, Layers, User, Users } from 'lucide-react';
+import { Home, Dumbbell, BarChart2, Newspaper, Layers, Users } from 'lucide-react';
 
 const navigationItems = [
   { name: 'Home', icon: Home, path: '/' },
@@ -8,7 +8,6 @@ const navigationItems = [
   { name: 'News', icon: Newspaper, path: '/news' },
   { name: 'Modules', icon: Layers, path: '/modules' },
   { name: 'Community', icon: Users, path: '/community' },
-  { name: 'Profile', icon: User, path: '/profile' },
 ];
 
 export function Navigation() {

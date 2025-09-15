@@ -30,7 +30,7 @@ const moduleCategories: ModuleCategory[] = [
     color: 'text-orange-600',
     gradient: 'from-orange-500/20 to-red-500/20',
     stats: {
-      exercises: 150,
+      exercises: 800,
       workouts: 45,
       duration: '15-60 min'
     }
@@ -179,7 +179,7 @@ export function ModulesPage() {
           {/* Module Stats Overview */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-2xl mx-auto">
             <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
-              <div className="text-2xl font-bold text-orange-600">150+</div>
+              <div className="text-2xl font-bold text-orange-600">800+</div>
               <div className="text-sm text-gray-600 dark:text-gray-400">Exercises</div>
             </div>
             <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">

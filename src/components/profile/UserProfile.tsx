@@ -9,6 +9,7 @@ import { WorkoutHistoryList } from './WorkoutHistoryList';
 import { EditProfileModal } from './EditProfileModal';
 import { AutoPostSettingsModal } from './AutoPostSettingsModal';
 import { ManualWorkoutPostModal } from '../social/ManualWorkoutPostModal';
+import { AnalyticsDashboard } from '../ui/AnalyticsDashboard';
 import { useAuth } from '../../contexts/AuthContext';
 import { updateUserProfile } from '../../lib/api.ts';
 
@@ -204,6 +205,16 @@ export const UserProfile: React.FC<UserProfileProps> = ({ profile, isOwnProfile 
         </h2>
         <AchievementsGrid achievements={profile.achievements} />
       </section>
+
+      {/* Analytics Section - Only for own profile */}
+      {isOwnProfile && (
+        <section className="mb-12">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+            Exercise Analytics
+          </h2>
+          <AnalyticsDashboard />
+        </section>
+      )}
 
       {/* Recent Workouts Section */}
       <section>

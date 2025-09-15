@@ -13,6 +13,7 @@ import {
   BookOpen,
   Wrench
 } from 'lucide-react';
+import { BackButton } from '../components/ui/BackButton';
 
 interface WorkoutCategory {
   id: string;
@@ -46,7 +47,7 @@ const workoutCategories: WorkoutCategory[] = [
       'Video demonstrations'
     ],
     stats: {
-      count: 150,
+      count: 800,
       label: 'Exercises'
     }
   },
@@ -167,6 +168,11 @@ function WorkoutCategoryCard({ category }: { category: WorkoutCategory }) {
 export function WorkoutPage() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Back Button */}
+      <div className="max-w-7xl mx-auto px-4 pt-4">
+        <BackButton text="Back to Modules" to="/modules" />
+      </div>
+      
       {/* Hero Section */}
       <div className="relative h-80 overflow-hidden">
         <img
@@ -190,7 +196,7 @@ export function WorkoutPage() {
               <div className="flex flex-wrap gap-4">
                 <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2 text-white">
                   <Dumbbell className="h-5 w-5" />
-                  <span className="font-semibold">150+ Exercises</span>
+                  <span className="font-semibold">800+ Exercises</span>
                 </div>
                 <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2 text-white">
                   <Target className="h-5 w-5" />
@@ -210,7 +216,7 @@ export function WorkoutPage() {
         {/* Quick Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
           <div className="bg-white dark:bg-gray-800 rounded-lg p-4 text-center shadow-sm">
-            <div className="text-2xl font-bold text-orange-600 mb-1">150+</div>
+            <div className="text-2xl font-bold text-orange-600 mb-1">800+</div>
             <div className="text-sm text-gray-600 dark:text-gray-400">Exercises</div>
           </div>
           <div className="bg-white dark:bg-gray-800 rounded-lg p-4 text-center shadow-sm">

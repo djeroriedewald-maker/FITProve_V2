@@ -153,24 +153,75 @@ export interface Database {
           id: string
           name: string
           primary_muscle: string
+          primary_muscles: string[] | null
+          secondary_muscles: string[] | null
           equipment: string | null
           media_url: string | null
+          image_url: string | null
+          gif_url: string | null
+          youtube_id: string | null
+          difficulty: string | null
+          force_type: string | null
+          mechanics: string | null
+          description: string | null
+          instructions: string[] | null
+          tips: string[] | null
+          common_mistakes: string[] | null
+          variations: string[] | null
+          recommended_sets: string | null
+          recommended_reps: string | null
+          featured: boolean | null
+          popularity_score: number | null
           created_at: Timestamp
         }
         Insert: {
           id?: string
           name: string
           primary_muscle: string
+          primary_muscles?: string[] | null
+          secondary_muscles?: string[] | null
           equipment?: string | null
           media_url?: string | null
+          image_url?: string | null
+          gif_url?: string | null
+          youtube_id?: string | null
+          difficulty?: string | null
+          force_type?: string | null
+          mechanics?: string | null
+          description?: string | null
+          instructions?: string[] | null
+          tips?: string[] | null
+          common_mistakes?: string[] | null
+          variations?: string[] | null
+          recommended_sets?: string | null
+          recommended_reps?: string | null
+          featured?: boolean | null
+          popularity_score?: number | null
           created_at?: Timestamp
         }
         Update: {
           id?: string
           name?: string
           primary_muscle?: string
+          primary_muscles?: string[] | null
+          secondary_muscles?: string[] | null
           equipment?: string | null
           media_url?: string | null
+          image_url?: string | null
+          gif_url?: string | null
+          youtube_id?: string | null
+          difficulty?: string | null
+          force_type?: string | null
+          mechanics?: string | null
+          description?: string | null
+          instructions?: string[] | null
+          tips?: string[] | null
+          common_mistakes?: string[] | null
+          variations?: string[] | null
+          recommended_sets?: string | null
+          recommended_reps?: string | null
+          featured?: boolean | null
+          popularity_score?: number | null
           created_at?: Timestamp
         }
         Relationships: []
