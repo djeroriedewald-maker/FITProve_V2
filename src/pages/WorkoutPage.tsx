@@ -3,8 +3,6 @@ import { Link } from 'react-router-dom';
 import { 
   Dumbbell, 
   Library, 
-  Zap, 
-  Plus, 
   ArrowRight, 
   Clock, 
   Target, 
@@ -14,6 +12,7 @@ import {
   Wrench
 } from 'lucide-react';
 import { BackButton } from '../components/ui/BackButton';
+import { supabase } from '../lib/supabase';
 
 interface WorkoutCategory {
   id: string;
@@ -90,7 +89,7 @@ const workoutCategories: WorkoutCategory[] = [
       count: 0,
       label: 'Custom Workouts'
     },
-    comingSoon: true
+    comingSoon: false
   }
 ];
 
@@ -166,6 +165,21 @@ function WorkoutCategoryCard({ category }: { category: WorkoutCategory }) {
 }
 
 export function WorkoutPage() {
+  const [createdWorkouts, setCreatedWorkouts] = React.useState<number | null>(null);
+
+  React.useEffect(() => {
+    const fetchCreatedWorkouts = async () => {
+      const { count, error } = await supabase
+        .from('workouts')
+        .select('*', { count: 'exact', head: true });
+      if (error) {
+        setCreatedWorkouts(null);
+      } else {
+        setCreatedWorkouts(count ?? 0);
+      }
+    };
+    fetchCreatedWorkouts();
+  }, []);
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Back Button */}
@@ -228,8 +242,10 @@ export function WorkoutPage() {
             <div className="text-sm text-gray-600 dark:text-gray-400">Categories</div>
           </div>
           <div className="bg-white dark:bg-gray-800 rounded-lg p-4 text-center shadow-sm">
-            <div className="text-2xl font-bold text-purple-600 mb-1">∞</div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">Possibilities</div>
+            <div className="text-2xl font-bold text-purple-600 mb-1">
+              {createdWorkouts !== null ? createdWorkouts : '...'}
+            </div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">Created workouts</div>
           </div>
         </div>
 

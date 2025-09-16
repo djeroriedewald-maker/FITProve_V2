@@ -4,7 +4,7 @@ import { useLocation, useNavigationType } from 'react-router-dom';
 export function RouterTransition() {
   const navigate = useNavigationType();
   const { pathname } = useLocation();
-  
+
   useEffect(() => {
     // Check if we're coming from another page
     if (navigate === 'PUSH') {
@@ -12,6 +12,6 @@ export function RouterTransition() {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   }, [navigate, pathname]);
-  
+
   return null;
 }

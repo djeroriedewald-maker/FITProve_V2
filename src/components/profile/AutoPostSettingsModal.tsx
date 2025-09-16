@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Settings, Zap, Target, TrendingUp, Clock, Flame } from 'lucide-react';
-import { AutoPostSettings, getAutoPostSettings, updateAutoPostSettings } from '../../lib/auto-posts';
+import {
+  AutoPostSettings,
+  getAutoPostSettings,
+  updateAutoPostSettings,
+} from '../../lib/auto-posts';
 import { useAuth } from '../../contexts/AuthContext';
 import { Modal } from '../ui/Modal';
 
@@ -11,7 +15,7 @@ interface AutoPostSettingsModalProps {
 
 export const AutoPostSettingsModal: React.FC<AutoPostSettingsModalProps> = ({
   isOpen,
-  onClose
+  onClose,
 }) => {
   const { user } = useAuth();
   const [settings, setSettings] = useState<AutoPostSettings>({
@@ -21,7 +25,7 @@ export const AutoPostSettingsModal: React.FC<AutoPostSettingsModalProps> = ({
     onStreaks: true,
     minDurationMinutes: 10,
     minCalories: 50,
-    cooldownHours: 2
+    cooldownHours: 2,
   });
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -61,11 +65,8 @@ export const AutoPostSettingsModal: React.FC<AutoPostSettingsModalProps> = ({
     }
   };
 
-  const updateSetting = <K extends keyof AutoPostSettings>(
-    key: K,
-    value: AutoPostSettings[K]
-  ) => {
-    setSettings(prev => ({ ...prev, [key]: value }));
+  const updateSetting = <K extends keyof AutoPostSettings>(key: K, value: AutoPostSettings[K]) => {
+    setSettings((prev) => ({ ...prev, [key]: value }));
   };
 
   return (
@@ -81,7 +82,9 @@ export const AutoPostSettingsModal: React.FC<AutoPostSettingsModalProps> = ({
             {/* Master Toggle */}
             <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
               <div className="flex items-center space-x-3">
-                <Zap className={`w-5 h-5 ${settings.enabled ? 'text-green-500' : 'text-gray-400'}`} />
+                <Zap
+                  className={`w-5 h-5 ${settings.enabled ? 'text-green-500' : 'text-gray-400'}`}
+                />
                 <div>
                   <h3 className="font-medium text-gray-900">Auto-Posts Inschakelen</h3>
                   <p className="text-sm text-gray-600">
@@ -131,7 +134,9 @@ export const AutoPostSettingsModal: React.FC<AutoPostSettingsModalProps> = ({
                     <Target className="w-4 h-4 text-yellow-500" />
                     <div>
                       <p className="font-medium text-gray-900">Mijlpalen</p>
-                      <p className="text-sm text-gray-600">Extra posts voor lange/intensieve trainingen</p>
+                      <p className="text-sm text-gray-600">
+                        Extra posts voor lange/intensieve trainingen
+                      </p>
                     </div>
                   </div>
                   <input
@@ -148,7 +153,9 @@ export const AutoPostSettingsModal: React.FC<AutoPostSettingsModalProps> = ({
                     <TrendingUp className="w-4 h-4 text-green-500" />
                     <div>
                       <p className="font-medium text-gray-900">Streak Posts</p>
-                      <p className="text-sm text-gray-600">Posts bij meerdere trainingen per week</p>
+                      <p className="text-sm text-gray-600">
+                        Posts bij meerdere trainingen per week
+                      </p>
                     </div>
                   </div>
                   <input
@@ -178,7 +185,9 @@ export const AutoPostSettingsModal: React.FC<AutoPostSettingsModalProps> = ({
                         min="1"
                         max="120"
                         value={settings.minDurationMinutes}
-                        onChange={(e) => updateSetting('minDurationMinutes', parseInt(e.target.value) || 1)}
+                        onChange={(e) =>
+                          updateSetting('minDurationMinutes', parseInt(e.target.value) || 1)
+                        }
                         className="w-20 px-3 py-2 text-sm border-2 border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                       />
                       <span className="text-sm font-medium text-gray-600">min</span>
@@ -201,7 +210,9 @@ export const AutoPostSettingsModal: React.FC<AutoPostSettingsModalProps> = ({
                         max="1000"
                         step="10"
                         value={settings.minCalories}
-                        onChange={(e) => updateSetting('minCalories', parseInt(e.target.value) || 10)}
+                        onChange={(e) =>
+                          updateSetting('minCalories', parseInt(e.target.value) || 10)
+                        }
                         className="w-20 px-3 py-2 text-sm border-2 border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                       />
                       <span className="text-sm font-medium text-gray-600">cal</span>
@@ -224,7 +235,9 @@ export const AutoPostSettingsModal: React.FC<AutoPostSettingsModalProps> = ({
                         max="24"
                         step="0.5"
                         value={settings.cooldownHours}
-                        onChange={(e) => updateSetting('cooldownHours', parseFloat(e.target.value) || 0.5)}
+                        onChange={(e) =>
+                          updateSetting('cooldownHours', parseFloat(e.target.value) || 0.5)
+                        }
                         className="w-16 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
                       <span className="text-sm text-gray-500">uur</span>
@@ -236,7 +249,8 @@ export const AutoPostSettingsModal: React.FC<AutoPostSettingsModalProps> = ({
                 <div className="bg-blue-50 p-4 rounded-lg">
                   <h5 className="font-medium text-blue-900 mb-2">Voorbeeld Auto-Post:</h5>
                   <p className="text-sm text-blue-800 italic">
-                    "💪 Net klaar met Full Body Workout! 💪 45 minuten getraind en 320 calorieën verbrand. #FitLife"
+                    "💪 Net klaar met Full Body Workout! 💪 45 minuten getraind en 320 calorieën
+                    verbrand. #FitLife"
                   </p>
                 </div>
               </div>

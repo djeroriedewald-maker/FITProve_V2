@@ -17,15 +17,9 @@ const StatBlock: React.FC<StatBlockProps> = ({ icon, label, value, delay = 0 }) 
     transition={{ delay }}
     className="flex flex-col items-center p-4 bg-white dark:bg-gray-800 rounded-xl shadow-sm"
   >
-    <div className="p-2 bg-primary/10 dark:bg-primary/20 rounded-lg mb-2">
-      {icon}
-    </div>
-    <span className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
-      {value}
-    </span>
-    <span className="text-sm text-gray-600 dark:text-gray-400">
-      {label}
-    </span>
+    <div className="p-2 bg-primary/10 dark:bg-primary/20 rounded-lg mb-2">{icon}</div>
+    <span className="text-2xl font-bold text-gray-900 dark:text-white mb-1">{value}</span>
+    <span className="text-sm text-gray-600 dark:text-gray-400">{label}</span>
   </motion.div>
 );
 

@@ -12,7 +12,7 @@ const navigationItems = [
 
 export function Navigation() {
   const location = useLocation();
-  
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 shadow-lg border-t border-gray-200 dark:border-gray-700 backdrop-blur-lg bg-white/90 dark:bg-gray-800/90 z-40">
       <div className="max-w-lg mx-auto px-4">
@@ -20,7 +20,7 @@ export function Navigation() {
           {navigationItems.map((item) => {
             const isActive = location.pathname === item.path;
             const Icon = item.icon;
-            
+
             return (
               <Link
                 key={item.name}
@@ -31,12 +31,14 @@ export function Navigation() {
                     : 'text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary'
                 }`}
               >
-                <div className={`relative p-1.5 rounded-lg transition-transform duration-200 ${
-                  isActive ? 'scale-110 bg-primary/10' : ''
-                }`}>
-                  <Icon className={`w-5 h-5 transition-colors ${
-                    isActive ? 'stroke-[2.5px]' : ''
-                  }`} />
+                <div
+                  className={`relative p-1.5 rounded-lg transition-transform duration-200 ${
+                    isActive ? 'scale-110 bg-primary/10' : ''
+                  }`}
+                >
+                  <Icon
+                    className={`w-5 h-5 transition-colors ${isActive ? 'stroke-[2.5px]' : ''}`}
+                  />
                   {isActive && (
                     <span className="absolute -bottom-1 left-1/2 w-1 h-1 bg-primary rounded-full transform -translate-x-1/2" />
                   )}

@@ -5,6 +5,9 @@ import { CommunityPage } from '../pages/CommunityPage';
 import { ModulesPage } from '../pages/ModulesPage';
 import { WorkoutPage } from '../pages/WorkoutPage';
 import { ExerciseLibraryPage } from '../pages/ExerciseLibraryPage';
+import { WorkoutCreatorPage } from '../pages/workout-creator/WorkoutCreatorPage';
+import { WorkoutExecutePage } from '../pages/workout-creator/WorkoutExecutePage';
+import { MyWorkoutsPage } from '../pages/workout-creator/MyWorkoutsPage';
 import { SignInForm } from '../components/SignInForm';
 import { RootLayout } from '../components/RootLayout';
 import { ResetPasswordPage } from '../pages/ResetPasswordPage';
@@ -23,6 +26,10 @@ export const router = createBrowserRouter(
         { path: 'modules', element: <ModulesPage /> },
         { path: 'modules/workout', element: <WorkoutPage /> },
         { path: 'modules/workout/exercise-library', element: <ExerciseLibraryPage /> },
+        { path: 'modules/workout/workout-creator', element: <WorkoutCreatorPage /> },
+        { path: 'modules/workout/execute/:workoutId', element: <WorkoutExecutePage /> },
+        { path: 'modules/workout/my-workouts', element: <MyWorkoutsPage /> },
+        { path: 'modules/workout/workout-library', element: <div className="p-4">Workout Library Page (Coming Soon)</div> },
         { path: 'community', element: <CommunityPage /> },
         { path: 'signin', element: <SignInForm /> }
         ,{ path: 'reset-password', element: <ResetPasswordPage /> }

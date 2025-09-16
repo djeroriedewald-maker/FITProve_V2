@@ -17,12 +17,8 @@ const WorkoutCard: React.FC<WorkoutCardProps> = ({ workout, delay = 0 }) => (
   >
     <div className="flex items-center justify-between">
       <div>
-        <h4 className="font-semibold text-gray-900 dark:text-white">
-          {workout.title}
-        </h4>
-        <p className="text-sm text-gray-600 dark:text-gray-400">
-          {workout.type}
-        </p>
+        <h4 className="font-semibold text-gray-900 dark:text-white">{workout.title}</h4>
+        <p className="text-sm text-gray-600 dark:text-gray-400">{workout.type}</p>
       </div>
       <div className="text-right">
         <div className="flex items-center justify-end space-x-2 text-sm text-gray-600 dark:text-gray-400">
@@ -49,11 +45,7 @@ export const WorkoutHistoryList: React.FC<WorkoutHistoryListProps> = ({ workouts
   return (
     <div className="space-y-4">
       {workouts.map((workout, index) => (
-        <WorkoutCard
-          key={workout.id}
-          workout={workout}
-          delay={index * 0.1}
-        />
+        <WorkoutCard key={workout.id} workout={workout} delay={index * 0.1} />
       ))}
     </div>
   );

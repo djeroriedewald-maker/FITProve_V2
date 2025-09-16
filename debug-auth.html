@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Auth Debug</title>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <h1>Authentication Debug</h1>
+    <button onclick="checkAuth()">Check Auth Status</button>
+    <button onclick="signInAnonymously()">Sign In Anonymously</button>
+    <div id="output"></div>
+
+    <script>
+        const supabaseUrl = 'https://kktyvxhwhuejotsqnbhn.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtrdHl2eGh3aHVlam90c3FuYmhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3NDUyMjcsImV4cCI6MjA3MzMyMTIyN30.yyrVRMUFC4owgaAZi6ifLCPYDPzdBVC2XzOsG5hR39E';
+        
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        
+        async function checkAuth() {
+            try {
+                const { data: { user }, error } = await supabase.auth.getUser();
+                document.getElementById('output').innerHTML = `
+                    <h3>Auth Status:</h3>
+                    <p>User: ${user ? JSON.stringify(user, null, 2) : 'null'}</p>
+                    <p>Error: ${error ? JSON.stringify(error, null, 2) : 'none'}</p>
+                `;
+            } catch (err) {
+                document.getElementById('output').innerHTML = `
+                    <h3>Error:</h3>
+                    <p>${err.message}</p>
+                `;
+            }
+        }
+        
+        async function signInAnonymously() {
+            try {
+                const { data, error } = await supabase.auth.signInAnonymously();
+                document.getElementById('output').innerHTML = `
+                    <h3>Anonymous Sign In:</h3>
+                    <p>Data: ${JSON.stringify(data, null, 2)}</p>
+                    <p>Error: ${error ? JSON.stringify(error, null, 2) : 'none'}</p>
+                `;
+            } catch (err) {
+                document.getElementById('output').innerHTML = `
+                    <h3>Error:</h3>
+                    <p>${err.message}</p>
+                `;
+            }
+        }
+        
+        // Check auth on load
+        checkAuth();
+    </script>
+</body>
+</html>

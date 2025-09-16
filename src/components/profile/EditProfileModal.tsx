@@ -31,7 +31,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       [name]: value,
     }));
@@ -39,7 +39,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
 
   const handleAddGoal = () => {
     if (newGoal.trim() && formData.fitnessGoals.length < 5) {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         fitnessGoals: [...prev.fitnessGoals, newGoal.trim()],
       }));
@@ -48,7 +48,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
   };
 
   const handleRemoveGoal = (index: number) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       fitnessGoals: prev.fitnessGoals.filter((_, i) => i !== index),
     }));
@@ -56,11 +56,11 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
       if (formData.avatarFile) {
         await onSave(formData);
-        
+
         // Clean up the blob URL after saving
         if (formData.avatarUrl.startsWith('blob:')) {
           URL.revokeObjectURL(formData.avatarUrl);
@@ -87,8 +87,9 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
         if (!file.type.startsWith('image/')) {
           throw new Error('Please select an image file');
         }
-        
-        if (file.size > 5 * 1024 * 1024) { // 5MB limit
+
+        if (file.size > 5 * 1024 * 1024) {
+          // 5MB limit
           throw new Error('Image must be smaller than 5MB');
         }
 
@@ -99,8 +100,8 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
 
         // Create a temporary preview URL
         const previewUrl = URL.createObjectURL(file);
-        
-        setFormData(prev => ({
+
+        setFormData((prev) => ({
           ...prev,
           avatarUrl: previewUrl,
           avatarFile: file, // Store the file for later upload
@@ -137,7 +138,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
               />
             </label>
           </div>
-          
+
           {/* Name Fields */}
           <div className="flex-1 space-y-2">
             <input

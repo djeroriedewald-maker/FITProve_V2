@@ -52,10 +52,10 @@ export function SignInForm() {
         msg.includes('Invalid login') || msg.includes('Invalid login credentials')
           ? 'Invalid email or password.'
           : msg.includes('Email not confirmed')
-          ? 'Please confirm your email before signing in.'
-          : msg.includes('User already registered')
-          ? 'That email is already registered. Try signing in instead.'
-          : msg;
+            ? 'Please confirm your email before signing in.'
+            : msg.includes('User already registered')
+              ? 'That email is already registered. Try signing in instead.'
+              : msg;
       const errorMessage = friendly;
       setMessage(errorMessage);
     } finally {
@@ -75,7 +75,9 @@ export function SignInForm() {
           <div className="rounded-md shadow-sm space-y-4">
             {mode === 'signup' && (
               <div>
-                <label htmlFor="full-name" className="sr-only">Full name</label>
+                <label htmlFor="full-name" className="sr-only">
+                  Full name
+                </label>
                 <input
                   id="full-name"
                   name="fullName"
@@ -90,7 +92,9 @@ export function SignInForm() {
               </div>
             )}
             <div>
-              <label htmlFor="email-address" className="sr-only">Email address</label>
+              <label htmlFor="email-address" className="sr-only">
+                Email address
+              </label>
               <input
                 id="email-address"
                 name="email"
@@ -105,7 +109,9 @@ export function SignInForm() {
             </div>
             {mode !== 'forgot' && (
               <div>
-                <label htmlFor="password" className="sr-only">Password</label>
+                <label htmlFor="password" className="sr-only">
+                  Password
+                </label>
                 <input
                   id="password"
                   name="password"
@@ -124,7 +130,13 @@ export function SignInForm() {
 
           {(message || authError) && (
             <div className="text-sm text-center">
-              <p className={authError || (message && message.toLowerCase().includes('error')) ? 'text-red-500' : 'text-gray-700'}>
+              <p
+                className={
+                  authError || (message && message.toLowerCase().includes('error'))
+                    ? 'text-red-500'
+                    : 'text-gray-700'
+                }
+              >
                 {message || (authError && authError.message)}
               </p>
             </div>
@@ -139,10 +151,10 @@ export function SignInForm() {
               {loading
                 ? 'Please wait...'
                 : mode === 'signin'
-                ? 'Sign In'
-                : mode === 'signup'
-                ? 'Sign Up'
-                : 'Send reset link'}
+                  ? 'Sign In'
+                  : mode === 'signup'
+                    ? 'Sign Up'
+                    : 'Send reset link'}
             </button>
             <button
               type="button"
@@ -152,11 +164,16 @@ export function SignInForm() {
               }}
               className="w-full text-sm text-indigo-600 hover:text-indigo-700"
             >
-              {mode === 'signin' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
+              {mode === 'signin'
+                ? "Don't have an account? Sign up"
+                : 'Already have an account? Sign in'}
             </button>
             <button
               type="button"
-              onClick={() => { setMode('forgot'); setMessage(''); }}
+              onClick={() => {
+                setMode('forgot');
+                setMessage('');
+              }}
               className="w-full text-sm text-gray-600 hover:text-gray-800"
             >
               Forgot your password?
@@ -166,4 +183,4 @@ export function SignInForm() {
       </div>
     </div>
   );
-};
+}

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Settings, LogOut } from 'lucide-react';
+import { User, Settings, LogOut, Dumbbell } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 
@@ -16,6 +16,11 @@ export const ProfileMenu = () => {
 
   const goToProfile = () => {
     navigate('/profile');
+    setIsOpen(false);
+  };
+
+  const goToMyWorkouts = () => {
+    navigate('/modules/workout/my-workouts');
     setIsOpen(false);
   };
 
@@ -60,6 +65,13 @@ export const ProfileMenu = () => {
             >
               <User className="w-4 h-4" />
               <span>Your Profile</span>
+            </button>
+            <button 
+              onClick={goToMyWorkouts}
+              className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            >
+              <Dumbbell className="w-4 h-4" />
+              <span>My Workouts</span>
             </button>
             <button className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
               <Settings className="w-4 h-4" />

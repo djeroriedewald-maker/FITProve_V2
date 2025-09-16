@@ -257,31 +257,63 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let isInitialized = false;
+    let retryCount = 0;
+    const maxRetries = 3;
     
-    // Check initial session
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      if (error) {
-        console.error('[Auth] Session check error:', error);
-        setState(prev => ({ ...prev, error, isLoading: false }));
-        return;
-      }
-
-      isInitialized = true;
-      if (session?.user) {
-        console.info('[Auth] Initial session found, user logged in');
-        setState(prev => {
-          const newState = { ...prev, user: session.user };
-          // Only fetch profile if we don't already have one for this user
-          if (!prev.profile || prev.profile.id !== session.user.id) {
-            fetchProfile(session.user.id).catch(console.error);
+    const initializeSession = async () => {
+      try {
+        console.info('[Auth] Initializing session...');
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('[Auth] Session check error:', error);
+          if (retryCount < maxRetries) {
+            retryCount++;
+            console.info(`[Auth] Retrying session check (${retryCount}/${maxRetries})...`);
+            setTimeout(initializeSession, 1000 * retryCount); // Exponential backoff
+            return;
+          } else {
+            setState(prev => ({ ...prev, error, isLoading: false }));
+            return;
           }
-          return newState;
-        });
-      } else {
-        console.info('[Auth] No initial session, user logged out');
-        setState(prev => ({ ...prev, isLoading: false }));
+        }
+
+        isInitialized = true;
+        if (session?.user) {
+          console.info('[Auth] Initial session found, user logged in', { 
+            userId: session.user.id,
+            email: session.user.email 
+          });
+          setState(prev => {
+            const newState = { ...prev, user: session.user, isLoading: false };
+            // Only fetch profile if we don't already have one for this user
+            if (!prev.profile || prev.profile.id !== session.user.id) {
+              fetchProfile(session.user.id).catch(console.error);
+            }
+            return newState;
+          });
+        } else {
+          console.info('[Auth] No initial session, user logged out');
+          setState(prev => ({ ...prev, isLoading: false }));
+        }
+      } catch (err) {
+        console.error('[Auth] Unexpected error during session initialization:', err);
+        if (retryCount < maxRetries) {
+          retryCount++;
+          console.info(`[Auth] Retrying session check (${retryCount}/${maxRetries})...`);
+          setTimeout(initializeSession, 1000 * retryCount);
+        } else {
+          setState(prev => ({ 
+            ...prev, 
+            error: err instanceof Error ? err : new Error('Failed to initialize session'), 
+            isLoading: false 
+          }));
+        }
       }
-    });
+    };
+    
+    // Start initialization
+    initializeSession();
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {

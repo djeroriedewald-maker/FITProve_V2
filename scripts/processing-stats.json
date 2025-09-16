@@ -1,0 +1,26 @@
+{
+  "total_exercises": 868,
+  "featured_exercises": 221,
+  "by_difficulty": {
+    "beginner": 521,
+    "intermediate": 291,
+    "advanced": 0
+  },
+  "by_category": {
+    "strength": 670,
+    "flexibility": 123,
+    "power": 61,
+    "cardio": 14
+  },
+  "by_equipment": {
+    "bodyweight": 109,
+    "cable_machine": 148,
+    "none": 251,
+    "foam_roller": 11,
+    "dumbbells": 122,
+    "barbell": 178,
+    "resistance_bands": 20,
+    "medicine_ball": 17,
+    "exercise_ball": 12
+  }
+}

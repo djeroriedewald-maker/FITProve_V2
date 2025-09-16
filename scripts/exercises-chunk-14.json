@@ -1,0 +1,2000 @@
+[
+  {
+    "name": "Seated Two-Arm Palms-Up Low-Pulley Wrist Curl",
+    "slug": "seated-two-arm-palms-up-low-pulley-wrist-curl",
+    "description": "Put a bench in front of a low pulley machine that has a barbell or EZ Curl attachment on it.",
+    "instructions": [
+      "Put a bench in front of a low pulley machine that has a barbell or EZ Curl attachment on it.",
+      "Move the bench far enough away so that when you bring the handle to the top of your thighs tension is created on the cable due to the weight stack being moved up.",
+      "Now hold the handle with both hands, palms up, using a shoulder-width grip.",
+      "Step back and sit on the bench with your feet about shoulder width apart, firmly on the floor.",
+      "Lean forward and place the forearms on your thighs with the back of your wrists over your knees. This will be your starting position.",
+      "Lower the bar as far as possible, while inhaling and keeping a tight grip.",
+      "Now curl the bar up as high as possible while contracting the forearms. Tip: Only the wrist should move; not the forearms.",
+      "After a second contraction at the top go back to the starting position as you inhale.",
+      "Repeat for the recommended amount of repetitions."
+    ],
+    "primary_muscles": [
+      "forearms"
+    ],
+    "secondary_muscles": [],
+    "equipment": [
+      "cable_machine"
+    ],
+    "difficulty": "beginner",
+    "category_id": "strength",
+    "force_type": "pull",
+    "mechanics": "isolation",
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Seated_Two-Arm_Palms-Up_Low-Pulley_Wrist_Curl/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Seated_Two-Arm_Palms-Up_Low-Pulley_Wrist_Curl/1.jpg",
+    "tags": [
+      "seated",
+      "two-arm",
+      "palms-up",
+      "low-pulley",
+      "wrist",
+      "curl",
+      "forearms",
+      "cable",
+      "strength",
+      "pull"
+    ],
+    "is_featured": false,
+    "approval_status": "approved",
+    "is_active": true
+  },
+  {
+    "name": "See-Saw Press (Alternating Side Press)",
+    "slug": "see-saw-press-alternating-side-press",
+    "description": "Grab a dumbbell with each hand and stand up erect.",
+    "instructions": [
+      "Grab a dumbbell with each hand and stand up erect.",
+      "Clean (lift) the dumbbells to the chest/shoulder level and then rotate your wrists so that your palms are facing towards you as if you were getting ready to perform an Arnold Press. This will be your starting position.",
+      "Now start extending your left arm overhead as you rotate the wrist so that the palm of your hand faces forward as you go up. Your elbows should come out also as you lift the weight. Simultaneously, you will also be bending from your hip to your opposite side. Tip: If you perform the exercise correctly, is should look as if you are trying to reach for something overhead on the right hand side of your body, but with your left arm. Breathe out as you perform this movement.",
+      "Once you reach the top position breathe in. Then, with the weight fully extended overhead and you bent over to your right hand side, begin the movement to the left side.",
+      "Repeat for the recommended amount of repetitions."
+    ],
+    "primary_muscles": [
+      "shoulders"
+    ],
+    "secondary_muscles": [
+      "abs",
+      "triceps"
+    ],
+    "equipment": [
+      "dumbbells"
+    ],
+    "difficulty": "intermediate",
+    "category_id": "strength",
+    "force_type": "push",
+    "mechanics": "compound",
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/See-Saw_Press_Alternating_Side_Press/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/See-Saw_Press_Alternating_Side_Press/1.jpg",
+    "tags": [
+      "see-saw",
+      "press",
+      "(alternating",
+      "side",
+      "press)",
+      "shoulders",
+      "abdominals",
+      "triceps",
+      "dumbbell",
+      "strength",
+      "push"
+    ],
+    "is_featured": false,
+    "approval_status": "approved",
+    "is_active": true
+  },
+  {
+    "name": "Shotgun Row",
+    "slug": "shotgun-row",
+    "description": "Attach a single handle to a low cable.",
+    "instructions": [
+      "Attach a single handle to a low cable.",
+      "After selecting the correct weight, stand a couple feet back with a wide-split stance. Your arm should be extended and your shoulder forward. This will be your starting position.",
+      "Perform the movement by retracting the shoulder and flexing the elbow. As you pull, supinate the wrist, turning the palm upward as you go.",
+      "After a brief pause, return to the starting position."
+    ],
+    "primary_muscles": [
+      "back"
+    ],
+    "secondary_muscles": [
+      "biceps",
+      "back"
+    ],
+    "equipment": [
+      "cable_machine"
+    ],
+    "difficulty": "beginner",
+    "category_id": "strength",
+    "force_type": "pull",
+    "mechanics": "compound",
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Shotgun_Row/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Shotgun_Row/1.jpg",
+    "tags": [
+      "shotgun",
+      "row",
+      "lats",
+      "biceps",
+      "middle back",
+      "cable",
+      "strength",
+      "pull"
+    ],
+    "is_featured": true,
+    "approval_status": "approved",
+    "is_active": true
+  },
+  {
+    "name": "Shoulder Circles",
+    "slug": "shoulder-circles",
+    "description": "With shoulders relaxed and arms resting loosely at your sides (or in your lap if you're seated), gently roll your shoulders forward, up, back, and down.",
+    "instructions": [
+      "With shoulders relaxed and arms resting loosely at your sides (or in your lap if you're seated), gently roll your shoulders forward, up, back, and down.",
+      "Reverse direction. You can do this exercise alternating shoulders or both at the same time."
+    ],
+    "primary_muscles": [
+      "shoulders"
+    ],
+    "secondary_muscles": [
+      "back"
+    ],
+    "equipment": [
+      "none"
+    ],
+    "difficulty": "beginner",
+    "category_id": "flexibility",
+    "force_type": "pull",
+    "mechanics": null,
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Shoulder_Circles/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Shoulder_Circles/1.jpg",
+    "tags": [
+      "shoulder",
+      "circles",
+      "shoulders",
+      "traps",
+      "stretching",
+      "pull"
+    ],
+    "is_featured": false,
+    "approval_status": "approved",
+    "is_active": true
+  },
+  {
+    "name": "Shoulder Press - With Bands",
+    "slug": "shoulder-press-with-bands",
+    "description": "To begin, stand on an exercise band so that tension begins at arm's length. Grasp the handles and lift them so that the hands are at shoulder height at each side.",
+    "instructions": [
+      "To begin, stand on an exercise band so that tension begins at arm's length. Grasp the handles and lift them so that the hands are at shoulder height at each side.",
+      "Rotate the wrists so that the palms of your hands are facing forward. Your elbows should be bent, with the upper arms and forearms in line to the torso. This is your starting position.",
+      "As you exhale, lift the handles up until your arms are fully extended overhead."
+    ],
+    "primary_muscles": [
+      "shoulders"
+    ],
+    "secondary_muscles": [
+      "triceps"
+    ],
+    "equipment": [
+      "resistance_bands"
+    ],
+    "difficulty": "beginner",
+    "category_id": "strength",
+    "force_type": "push",
+    "mechanics": "compound",
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Shoulder_Press_-_With_Bands/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Shoulder_Press_-_With_Bands/1.jpg",
+    "tags": [
+      "shoulder",
+      "press",
+      "with",
+      "bands",
+      "shoulders",
+      "triceps",
+      "strength",
+      "push"
+    ],
+    "is_featured": true,
+    "approval_status": "approved",
+    "is_active": true
+  },
+  {
+    "name": "Shoulder Raise",
+    "slug": "shoulder-raise",
+    "description": "Relax your arms to your sides and raise your shoulders up toward your ears, then back down.",
+    "instructions": [
+      "Relax your arms to your sides and raise your shoulders up toward your ears, then back down."
+    ],
+    "primary_muscles": [
+      "shoulders"
+    ],
+    "secondary_muscles": [
+      "back"
+    ],
+    "equipment": [
+      "none"
+    ],
+    "difficulty": "beginner",
+    "category_id": "flexibility",
+    "force_type": "pull",
+    "mechanics": null,
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Shoulder_Raise/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Shoulder_Raise/1.jpg",
+    "tags": [
+      "shoulder",
+      "raise",
+      "shoulders",
+      "lats",
+      "stretching",
+      "pull"
+    ],
+    "is_featured": false,
+    "approval_status": "approved",
+    "is_active": true
+  },
+  {
+    "name": "Shoulder Stretch",
+    "slug": "shoulder-stretch",
+    "description": "Reach your left arm across your body and hold it straight.",
+    "instructions": [
+      "Reach your left arm across your body and hold it straight."
+    ],
+    "primary_muscles": [
+      "shoulders"
+    ],
+    "secondary_muscles": [],
+    "equipment": [
+      "none"
+    ],
+    "difficulty": "beginner",
+    "category_id": "flexibility",
+    "force_type": "pull",
+    "mechanics": null,
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Shoulder_Stretch/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Shoulder_Stretch/1.jpg",
+    "tags": [
+      "shoulder",
+      "stretch",
+      "shoulders",
+      "stretching",
+      "pull"
+    ],
+    "is_featured": false,
+    "approval_status": "approved",
+    "is_active": true
+  },
+  {
+    "name": "Side-Lying Floor Stretch",
+    "slug": "side-lying-floor-stretch",
+    "description": "First lie on your left side, bending your left knee in front of you to stabilize your torso (use your abdominal muscles as well to hold you upright).",
+    "instructions": [
+      "First lie on your left side, bending your left knee in front of you to stabilize your torso (use your abdominal muscles as well to hold you upright).",
+      "Straighten your right leg and rest the right foot on the floor behind your left. Straighten your right arm over your head and gently pull on your right wrist to stretch the entire right side of the body. Switch sides."
+    ],
+    "primary_muscles": [
+      "back"
+    ],
+    "secondary_muscles": [],
+    "equipment": [
+      "none"
+    ],
+    "difficulty": "beginner",
+    "category_id": "flexibility",
+    "force_type": "static",
+    "mechanics": null,
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Side-Lying_Floor_Stretch/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Side-Lying_Floor_Stretch/1.jpg",
+    "tags": [
+      "side-lying",
+      "floor",
+      "stretch",
+      "lats",
+      "stretching",
+      "static"
+    ],
+    "is_featured": false,
+    "approval_status": "approved",
+    "is_active": true
+  },
+  {
+    "name": "Side Hop-Sprint",
+    "slug": "side-hop-sprint",
+    "description": "Stand to the side of a cone or hurdle.",
+    "instructions": [
+      "Stand to the side of a cone or hurdle.",
+      "Begin this drill by hopping sideways over the obstacle, rebounding out of your landing to hop back to where you started.",
+      "Hop for a prescribed number or repetitions as quickly as possible, and finish this drill by sprinting a short distance upon landing the last hop."
+    ],
+    "primary_muscles": [
+      "quadriceps"
+    ],
+    "secondary_muscles": [
+      "glutes",
+      "calves",
+      "hamstrings"
+    ],
+    "equipment": [
+      "none"
+    ],
+    "difficulty": "beginner",
+    "category_id": "power",
+    "force_type": "push",
+    "mechanics": "compound",
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Side_Hop-Sprint/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Side_Hop-Sprint/1.jpg",
+    "tags": [
+      "side",
+      "hop-sprint",
+      "quadriceps",
+      "abductors",
+      "adductors",
+      "calves",
+      "hamstrings",
+      "other",
+      "plyometrics",
+      "push"
+    ],
+    "is_featured": false,
+    "approval_status": "approved",
+    "is_active": true
+  },
+  {
+    "name": "Side Lateral Raise",
+    "slug": "side-lateral-raise",
+    "description": "Pick a couple of dumbbells and stand with a straight torso and the dumbbells by your side at arms length with the palms of the hand facing you. This will be your starting position.",
+    "instructions": [
+      "Pick a couple of dumbbells and stand with a straight torso and the dumbbells by your side at arms length with the palms of the hand facing you. This will be your starting position.",
+      "While maintaining the torso in a stationary position (no swinging), lift the dumbbells to your side with a slight bend on the elbow and the hands slightly tilted forward as if pouring water in a glass. Continue to go up until you arms are parallel to the floor. Exhale as you execute this movement and pause for a second at the top.",
+      "Lower the dumbbells back down slowly to the starting position as you inhale.",
+      "Repeat for the recommended amount of repetitions."
+    ],
+    "primary_muscles": [
+      "shoulders"
+    ],
+    "secondary_muscles": [],
+    "equipment": [
+      "dumbbells"
+    ],
+    "difficulty": "beginner",
+    "category_id": "strength",
+    "force_type": "push",
+    "mechanics": "isolation",
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Side_Lateral_Raise/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Side_Lateral_Raise/1.jpg",
+    "tags": [
+      "side",
+      "lateral",
+      "raise",
+      "shoulders",
+      "dumbbell",
+      "strength",
+      "push"
+    ],
+    "is_featured": false,
+    "approval_status": "approved",
+    "is_active": true
+  },
+  {
+    "name": "Side Laterals to Front Raise",
+    "slug": "side-laterals-to-front-raise",
+    "description": "In a standing position, hold a pair of dumbbells at your side. This will be your starting position.",
+    "instructions": [
+      "In a standing position, hold a pair of dumbbells at your side. This will be your starting position.",
+      "Keeping your elbows slightly bent, raise the weights directly in front of you to shoulder height, avoiding any swinging or cheating.",
+      "At the top of the exercise move the weights out in front of you, keeping your arms extended.",
+      "Lower the weights with a controlled motion.",
+      "On the next repetition, raise the weights in front of you to shoulder height before moving the weights laterally to your sides.",
+      "Lower the weights to the starting position."
+    ],
+    "primary_muscles": [
+      "shoulders"
+    ],
+    "secondary_muscles": [
+      "back"
+    ],
+    "equipment": [
+      "dumbbells"
+    ],
+    "difficulty": "beginner",
+    "category_id": "strength",
+    "force_type": "push",
+    "mechanics": "isolation",
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Side_Laterals_to_Front_Raise/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Side_Laterals_to_Front_Raise/1.jpg",
+    "tags": [
+      "side",
+      "laterals",
+      "front",
+      "raise",
+      "shoulders",
+      "traps",
+      "dumbbell",
+      "strength",
+      "push"
+    ],
+    "is_featured": false,
+    "approval_status": "approved",
+    "is_active": true
+  },
+  {
+    "name": "Side Leg Raises",
+    "slug": "side-leg-raises",
+    "description": "Stand next to a chair, which you may hold onto as a support. Stand on one leg. This will be your starting position.",
+    "instructions": [
+      "Stand next to a chair, which you may hold onto as a support. Stand on one leg. This will be your starting position.",
+      "Keeping your leg straight, raise it as far out to the side as possible, and swing it back down, allowing it to cross the opposite leg.",
+      "Repeat this swinging motion 5-10 times, increasing the range of motion as you do so."
+    ],
+    "primary_muscles": [
+      "glutes"
+    ],
+    "secondary_muscles": [],
+    "equipment": [
+      "bodyweight"
+    ],
+    "difficulty": "beginner",
+    "category_id": "flexibility",
+    "force_type": "pull",
+    "mechanics": null,
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Side_Leg_Raises/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Side_Leg_Raises/1.jpg",
+    "tags": [
+      "side",
+      "leg",
+      "raises",
+      "adductors",
+      "body only",
+      "stretching",
+      "pull"
+    ],
+    "is_featured": false,
+    "approval_status": "approved",
+    "is_active": true
+  },
+  {
+    "name": "Side Lying Groin Stretch",
+    "slug": "side-lying-groin-stretch",
+    "description": "Start off by lying on your right side and bend your right knee in front of you to stabilize the torso.",
+    "instructions": [
+      "Start off by lying on your right side and bend your right knee in front of you to stabilize the torso.",
+      "Rest your head on your right hand or shoulder. Lift your left leg upward and hold it by the back of the knee (easier) or the foot (harder).",
+      "Pull your left knee in toward your left shoulder and simultaneously press your foot or knee down to the floor. To intensify this stretch, straighten your left leg. Switch sides."
+    ],
+    "primary_muscles": [
+      "glutes"
+    ],
+    "secondary_muscles": [
+      "hamstrings"
+    ],
+    "equipment": [
+      "none"
+    ],
+    "difficulty": "beginner",
+    "category_id": "flexibility",
+    "force_type": "static",
+    "mechanics": "isolation",
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Side_Lying_Groin_Stretch/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Side_Lying_Groin_Stretch/1.jpg",
+    "tags": [
+      "side",
+      "lying",
+      "groin",
+      "stretch",
+      "adductors",
+      "hamstrings",
+      "stretching",
+      "static"
+    ],
+    "is_featured": false,
+    "approval_status": "approved",
+    "is_active": true
+  },
+  {
+    "name": "Side Neck Stretch",
+    "slug": "side-neck-stretch",
+    "description": "Start with your shoulders relaxed, gently tilt your head towards your shoulder.",
+    "instructions": [
+      "Start with your shoulders relaxed, gently tilt your head towards your shoulder.",
+      "Assist stretch with a gentle pull on the side of the head."
+    ],
+    "primary_muscles": [
+      "shoulders"
+    ],
+    "secondary_muscles": [],
+    "equipment": [
+      "none"
+    ],
+    "difficulty": "beginner",
+    "category_id": "flexibility",
+    "force_type": "static",
+    "mechanics": "isolation",
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Side_Neck_Stretch/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Side_Neck_Stretch/1.jpg",
+    "tags": [
+      "side",
+      "neck",
+      "stretch",
+      "stretching",
+      "static"
+    ],
+    "is_featured": false,
+    "approval_status": "approved",
+    "is_active": true
+  },
+  {
+    "name": "Side Standing Long Jump",
+    "slug": "side-standing-long-jump",
+    "description": "Begin standing with your feet hip width apart in an athletic stance. Your head and chest should be up, knees and hips slightly bent. This will be your starting position.",
+    "instructions": [
+      "Begin standing with your feet hip width apart in an athletic stance. Your head and chest should be up, knees and hips slightly bent. This will be your starting position.",
+      "Leaning to your right, extend through your hips, knees, and ankles to jump into the air. Block with the arms to lead the movement, jumping as far to your right as you can.",
+      "Land facing the same direction with your feet hip width apart, absorbing the impact through your lower body."
+    ],
+    "primary_muscles": [
+      "quadriceps"
+    ],
+    "secondary_muscles": [
+      "calves",
+      "glutes",
+      "hamstrings"
+    ],
+    "equipment": [
+      "none"
+    ],
+    "difficulty": "beginner",
+    "category_id": "power",
+    "force_type": "push",
+    "mechanics": "compound",
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Side_Standing_Long_Jump/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Side_Standing_Long_Jump/1.jpg",
+    "tags": [
+      "side",
+      "standing",
+      "long",
+      "jump",
+      "quadriceps",
+      "calves",
+      "glutes",
+      "hamstrings",
+      "plyometrics",
+      "push"
+    ],
+    "is_featured": false,
+    "approval_status": "approved",
+    "is_active": true
+  },
+  {
+    "name": "Side To Side Chins",
+    "slug": "side-to-side-chins",
+    "description": "Grab the pull-up bar with the palms facing forward using a wide grip.",
+    "instructions": [
+      "Grab the pull-up bar with the palms facing forward using a wide grip.",
+      "As you have both arms extended in front of you holding the bar at a wide grip, bring your torso back around 30 degrees or so while creating a curvature on your lower back and sticking your chest out. This is your starting position.",
+      "Pull your torso up while leaning to the left hand side until the bar almost touches your upper chest by drawing the shoulders and the upper arms down and back. Exhale as you perform this portion of the movement. Tip: Concentrate on squeezing the back muscles once you reach the full contracted position. The upper torso should remain stationary as it moves through space (no swinging) and only the arms should move. The forearms should do no other work other than hold the bar.",
+      "After a second of contraction, inhale as you go back to the starting position.",
+      "Now, pull your torso up while leaning to the right hand side until the bar almost touches your upper chest by drawing the shoulders and the upper arms down and back. Exhale as you perform this portion of the movement. Tip: Concentrate on squeezing the back muscles once you reach the full contracted position. The upper torso should remain stationary as it moves through space and only the arms should move. The forearms should do no other work other than hold the bar.",
+      "After a second of contraction, inhale as you go back to the starting position.",
+      "Repeat steps 3-6 until you have performed the prescribed amount of repetitions for each side."
+    ],
+    "primary_muscles": [
+      "back"
+    ],
+    "secondary_muscles": [
+      "biceps",
+      "forearms",
+      "back",
+      "shoulders"
+    ],
+    "equipment": [
+      "none"
+    ],
+    "difficulty": "intermediate",
+    "category_id": "strength",
+    "force_type": "pull",
+    "mechanics": "compound",
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Side_To_Side_Chins/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Side_To_Side_Chins/1.jpg",
+    "tags": [
+      "side",
+      "chins",
+      "lats",
+      "biceps",
+      "forearms",
+      "middle back",
+      "shoulders",
+      "other",
+      "strength",
+      "pull"
+    ],
+    "is_featured": false,
+    "approval_status": "approved",
+    "is_active": true
+  },
+  {
+    "name": "Side Wrist Pull",
+    "slug": "side-wrist-pull",
+    "description": "This stretch works best standing. Cross your left arm over the midline of your body and hold the left wrist in your right hand down at the level of your hips. Start the stretch with a bent left arm.",
+    "instructions": [
+      "This stretch works best standing. Cross your left arm over the midline of your body and hold the left wrist in your right hand down at the level of your hips. Start the stretch with a bent left arm.",
+      "Slowly straighten, pull, and lift it up to shoulder height, as pictured. Feel this stretch originate in your back, not your shoulders, and don't pull too hard on the shoulders joint. Switch sides."
+    ],
+    "primary_muscles": [
+      "shoulders"
+    ],
+    "secondary_muscles": [
+      "forearms",
+      "back"
+    ],
+    "equipment": [
+      "none"
+    ],
+    "difficulty": "beginner",
+    "category_id": "flexibility",
+    "force_type": "static",
+    "mechanics": "isolation",
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Side_Wrist_Pull/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Side_Wrist_Pull/1.jpg",
+    "tags": [
+      "side",
+      "wrist",
+      "pull",
+      "shoulders",
+      "forearms",
+      "lats",
+      "stretching",
+      "static"
+    ],
+    "is_featured": false,
+    "approval_status": "approved",
+    "is_active": true
+  },
+  {
+    "name": "Side to Side Box Shuffle",
+    "slug": "side-to-side-box-shuffle",
+    "description": "Stand to one side of the box with your left foot resting on the middle of it.",
+    "instructions": [
+      "Stand to one side of the box with your left foot resting on the middle of it.",
+      "To begin, jump up and over to the other side of the box, landing with your right foot on top of the box and your left foot on the floor. Swing your arms to aid your movement.",
+      "Continue shuffling back and forth across the box."
+    ],
+    "primary_muscles": [
+      "quadriceps"
+    ],
+    "secondary_muscles": [
+      "glutes",
+      "calves",
+      "hamstrings"
+    ],
+    "equipment": [
+      "none"
+    ],
+    "difficulty": "beginner",
+    "category_id": "power",
+    "force_type": "push",
+    "mechanics": "compound",
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Side_to_Side_Box_Shuffle/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Side_to_Side_Box_Shuffle/1.jpg",
+    "tags": [
+      "side",
+      "box",
+      "shuffle",
+      "quadriceps",
+      "abductors",
+      "adductors",
+      "calves",
+      "hamstrings",
+      "other",
+      "plyometrics",
+      "push"
+    ],
+    "is_featured": false,
+    "approval_status": "approved",
+    "is_active": true
+  },
+  {
+    "name": "Single-Arm Cable Crossover",
+    "slug": "single-arm-cable-crossover",
+    "description": "Begin by moving the pulleys to the high position, select the resistance to be used, and take a handle in each hand.",
+    "instructions": [
+      "Begin by moving the pulleys to the high position, select the resistance to be used, and take a handle in each hand.",
+      "Step forward in front of both pulleys with your arms extended in front of you, bringing your hands together. Your head and chest should be up as you lean forward, while your feet should be staggered. This will be your starting position.",
+      "Keeping your left arm in place, allow your right arm to extend out to the side, maintaining a slight bend at the elbow. The right arm should be perpendicular to the body at approximately shoulder level.",
+      "Return your arm back to the starting position by pulling your hand back to the midline of the body.",
+      "Hold for a second at the starting position and repeat the movement on the opposite side. Continue alternating back and forth for the prescribed number of repetitions."
+    ],
+    "primary_muscles": [
+      "chest"
+    ],
+    "secondary_muscles": [],
+    "equipment": [
+      "cable_machine"
+    ],
+    "difficulty": "beginner",
+    "category_id": "strength",
+    "force_type": "push",
+    "mechanics": "isolation",
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Single-Arm_Cable_Crossover/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Single-Arm_Cable_Crossover/1.jpg",
+    "tags": [
+      "single-arm",
+      "cable",
+      "crossover",
+      "chest",
+      "strength",
+      "push"
+    ],
+    "is_featured": false,
+    "approval_status": "approved",
+    "is_active": true
+  },
+  {
+    "name": "Single-Arm Linear Jammer",
+    "slug": "single-arm-linear-jammer",
+    "description": "Position a bar into a landmine or securely anchor it in a corner. Load the bar to an appropriate weight.",
+    "instructions": [
+      "Position a bar into a landmine or securely anchor it in a corner. Load the bar to an appropriate weight.",
+      "Raise the bar from the floor, taking it to your shoulders with one or both hands. Adopt a wide stance. This will be your starting position.",
+      "Perform the movement by extending the elbow, pressing the weight up. Move explosively, extending the hips and knees fully to produce maximal force.",
+      "Return to the starting position."
+    ],
+    "primary_muscles": [
+      "shoulders"
+    ],
+    "secondary_muscles": [
+      "chest",
+      "triceps"
+    ],
+    "equipment": [
+      "barbell"
+    ],
+    "difficulty": "intermediate",
+    "category_id": "strength",
+    "force_type": "push",
+    "mechanics": "compound",
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Single-Arm_Linear_Jammer/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Single-Arm_Linear_Jammer/1.jpg",
+    "tags": [
+      "single-arm",
+      "linear",
+      "jammer",
+      "shoulders",
+      "chest",
+      "triceps",
+      "barbell",
+      "strength",
+      "push"
+    ],
+    "is_featured": false,
+    "approval_status": "approved",
+    "is_active": true
+  },
+  {
+    "name": "Single-Arm Push-Up",
+    "slug": "single-arm-push-up",
+    "description": "Begin laying prone on the ground. Move yourself into a position supporting your weight on your toes and one arm. Your working arm should be placed directly under the shoulder, fully extended. Your legs should be extended, and for this movement you may need a wider base, placing your feet further apart than in a normal push-up.",
+    "instructions": [
+      "Begin laying prone on the ground. Move yourself into a position supporting your weight on your toes and one arm. Your working arm should be placed directly under the shoulder, fully extended. Your legs should be extended, and for this movement you may need a wider base, placing your feet further apart than in a normal push-up.",
+      "Maintain good posture, and place your free hand behind your back. This will be your starting position.",
+      "Lower yourself by allowing the elbow to flex until you touch the ground.",
+      "Descend slowly, and reverse direction be extending the arm to return to the starting position."
+    ],
+    "primary_muscles": [
+      "chest"
+    ],
+    "secondary_muscles": [
+      "shoulders",
+      "triceps"
+    ],
+    "equipment": [
+      "bodyweight"
+    ],
+    "difficulty": "intermediate",
+    "category_id": "strength",
+    "force_type": "push",
+    "mechanics": "compound",
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Single-Arm_Push-Up/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Single-Arm_Push-Up/1.jpg",
+    "tags": [
+      "single-arm",
+      "push-up",
+      "chest",
+      "shoulders",
+      "triceps",
+      "body only",
+      "strength",
+      "push"
+    ],
+    "is_featured": true,
+    "approval_status": "approved",
+    "is_active": true
+  },
+  {
+    "name": "Single-Cone Sprint Drill",
+    "slug": "single-cone-sprint-drill",
+    "description": "This drill teaches quick foot action. You need a single cone. Begin standing next to the cone with one arm back and one arm forward.",
+    "instructions": [
+      "This drill teaches quick foot action. You need a single cone. Begin standing next to the cone with one arm back and one arm forward.",
+      "Chop the feet as quickly as possible, blocking with the arms. Circle the cone, keep your knees up, with violent foot action.",
+      "Rest after three trips around the cone."
+    ],
+    "primary_muscles": [
+      "quadriceps"
+    ],
+    "secondary_muscles": [
+      "calves",
+      "glutes",
+      "hamstrings"
+    ],
+    "equipment": [
+      "none"
+    ],
+    "difficulty": "beginner",
+    "category_id": "power",
+    "force_type": "push",
+    "mechanics": null,
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Single-Cone_Sprint_Drill/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Single-Cone_Sprint_Drill/1.jpg",
+    "tags": [
+      "single-cone",
+      "sprint",
+      "drill",
+      "quadriceps",
+      "calves",
+      "glutes",
+      "hamstrings",
+      "other",
+      "plyometrics",
+      "push"
+    ],
+    "is_featured": false,
+    "approval_status": "approved",
+    "is_active": true
+  },
+  {
+    "name": "Single-Leg High Box Squat",
+    "slug": "single-leg-high-box-squat",
+    "description": "Position a box in a rack. Secure a band or rope in place above the box.",
+    "instructions": [
+      "Position a box in a rack. Secure a band or rope in place above the box.",
+      "Standing in front of it, step onto the box to a full standing position, letting your other leg remain unsupported. Hold onto the band for balance",
+      ". Continue stepping up and down on the same leg before switching to the opposite side."
+    ],
+    "primary_muscles": [
+      "quadriceps"
+    ],
+    "secondary_muscles": [
+      "glutes",
+      "hamstrings"
+    ],
+    "equipment": [
+      "none"
+    ],
+    "difficulty": "beginner",
+    "category_id": "strength",
+    "force_type": "push",
+    "mechanics": "compound",
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Single-Leg_High_Box_Squat/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Single-Leg_High_Box_Squat/1.jpg",
+    "tags": [
+      "single-leg",
+      "high",
+      "box",
+      "squat",
+      "quadriceps",
+      "glutes",
+      "hamstrings",
+      "other",
+      "strength",
+      "push"
+    ],
+    "is_featured": true,
+    "approval_status": "approved",
+    "is_active": true
+  },
+  {
+    "name": "Single-Leg Hop Progression",
+    "slug": "single-leg-hop-progression",
+    "description": "Arrange a line of cones in front of you. Assume a relaxed standing position, balanced on one leg. Raise the knee of your opposite leg. This will be your starting position.",
+    "instructions": [
+      "Arrange a line of cones in front of you. Assume a relaxed standing position, balanced on one leg. Raise the knee of your opposite leg. This will be your starting position.",
+      "Hop forward, jumping and landing with the same leg over the cone.",
+      "Use a countermovement jump to hop from cone to cone.",
+      "At the end, turn around and go back on the other leg."
+    ],
+    "primary_muscles": [
+      "quadriceps"
+    ],
+    "secondary_muscles": [
+      "glutes",
+      "calves",
+      "hamstrings"
+    ],
+    "equipment": [
+      "none"
+    ],
+    "difficulty": "beginner",
+    "category_id": "power",
+    "force_type": "push",
+    "mechanics": "compound",
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Single-Leg_Hop_Progression/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Single-Leg_Hop_Progression/1.jpg",
+    "tags": [
+      "single-leg",
+      "hop",
+      "progression",
+      "quadriceps",
+      "abductors",
+      "adductors",
+      "calves",
+      "hamstrings",
+      "other",
+      "plyometrics",
+      "push"
+    ],
+    "is_featured": false,
+    "approval_status": "approved",
+    "is_active": true
+  },
+  {
+    "name": "Single-Leg Lateral Hop",
+    "slug": "single-leg-lateral-hop",
+    "description": "Stand to the side of a cone or hurdle. To get into the start position, stand on one leg with your knee slightly bent.",
+    "instructions": [
+      "Stand to the side of a cone or hurdle. To get into the start position, stand on one leg with your knee slightly bent.",
+      "To begin, execute a counterjump to hop sideways over the cone.",
+      "Land on your jumping leg, and immediately rebound out of it by jumping back to the start position.",
+      "Continue hopping back and forth."
+    ],
+    "primary_muscles": [
+      "quadriceps"
+    ],
+    "secondary_muscles": [
+      "glutes",
+      "calves",
+      "hamstrings"
+    ],
+    "equipment": [
+      "none"
+    ],
+    "difficulty": "beginner",
+    "category_id": "power",
+    "force_type": "push",
+    "mechanics": "compound",
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Single-Leg_Lateral_Hop/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Single-Leg_Lateral_Hop/1.jpg",
+    "tags": [
+      "single-leg",
+      "lateral",
+      "hop",
+      "quadriceps",
+      "abductors",
+      "adductors",
+      "calves",
+      "hamstrings",
+      "other",
+      "plyometrics",
+      "push"
+    ],
+    "is_featured": false,
+    "approval_status": "approved",
+    "is_active": true
+  },
+  {
+    "name": "Single-Leg Leg Extension",
+    "slug": "single-leg-leg-extension",
+    "description": "Seat yourself in the machine and adjust it so that you are positioned properly. The pad should be against the lower part of the shin but not in contact with the ankle. Adjust the seat so that the pivot point is in line with your knee. Select a weight appropriate for your abilities.",
+    "instructions": [
+      "Seat yourself in the machine and adjust it so that you are positioned properly. The pad should be against the lower part of the shin but not in contact with the ankle. Adjust the seat so that the pivot point is in line with your knee. Select a weight appropriate for your abilities.",
+      "Maintaining good posture, fully extend one leg, pausing at the top of the motion.",
+      "Return to the starting position without letting the weight stop, keeping tension on the muscle.",
+      "Repeat for the desired number of repetitions."
+    ],
+    "primary_muscles": [
+      "quadriceps"
+    ],
+    "secondary_muscles": [],
+    "equipment": [
+      "cable_machine"
+    ],
+    "difficulty": "beginner",
+    "category_id": "strength",
+    "force_type": "push",
+    "mechanics": "isolation",
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Single-Leg_Leg_Extension/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Single-Leg_Leg_Extension/1.jpg",
+    "tags": [
+      "single-leg",
+      "leg",
+      "extension",
+      "quadriceps",
+      "machine",
+      "strength",
+      "push"
+    ],
+    "is_featured": false,
+    "approval_status": "approved",
+    "is_active": true
+  },
+  {
+    "name": "Single-Leg Stride Jump",
+    "slug": "single-leg-stride-jump",
+    "description": "Stand to the side of a box with your inside foot on top of it, close to the edge.",
+    "instructions": [
+      "Stand to the side of a box with your inside foot on top of it, close to the edge.",
+      "Begin by swinging the arms upward as you push through the top leg, jumping upward as high as possible. Attempt to drive the opposite knee upward.",
+      "Land in the same position that you started, using your inside leg to decelerate the impact."
+    ],
+    "primary_muscles": [
+      "quadriceps"
+    ],
+    "secondary_muscles": [
+      "glutes",
+      "calves",
+      "hamstrings"
+    ],
+    "equipment": [
+      "none"
+    ],
+    "difficulty": "beginner",
+    "category_id": "power",
+    "force_type": "push",
+    "mechanics": "compound",
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Single-Leg_Stride_Jump/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Single-Leg_Stride_Jump/1.jpg",
+    "tags": [
+      "single-leg",
+      "stride",
+      "jump",
+      "quadriceps",
+      "abductors",
+      "adductors",
+      "calves",
+      "hamstrings",
+      "other",
+      "plyometrics",
+      "push"
+    ],
+    "is_featured": false,
+    "approval_status": "approved",
+    "is_active": true
+  },
+  {
+    "name": "Single Dumbbell Raise",
+    "slug": "single-dumbbell-raise",
+    "description": "With a wide stance, hold a dumbell with both hands, grasping the head of the dumbbell instead of the handle. Your arms should be extended and hanging at the waist. This will be your starting position.",
+    "instructions": [
+      "With a wide stance, hold a dumbell with both hands, grasping the head of the dumbbell instead of the handle. Your arms should be extended and hanging at the waist. This will be your starting position.",
+      "Raise the weight until it is above shoulder level, keeping your arms extended. Your torso and hips should remain stationary throughout the movement.",
+      "Return to the starting position and repeat for the recommended amount of repetitions."
+    ],
+    "primary_muscles": [
+      "shoulders"
+    ],
+    "secondary_muscles": [
+      "forearms",
+      "back"
+    ],
+    "equipment": [
+      "dumbbells"
+    ],
+    "difficulty": "beginner",
+    "category_id": "strength",
+    "force_type": null,
+    "mechanics": "isolation",
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Single_Dumbbell_Raise/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Single_Dumbbell_Raise/1.jpg",
+    "tags": [
+      "single",
+      "dumbbell",
+      "raise",
+      "shoulders",
+      "forearms",
+      "traps",
+      "strength"
+    ],
+    "is_featured": false,
+    "approval_status": "approved",
+    "is_active": true
+  },
+  {
+    "name": "Single Leg Butt Kick",
+    "slug": "single-leg-butt-kick",
+    "description": "Begin by standing on one leg, with the bent knee raised. This will be your start position.",
+    "instructions": [
+      "Begin by standing on one leg, with the bent knee raised. This will be your start position.",
+      "Using a countermovement jump, take off upward by extending the hip, knee, and ankle of the grounded leg.",
+      "Immediately flex the knee and attempt to touch your butt with the heel of your jumping leg.",
+      "Return the leg to a partially bent position underneath the hips and land. Your opposite leg should stay in relatively the same position throughout the drill."
+    ],
+    "primary_muscles": [
+      "quadriceps"
+    ],
+    "secondary_muscles": [
+      "calves",
+      "hamstrings"
+    ],
+    "equipment": [
+      "bodyweight"
+    ],
+    "difficulty": "beginner",
+    "category_id": "power",
+    "force_type": "push",
+    "mechanics": "compound",
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Single_Leg_Butt_Kick/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Single_Leg_Butt_Kick/1.jpg",
+    "tags": [
+      "single",
+      "leg",
+      "butt",
+      "kick",
+      "quadriceps",
+      "calves",
+      "hamstrings",
+      "body only",
+      "plyometrics",
+      "push"
+    ],
+    "is_featured": false,
+    "approval_status": "approved",
+    "is_active": true
+  },
+  {
+    "name": "Single Leg Glute Bridge",
+    "slug": "single-leg-glute-bridge",
+    "description": "Lay on the floor with your feet flat and knees bent.",
+    "instructions": [
+      "Lay on the floor with your feet flat and knees bent.",
+      "Raise one leg off of the ground, pulling the knee to your chest. This will be your starting position.",
+      "Execute the movement by driving through the heel, extending your hip upward and raising your glutes off of the ground.",
+      "Extend as far as possible, pause and then return to the starting position."
+    ],
+    "primary_muscles": [
+      "glutes"
+    ],
+    "secondary_muscles": [
+      "hamstrings"
+    ],
+    "equipment": [
+      "bodyweight"
+    ],
+    "difficulty": "beginner",
+    "category_id": "strength",
+    "force_type": "push",
+    "mechanics": "isolation",
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Single_Leg_Glute_Bridge/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Single_Leg_Glute_Bridge/1.jpg",
+    "tags": [
+      "single",
+      "leg",
+      "glute",
+      "bridge",
+      "glutes",
+      "hamstrings",
+      "body only",
+      "strength",
+      "push"
+    ],
+    "is_featured": false,
+    "approval_status": "approved",
+    "is_active": true
+  },
+  {
+    "name": "Single Leg Push-off",
+    "slug": "single-leg-push-off",
+    "description": "Stand on the ground with one foot resting on the box, heel close to the edge.",
+    "instructions": [
+      "Stand on the ground with one foot resting on the box, heel close to the edge.",
+      "Push off with your foot on top of the box, trying to gain as much height as possible by extending through the hip and knee.",
+      "Land with the same foot on top of the box, returning your other foot back to the start position."
+    ],
+    "primary_muscles": [
+      "quadriceps"
+    ],
+    "secondary_muscles": [
+      "calves",
+      "hamstrings"
+    ],
+    "equipment": [
+      "none"
+    ],
+    "difficulty": "beginner",
+    "category_id": "power",
+    "force_type": "push",
+    "mechanics": "compound",
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Single_Leg_Push-off/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Single_Leg_Push-off/1.jpg",
+    "tags": [
+      "single",
+      "leg",
+      "push-off",
+      "quadriceps",
+      "calves",
+      "hamstrings",
+      "other",
+      "plyometrics",
+      "push"
+    ],
+    "is_featured": false,
+    "approval_status": "approved",
+    "is_active": true
+  },
+  {
+    "name": "Sit-Up",
+    "slug": "sit-up",
+    "description": "Lie down on the floor placing your feet either under something that will not move or by having a partner hold them. Your legs should be bent at the knees.",
+    "instructions": [
+      "Lie down on the floor placing your feet either under something that will not move or by having a partner hold them. Your legs should be bent at the knees.",
+      "Place your hands behind your head and lock them together by clasping your fingers. This is the starting position.",
+      "Elevate your upper body so that it creates an imaginary V-shape with your thighs. Breathe out when performing this part of the exercise.",
+      "Once you feel the contraction for a second, lower your upper body back down to the starting position while inhaling.",
+      "Repeat for the recommended amount of repetitions."
+    ],
+    "primary_muscles": [
+      "abs"
+    ],
+    "secondary_muscles": [],
+    "equipment": [
+      "bodyweight"
+    ],
+    "difficulty": "beginner",
+    "category_id": "strength",
+    "force_type": "pull",
+    "mechanics": "isolation",
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Sit-Up/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Sit-Up/1.jpg",
+    "tags": [
+      "sit-up",
+      "abdominals",
+      "body only",
+      "strength",
+      "pull"
+    ],
+    "is_featured": false,
+    "approval_status": "approved",
+    "is_active": true
+  },
+  {
+    "name": "Sit Squats",
+    "slug": "sit-squats",
+    "description": "Stand with your feet shoulder width apart. This will be your starting position.",
+    "instructions": [
+      "Stand with your feet shoulder width apart. This will be your starting position.",
+      "Begin the movement by flexing your knees and hips, sitting back with your hips.",
+      "Continue until you have squatted a portion of the way down, but are above parallel, and quickly reverse the motion until you return to the starting position. Repeat for 5-10 repetitions."
+    ],
+    "primary_muscles": [
+      "quadriceps"
+    ],
+    "secondary_muscles": [
+      "glutes",
+      "hamstrings"
+    ],
+    "equipment": [
+      "none"
+    ],
+    "difficulty": "beginner",
+    "category_id": "flexibility",
+    "force_type": "push",
+    "mechanics": null,
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Sit_Squats/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Sit_Squats/1.jpg",
+    "tags": [
+      "sit",
+      "squats",
+      "quadriceps",
+      "abductors",
+      "glutes",
+      "hamstrings",
+      "stretching",
+      "push"
+    ],
+    "is_featured": true,
+    "approval_status": "approved",
+    "is_active": true
+  },
+  {
+    "name": "Skating",
+    "slug": "skating",
+    "description": "Roller skating is a fun activity which can be effective in improving cardiorespiratory fitness and muscular endurance. It requires relatively good balance and coordination. It is necessary to learn the basics of skating including turning and stopping and to wear protective gear to avoid possible injury.",
+    "instructions": [
+      "Roller skating is a fun activity which can be effective in improving cardiorespiratory fitness and muscular endurance. It requires relatively good balance and coordination. It is necessary to learn the basics of skating including turning and stopping and to wear protective gear to avoid possible injury.",
+      "You can skate at a comfortable pace for 30 minutes straight. If you want a cardio challenge, do interval skating — speed skate two minutes of every five minutes, using the remaining three minutes to recover. A 150 lb person will typically burn about 175 calories in 30 minutes skating at a comfortable pace, similar to brisk walking."
+    ],
+    "primary_muscles": [
+      "quadriceps"
+    ],
+    "secondary_muscles": [
+      "glutes",
+      "calves",
+      "hamstrings"
+    ],
+    "equipment": [
+      "none"
+    ],
+    "difficulty": "intermediate",
+    "category_id": "cardio",
+    "force_type": null,
+    "mechanics": null,
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Skating/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Skating/1.jpg",
+    "tags": [
+      "skating",
+      "quadriceps",
+      "abductors",
+      "adductors",
+      "calves",
+      "glutes",
+      "hamstrings",
+      "other",
+      "cardio"
+    ],
+    "is_featured": false,
+    "approval_status": "approved",
+    "is_active": true
+  },
+  {
+    "name": "Sled Drag - Harness",
+    "slug": "sled-drag-harness",
+    "description": "To begin, load the sled with the desired weight and attach the pulling strap. You can pull with handles, use a harness, or attach the pulling strap to a weight belt.",
+    "instructions": [
+      "To begin, load the sled with the desired weight and attach the pulling strap. You can pull with handles, use a harness, or attach the pulling strap to a weight belt.",
+      "Whether pulling forwards or backwards, lean in the direction of travel and progress by extending through the hips and knees."
+    ],
+    "primary_muscles": [
+      "quadriceps"
+    ],
+    "secondary_muscles": [
+      "calves",
+      "glutes",
+      "hamstrings"
+    ],
+    "equipment": [
+      "none"
+    ],
+    "difficulty": "beginner",
+    "category_id": "strength",
+    "force_type": "push",
+    "mechanics": "compound",
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Sled_Drag_-_Harness/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Sled_Drag_-_Harness/1.jpg",
+    "tags": [
+      "sled",
+      "drag",
+      "harness",
+      "quadriceps",
+      "calves",
+      "glutes",
+      "hamstrings",
+      "other",
+      "strongman",
+      "push"
+    ],
+    "is_featured": false,
+    "approval_status": "approved",
+    "is_active": true
+  },
+  {
+    "name": "Sled Overhead Backward Walk",
+    "slug": "sled-overhead-backward-walk",
+    "description": "Attach dual handles to a sled connected by a rope or chain. Load the sled to a light weight.",
+    "instructions": [
+      "Attach dual handles to a sled connected by a rope or chain. Load the sled to a light weight.",
+      "Face the sled, backing up until there is some tension in the line. Hold your hands directly above your head with your elbows extended. This will be your starting position.",
+      "Walk backwards, keeping your arms raised above your head. Avoid jerky movements."
+    ],
+    "primary_muscles": [
+      "shoulders"
+    ],
+    "secondary_muscles": [
+      "calves",
+      "back",
+      "quadriceps"
+    ],
+    "equipment": [
+      "none"
+    ],
+    "difficulty": "beginner",
+    "category_id": "strength",
+    "force_type": "pull",
+    "mechanics": "compound",
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Sled_Overhead_Backward_Walk/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Sled_Overhead_Backward_Walk/1.jpg",
+    "tags": [
+      "sled",
+      "overhead",
+      "backward",
+      "walk",
+      "shoulders",
+      "calves",
+      "middle back",
+      "quadriceps",
+      "other",
+      "strength",
+      "pull"
+    ],
+    "is_featured": false,
+    "approval_status": "approved",
+    "is_active": true
+  },
+  {
+    "name": "Sled Overhead Triceps Extension",
+    "slug": "sled-overhead-triceps-extension",
+    "description": "Attach dual handles to a sled using a chain or rope. Load the sled to an appropriate load.",
+    "instructions": [
+      "Attach dual handles to a sled using a chain or rope. Load the sled to an appropriate load.",
+      "Facing away from the sled, step away until there is tension in the line. Raise your hands above your head, keeping them together, palms facing each other. Your elbows should be pointed upward with the elbows flexed. This will be your starting position.",
+      "Extend through the elbow to straighten the arm. Ensure that your upper arm stays in position to isolate the triceps.",
+      "Upon full extension, step forward to take the slack out of the line. You may keep your feet staggered for more stability."
+    ],
+    "primary_muscles": [
+      "triceps"
+    ],
+    "secondary_muscles": [],
+    "equipment": [
+      "none"
+    ],
+    "difficulty": "beginner",
+    "category_id": "strength",
+    "force_type": "push",
+    "mechanics": "isolation",
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Sled_Overhead_Triceps_Extension/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Sled_Overhead_Triceps_Extension/1.jpg",
+    "tags": [
+      "sled",
+      "overhead",
+      "triceps",
+      "extension",
+      "other",
+      "strength",
+      "push"
+    ],
+    "is_featured": false,
+    "approval_status": "approved",
+    "is_active": true
+  },
+  {
+    "name": "Sled Push",
+    "slug": "sled-push",
+    "description": "Load your pushing sled with the desired weight.",
+    "instructions": [
+      "Load your pushing sled with the desired weight.",
+      "Take an athletic posture, leaning into the sled with your arms fully extended, grasping the handles. Push the sled as fast as possible, focusing on extending your hips and knees to strengthen your posterior chain."
+    ],
+    "primary_muscles": [
+      "quadriceps"
+    ],
+    "secondary_muscles": [
+      "calves",
+      "chest",
+      "glutes",
+      "hamstrings",
+      "triceps"
+    ],
+    "equipment": [
+      "none"
+    ],
+    "difficulty": "beginner",
+    "category_id": "strength",
+    "force_type": "push",
+    "mechanics": "compound",
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Sled_Push/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Sled_Push/1.jpg",
+    "tags": [
+      "sled",
+      "push",
+      "quadriceps",
+      "calves",
+      "chest",
+      "glutes",
+      "hamstrings",
+      "triceps",
+      "other",
+      "strongman"
+    ],
+    "is_featured": false,
+    "approval_status": "approved",
+    "is_active": true
+  },
+  {
+    "name": "Sled Reverse Flye",
+    "slug": "sled-reverse-flye",
+    "description": "Attach dual handles to a sled connected by a rope or chain. Load the sled to a light weight.",
+    "instructions": [
+      "Attach dual handles to a sled connected by a rope or chain. Load the sled to a light weight.",
+      "Face the sled, backing up until there is some tension in the line. Take both handles at arms length at about waist level. Bend the knees slightly and keep your chest and head up. This will be your starting position.",
+      "Without flexing the elbow, pull the handles upward and apart, performing a reverse fly with some external rotation. Your palms should be facing forward as you do this.",
+      "Return to the starting position, taking a couple steps back to take the slack out of the line."
+    ],
+    "primary_muscles": [
+      "shoulders"
+    ],
+    "secondary_muscles": [],
+    "equipment": [
+      "none"
+    ],
+    "difficulty": "beginner",
+    "category_id": "strength",
+    "force_type": "pull",
+    "mechanics": "isolation",
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Sled_Reverse_Flye/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Sled_Reverse_Flye/1.jpg",
+    "tags": [
+      "sled",
+      "reverse",
+      "flye",
+      "shoulders",
+      "other",
+      "strength",
+      "pull"
+    ],
+    "is_featured": false,
+    "approval_status": "approved",
+    "is_active": true
+  },
+  {
+    "name": "Sled Row",
+    "slug": "sled-row",
+    "description": "Attach dual handles to a sled connected by a rope or chain. Load the sled to an appropriate weight. Face the sled, backing up until there is some tension in the line.",
+    "instructions": [
+      "Attach dual handles to a sled connected by a rope or chain. Load the sled to an appropriate weight. Face the sled, backing up until there is some tension in the line.",
+      "With a handle in each hand, bend the knees slightly, keep your head and chest up, and begin with your arms extended.",
+      "To initiate the movement, flex the elbow as you retract your shoulder blades, pulling the sled towards you.",
+      "Take a step or two back to get tension in the line and repeat."
+    ],
+    "primary_muscles": [
+      "back"
+    ],
+    "secondary_muscles": [
+      "biceps",
+      "back"
+    ],
+    "equipment": [
+      "none"
+    ],
+    "difficulty": "beginner",
+    "category_id": "strength",
+    "force_type": "pull",
+    "mechanics": "compound",
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Sled_Row/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Sled_Row/1.jpg",
+    "tags": [
+      "sled",
+      "row",
+      "middle back",
+      "biceps",
+      "lats",
+      "other",
+      "strength",
+      "pull"
+    ],
+    "is_featured": true,
+    "approval_status": "approved",
+    "is_active": true
+  },
+  {
+    "name": "Sledgehammer Swings",
+    "slug": "sledgehammer-swings",
+    "description": "You will need a tire and a sledgehammer for this exercise. Stand in front of the tire about two feet away from it with a staggered stance. Grip the sledgehammer.",
+    "instructions": [
+      "You will need a tire and a sledgehammer for this exercise. Stand in front of the tire about two feet away from it with a staggered stance. Grip the sledgehammer.",
+      "If you are right handed, your left hand should be at the bottom of the handle, and your right hand should be choking up closer to the head.",
+      "As you bring the sledge up, your right hand slides toward the head; as you swing down, your right hand will slide down to join your left hand. Slam it down as hard as you can against the tire. Control the bounce of the hammer off of the tire.",
+      "Repeat on the other side."
+    ],
+    "primary_muscles": [
+      "abs"
+    ],
+    "secondary_muscles": [
+      "calves",
+      "forearms",
+      "back",
+      "shoulders"
+    ],
+    "equipment": [
+      "none"
+    ],
+    "difficulty": "beginner",
+    "category_id": "power",
+    "force_type": "pull",
+    "mechanics": "compound",
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Sledgehammer_Swings/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Sledgehammer_Swings/1.jpg",
+    "tags": [
+      "sledgehammer",
+      "swings",
+      "abdominals",
+      "calves",
+      "forearms",
+      "lats",
+      "middle back",
+      "shoulders",
+      "other",
+      "plyometrics",
+      "pull"
+    ],
+    "is_featured": false,
+    "approval_status": "approved",
+    "is_active": true
+  },
+  {
+    "name": "Smith Incline Shoulder Raise",
+    "slug": "smith-incline-shoulder-raise",
+    "description": "Place an incline bench underneath the smith machine. Place the barbell at a height that you can reach when lying down and your arms are almost fully extended. Once the weight you need is selected, lie down on the incline bench and make sure your shoulders are aligned right under the barbell.",
+    "instructions": [
+      "Place an incline bench underneath the smith machine. Place the barbell at a height that you can reach when lying down and your arms are almost fully extended. Once the weight you need is selected, lie down on the incline bench and make sure your shoulders are aligned right under the barbell.",
+      "Using a shoulder width pronated (palms forward) grip, lift the bar from the rack and hold it straight over you with a slight bend at the elbows. This will be your starting position.",
+      "As you breathe out, lift the bar up until your arms are fully extended. Note: The contraction should be felt around the shoulders.",
+      "After a second pause, bring the bar back down to the starting position as you breathe in.",
+      "Repeat the movement for the prescribed amount of repetitions.",
+      "When you are done, place the bar back in the rack."
+    ],
+    "primary_muscles": [
+      "shoulders"
+    ],
+    "secondary_muscles": [
+      "chest"
+    ],
+    "equipment": [
+      "barbell"
+    ],
+    "difficulty": "beginner",
+    "category_id": "strength",
+    "force_type": "push",
+    "mechanics": "isolation",
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Smith_Incline_Shoulder_Raise/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Smith_Incline_Shoulder_Raise/1.jpg",
+    "tags": [
+      "smith",
+      "incline",
+      "shoulder",
+      "raise",
+      "shoulders",
+      "chest",
+      "barbell",
+      "strength",
+      "push"
+    ],
+    "is_featured": false,
+    "approval_status": "approved",
+    "is_active": true
+  },
+  {
+    "name": "Smith Machine Behind the Back Shrug",
+    "slug": "smith-machine-behind-the-back-shrug",
+    "description": "With the bar at thigh level, load an appropriate weight.",
+    "instructions": [
+      "With the bar at thigh level, load an appropriate weight.",
+      "Stand with the bar behind you, taking a shoulder-width, pronated grip on the bar and unhook the weight. You should be standing up straight with your head and chest up and your arms extended. This will be your starting position.",
+      "Initiate the movement by shrugging your shoulders straight up. Do not flex the arms or wrist during the movement.",
+      "After a brief pause return the weight to the starting position.",
+      "Repeat for the desired number of repetitions before engaging the hooks to rack the weight."
+    ],
+    "primary_muscles": [
+      "back"
+    ],
+    "secondary_muscles": [
+      "shoulders"
+    ],
+    "equipment": [
+      "cable_machine"
+    ],
+    "difficulty": "beginner",
+    "category_id": "strength",
+    "force_type": "pull",
+    "mechanics": "isolation",
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Smith_Machine_Behind_the_Back_Shrug/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Smith_Machine_Behind_the_Back_Shrug/1.jpg",
+    "tags": [
+      "smith",
+      "machine",
+      "behind",
+      "the",
+      "back",
+      "shrug",
+      "traps",
+      "shoulders",
+      "strength",
+      "pull"
+    ],
+    "is_featured": false,
+    "approval_status": "approved",
+    "is_active": true
+  },
+  {
+    "name": "Smith Machine Bench Press",
+    "slug": "smith-machine-bench-press",
+    "description": "Place a flat bench underneath the smith machine. Now place the barbell at a height that you can reach when lying down and your arms are almost fully extended. Once the weight you need is selected, lie down on the flat bench. Using a pronated grip that is wider than shoulder width, unlock the bar from the rack and hold it straight over you with your arms locked. This will be your starting position.",
+    "instructions": [
+      "Place a flat bench underneath the smith machine. Now place the barbell at a height that you can reach when lying down and your arms are almost fully extended. Once the weight you need is selected, lie down on the flat bench. Using a pronated grip that is wider than shoulder width, unlock the bar from the rack and hold it straight over you with your arms locked. This will be your starting position.",
+      "As you breathe in, come down slowly until you feel the bar on your middle chest.",
+      "After a second pause, bring the bar back to the starting position as you breathe out and push the bar using your chest muscles. Lock your arms in the contracted position, hold for a second and then start coming down slowly again. Tip: It should take at least twice as long to go down than to come up.",
+      "Repeat the movement for the prescribed amount of repetitions.",
+      "When you are done, lock the bar back in the rack."
+    ],
+    "primary_muscles": [
+      "chest"
+    ],
+    "secondary_muscles": [
+      "shoulders",
+      "triceps"
+    ],
+    "equipment": [
+      "cable_machine"
+    ],
+    "difficulty": "beginner",
+    "category_id": "strength",
+    "force_type": "push",
+    "mechanics": "compound",
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Smith_Machine_Bench_Press/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Smith_Machine_Bench_Press/1.jpg",
+    "tags": [
+      "smith",
+      "machine",
+      "bench",
+      "press",
+      "chest",
+      "shoulders",
+      "triceps",
+      "strength",
+      "push"
+    ],
+    "is_featured": true,
+    "approval_status": "approved",
+    "is_active": true
+  },
+  {
+    "name": "Smith Machine Bent Over Row",
+    "slug": "smith-machine-bent-over-row",
+    "description": "Set the barbell attached to the smith machine to a height that is about 2 inches below your knees.",
+    "instructions": [
+      "Set the barbell attached to the smith machine to a height that is about 2 inches below your knees.",
+      "Bend your knees slightly and bring your torso forward, by bending at the waist, while keeping the back straight until it is almost parallel to the floor. Tip: Make sure that you keep the head up.",
+      "Now grasp the barbell using an overhand (pronated) grip and unlock it from the smith machine rack. Then let it hang directly in front of you as your arms hang extended perpendicular to the floor and your torso. This is your starting position.",
+      "While keeping the torso stationary, lift the barbell as you breathe out, keeping the elbows close to the body and not doing any force with the forearm other than holding the weights. On the top contracted position, squeeze the back muscles and hold for a second.",
+      "Slowly lower the weight again to the starting position as you inhale.",
+      "Repeat for the recommended amount of repetitions."
+    ],
+    "primary_muscles": [
+      "back"
+    ],
+    "secondary_muscles": [
+      "biceps",
+      "back",
+      "shoulders"
+    ],
+    "equipment": [
+      "cable_machine"
+    ],
+    "difficulty": "beginner",
+    "category_id": "strength",
+    "force_type": "pull",
+    "mechanics": "compound",
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Smith_Machine_Bent_Over_Row/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Smith_Machine_Bent_Over_Row/1.jpg",
+    "tags": [
+      "smith",
+      "machine",
+      "bent",
+      "over",
+      "row",
+      "middle back",
+      "biceps",
+      "lats",
+      "shoulders",
+      "strength",
+      "pull"
+    ],
+    "is_featured": true,
+    "approval_status": "approved",
+    "is_active": true
+  },
+  {
+    "name": "Smith Machine Calf Raise",
+    "slug": "smith-machine-calf-raise",
+    "description": "Place a block or weight plate below the bar on the Smith machine. Set the bar to a position that best matches your height. Once the correct height is chosen and the bar is loaded, step onto the plates with the balls of your feet and place the bar on the back of your shoulders.",
+    "instructions": [
+      "Place a block or weight plate below the bar on the Smith machine. Set the bar to a position that best matches your height. Once the correct height is chosen and the bar is loaded, step onto the plates with the balls of your feet and place the bar on the back of your shoulders.",
+      "Take the bar with both hands facing forward. Rotate the bar to unrack it. This will be your starting position.",
+      "Raise your heels as high as possible by pushing off of the balls of your feet, flexing your calf at the top of the contraction. Your knees should remain extended. Hold the contracted position for a second before you start to go back down.",
+      "Return slowly to the starting position as you breathe in while lowering your heels.",
+      "Repeat for the recommended amount of repetitions."
+    ],
+    "primary_muscles": [
+      "calves"
+    ],
+    "secondary_muscles": [],
+    "equipment": [
+      "cable_machine"
+    ],
+    "difficulty": "beginner",
+    "category_id": "strength",
+    "force_type": "push",
+    "mechanics": "isolation",
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Smith_Machine_Calf_Raise/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Smith_Machine_Calf_Raise/1.jpg",
+    "tags": [
+      "smith",
+      "machine",
+      "calf",
+      "raise",
+      "calves",
+      "strength",
+      "push"
+    ],
+    "is_featured": false,
+    "approval_status": "approved",
+    "is_active": true
+  },
+  {
+    "name": "Smith Machine Close-Grip Bench Press",
+    "slug": "smith-machine-close-grip-bench-press",
+    "description": "Place a flat bench underneath the smith machine. Place the barbell at a height that you can reach when lying down and your arms are almost fully extended. Once the weight you need is selected, lie down on the flat bench. Using a close and pronated grip (palms facing forward) that is around shoulder width, unlock the bar from the rack and hold it straight over you with your arms locked. This will be your starting position.",
+    "instructions": [
+      "Place a flat bench underneath the smith machine. Place the barbell at a height that you can reach when lying down and your arms are almost fully extended. Once the weight you need is selected, lie down on the flat bench. Using a close and pronated grip (palms facing forward) that is around shoulder width, unlock the bar from the rack and hold it straight over you with your arms locked. This will be your starting position.",
+      "As you breathe in, come down slowly until you feel the bar on your middle chest. Tip: Make sure that as opposed to a regular bench press, you keep the elbows close to the torso at all times in order to maximize triceps involvement.",
+      "After a second pause, bring the bar back to the starting position as you breathe out and push the bar using your triceps muscles. Lock your arms in the contracted position, hold for a second and then start coming down slowly again. Tip: It should take at least twice as long to go down than to come up.",
+      "Repeat the movement for the prescribed amount of repetitions.",
+      "When you are done, lock the bar back in the rack."
+    ],
+    "primary_muscles": [
+      "triceps"
+    ],
+    "secondary_muscles": [
+      "chest",
+      "shoulders"
+    ],
+    "equipment": [
+      "cable_machine"
+    ],
+    "difficulty": "beginner",
+    "category_id": "strength",
+    "force_type": "push",
+    "mechanics": "compound",
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Smith_Machine_Close-Grip_Bench_Press/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Smith_Machine_Close-Grip_Bench_Press/1.jpg",
+    "tags": [
+      "smith",
+      "machine",
+      "close-grip",
+      "bench",
+      "press",
+      "triceps",
+      "chest",
+      "shoulders",
+      "strength",
+      "push"
+    ],
+    "is_featured": true,
+    "approval_status": "approved",
+    "is_active": true
+  },
+  {
+    "name": "Smith Machine Decline Press",
+    "slug": "smith-machine-decline-press",
+    "description": "Position a decline bench in the rack so that the bar will be above your chest. Load an appropriate weight and take your place on the bench.",
+    "instructions": [
+      "Position a decline bench in the rack so that the bar will be above your chest. Load an appropriate weight and take your place on the bench.",
+      "Rotate the bar to unhook it from the rack and fully extend your arms. Your back should be slightly arched and your shoulder blades retracted. This will be your starting position.",
+      "Begin the movement by flexing your arms, lowering the bar to your chest.",
+      "Pause briefly, and then extend your arms to push the weight back to the starting position.",
+      "After completing the desired number of repetitions, rotate the bar to rack the weight."
+    ],
+    "primary_muscles": [
+      "chest"
+    ],
+    "secondary_muscles": [
+      "shoulders",
+      "triceps"
+    ],
+    "equipment": [
+      "cable_machine"
+    ],
+    "difficulty": "beginner",
+    "category_id": "strength",
+    "force_type": null,
+    "mechanics": "compound",
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Smith_Machine_Decline_Press/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Smith_Machine_Decline_Press/1.jpg",
+    "tags": [
+      "smith",
+      "machine",
+      "decline",
+      "press",
+      "chest",
+      "shoulders",
+      "triceps",
+      "strength"
+    ],
+    "is_featured": false,
+    "approval_status": "approved",
+    "is_active": true
+  },
+  {
+    "name": "Smith Machine Hang Power Clean",
+    "slug": "smith-machine-hang-power-clean",
+    "description": "Position the bar at knee height and load it to an appropriate weight.",
+    "instructions": [
+      "Position the bar at knee height and load it to an appropriate weight.",
+      "Take a pronated grip on the bar outside of shoulder width and unhook the bar from the machine. Your arms should be fully extended with your head and chest up. Your elbows should be pointed out with your shoulders back and down. Your hips should be back, loading the tension into the hamstrings. This will be your starting position.",
+      "Initate the movement by forcefully extending the hips and knees, accelerating into the bar. Ensure that you keep your arms straight during this part of the motion.",
+      "Upon full extension, rebend the hips and knees to lower your receiving position.",
+      "Allow the arms to flex at this point, rotating the elbows around the bar to receive it on your shoulders.",
+      "Extend through the hips and knees to come to a standing position with the bar racked on your shoulders to complete the movement."
+    ],
+    "primary_muscles": [
+      "hamstrings"
+    ],
+    "secondary_muscles": [
+      "glutes",
+      "lower_back",
+      "quadriceps",
+      "shoulders",
+      "back"
+    ],
+    "equipment": [
+      "cable_machine"
+    ],
+    "difficulty": "intermediate",
+    "category_id": "strength",
+    "force_type": "pull",
+    "mechanics": "compound",
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Smith_Machine_Hang_Power_Clean/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Smith_Machine_Hang_Power_Clean/1.jpg",
+    "tags": [
+      "smith",
+      "machine",
+      "hang",
+      "power",
+      "clean",
+      "hamstrings",
+      "glutes",
+      "lower back",
+      "quadriceps",
+      "shoulders",
+      "traps",
+      "strength",
+      "pull"
+    ],
+    "is_featured": false,
+    "approval_status": "approved",
+    "is_active": true
+  },
+  {
+    "name": "Smith Machine Hip Raise",
+    "slug": "smith-machine-hip-raise",
+    "description": "Position a bench in the rack and load the bar to an appropriate weight. Lie down on the bench, placing the bottom of your feet against the bar. Unlock the bar and extend your legs. You may need to use your hands to assist you. For added stability grasp the sides of the Smith Machine. This will be your starting position.",
+    "instructions": [
+      "Position a bench in the rack and load the bar to an appropriate weight. Lie down on the bench, placing the bottom of your feet against the bar. Unlock the bar and extend your legs. You may need to use your hands to assist you. For added stability grasp the sides of the Smith Machine. This will be your starting position.",
+      "Initiate the movement by rotating your pelvis, flexing your spine to raise your hips off of the bench. Maintain a slight bend in the knees throughout the motion.",
+      "After a brief pause, return the hips to the bench.",
+      "Repeat for the desired number of repetitions."
+    ],
+    "primary_muscles": [
+      "abs"
+    ],
+    "secondary_muscles": [],
+    "equipment": [
+      "cable_machine"
+    ],
+    "difficulty": "beginner",
+    "category_id": "strength",
+    "force_type": "pull",
+    "mechanics": "isolation",
+    "image_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Smith_Machine_Hip_Raise/0.jpg",
+    "gif_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Smith_Machine_Hip_Raise/1.jpg",
+    "tags": [
+      "smith",
+      "machine",
+      "hip",
+      "raise",
+      "abdominals",
+      "strength",
+      "pull"
+    ],
+    "is_featured": false,
+    "approval_status": "approved",
+    "is_active": true
+  }
+]
