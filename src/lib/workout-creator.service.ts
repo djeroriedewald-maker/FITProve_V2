@@ -355,6 +355,8 @@ export class WorkoutCreatorService {
             id,
             name,
             description,
+            image_url,
+            youtube_id,
             primary_muscles,
             secondary_muscles,
             equipment,

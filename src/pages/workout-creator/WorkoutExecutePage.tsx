@@ -30,6 +30,14 @@ export function WorkoutExecutePage() {
   const [isResting, setIsResting] = useState(false);
   const [restTimeRemaining, setRestTimeRemaining] = useState(0);
   const [sessionStartTime] = useState(new Date());
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  // Always-running session timer
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - sessionStartTime.getTime()) / 1000));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [sessionStartTime]);
   const [exerciseResults, setExerciseResults] = useState<{ [key: string]: SetResult[] }>({});
   const [isWorkoutCompleted, setIsWorkoutCompleted] = useState(false);
 
@@ -228,7 +236,7 @@ export function WorkoutExecutePage() {
             <div className="text-right">
               <div className="text-sm text-gray-600 dark:text-gray-400">Session Time</div>
               <div className="text-lg font-bold text-gray-900 dark:text-white">
-                {formatTime(Math.floor((Date.now() - sessionStartTime.getTime()) / 1000))}
+                {formatTime(elapsedSeconds)}
               </div>
             </div>
           </div>
@@ -298,10 +306,14 @@ interface ExerciseScreenProps {
 function ExerciseScreen({ exercise, currentSet, onLogSet, previousSets }: ExerciseScreenProps) {
   const [reps, setReps] = useState(parseInt(exercise.reps) || 8);
   const [weight, setWeight] = useState(exercise.weight_suggestion || '');
-  const [rpe, setRpe] = useState(7);
+  const [weightUnit, setWeightUnit] = useState('lbs');
+  // Removed RPE for per-set logging
+  const [time, setTime] = useState(''); // For time-based exercises
+  const [showFullDesc, setShowFullDesc] = useState(false);
 
   const handleLogSet = () => {
-    onLogSet(reps, weight ? Number(weight) : undefined, rpe);
+    // Pass time if needed (for time-based exercises)
+    onLogSet(reps, weight ? Number(weight) : undefined, undefined, time ? Number(time) : undefined);
   };
 
   return (
@@ -309,32 +321,94 @@ function ExerciseScreen({ exercise, currentSet, onLogSet, previousSets }: Exerci
       {/* Exercise Info */}
       <div className="bg-white dark:bg-gray-800 rounded-xl p-6 text-center">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-          {exercise.exercise.name}
+          {exercise.exercise?.name || exercise.name}
         </h1>
 
         <div className="flex justify-center gap-6 text-sm text-gray-600 dark:text-gray-400 mb-4">
           <div className="flex items-center gap-1">
             <Target className="w-4 h-4" />
-            <span>{exercise.exercise.primary_muscles.join(', ')}</span>
+            <span>{exercise.exercise?.primary_muscles?.join(', ') || exercise.primary_muscles?.join(', ')}</span>
           </div>
           <div className="flex items-center gap-1">
             <Dumbbell className="w-4 h-4" />
-            <span>{exercise.exercise.equipment.join(', ')}</span>
+            <span>{exercise.exercise?.equipment?.join(', ') || exercise.equipment?.join(', ')}</span>
           </div>
         </div>
+
+        {/* Hero Image (always use exercise library image, fallback to public placeholder) */}
+        <div className="flex justify-center mb-4">
+          <img
+            src={exercise.exercise?.image_url || 'https://placehold.co/256x160?text=No+Image'}
+            alt={exercise.exercise?.name || exercise.name}
+            className="w-64 h-40 object-cover rounded-lg mx-auto"
+          />
+        </div>
+
+        {/* YouTube Button */}
+        <div className="flex justify-center mb-4">
+          <button
+            className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-semibold"
+            onClick={() => window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(exercise.exercise?.name || exercise.name)}`, '_blank')}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24" className="w-5 h-5"><path d="M23.498 6.186a2.994 2.994 0 0 0-2.112-2.12C19.228 3.5 12 3.5 12 3.5s-7.228 0-9.386.566a2.994 2.994 0 0 0-2.112 2.12C0 8.353 0 12 0 12s0 3.647.502 5.814a2.994 2.994 0 0 0 2.112 2.12C4.772 20.5 12 20.5 12 20.5s7.228 0 9.386-.566a2.994 2.994 0 0 0 2.112-2.12C24 15.647 24 12 24 12s0-3.647-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+            Watch on YouTube
+          </button>
+        </div>
+
+        {/* Exercise Description with Read More */}
+        <div className="text-gray-700 dark:text-gray-300 mb-4 text-base max-w-2xl mx-auto">
+          {showFullDesc ? (
+            <>
+              <div>{exercise.exercise?.description || exercise.description || 'No description available.'}</div>
+              {exercise.exercise?.instructions && exercise.exercise.instructions.length > 0 && (
+                <ul className="list-disc pl-6 mt-2 text-sm text-gray-600 dark:text-gray-400">
+                  {exercise.exercise.instructions.map((step, idx) => (
+                    <li key={idx}>{step}</li>
+                  ))}
+                </ul>
+              )}
+              <button
+                className="mt-2 text-blue-600 dark:text-blue-400 underline text-sm"
+                onClick={() => setShowFullDesc(false)}
+              >
+                Show less
+              </button>
+            </>
+          ) : (
+            <>
+              <div>
+                {(exercise.exercise?.description || exercise.description || 'No description available.').slice(0, 120)}
+                {(exercise.exercise?.description || exercise.description || '').length > 120 && '...'}
+              </div>
+              <button
+                className="mt-2 text-blue-600 dark:text-blue-400 underline text-sm"
+                onClick={() => setShowFullDesc(true)}
+              >
+                Read more
+              </button>
+            </>
+          )}
+        </div>
+
+        {/* YouTube Video (always show if available) */}
+        {exercise.exercise?.youtube_id || exercise.youtube_id ? (
+          <div className="flex justify-center mb-4">
+            <iframe
+              width="360"
+              height="215"
+              src={`https://www.youtube.com/embed/${exercise.exercise?.youtube_id || exercise.youtube_id}`}
+              title="Exercise Video"
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              className="rounded-lg shadow-lg"
+            ></iframe>
+          </div>
+        ) : null}
 
         <div className="text-lg font-semibold text-orange-600 mb-4">
           Set {currentSet} of {exercise.sets}
         </div>
-
-        {/* Exercise Image */}
-        {exercise.exercise.image_url && (
-          <img
-            src={exercise.exercise.image_url}
-            alt={exercise.exercise.name}
-            className="w-64 h-40 object-cover rounded-lg mx-auto"
-          />
-        )}
       </div>
 
       {/* Set Logging */}
@@ -343,7 +417,7 @@ function ExerciseScreen({ exercise, currentSet, onLogSet, previousSets }: Exerci
           Log Your Set
         </h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           {/* Reps */}
           <div className="text-center">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -368,36 +442,43 @@ function ExerciseScreen({ exercise, currentSet, onLogSet, previousSets }: Exerci
             </div>
           </div>
 
-          {/* Weight */}
+          {/* Weight with lbs/kg toggle */}
           <div className="text-center">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Weight (lbs)
+              Weight
+            </label>
+            <div className="flex gap-2 items-center justify-center">
+              <input
+                type="number"
+                value={weight}
+                onChange={(e) => setWeight(e.target.value)}
+                placeholder="Optional"
+                className="w-24 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-center bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              />
+              <select
+                value={weightUnit}
+                onChange={e => setWeightUnit(e.target.value)}
+                className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              >
+                <option value="lbs">lbs</option>
+                <option value="kg">kg</option>
+              </select>
+            </div>
+          </div>
+
+
+          {/* Time (if needed) */}
+          <div className="text-center">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Time (seconds)
             </label>
             <input
               type="number"
-              value={weight}
-              onChange={(e) => setWeight(e.target.value)}
-              placeholder="Optional"
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+              placeholder="If time-based"
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-center bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             />
-          </div>
-
-          {/* RPE */}
-          <div className="text-center">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              RPE (1-10)
-            </label>
-            <select
-              value={rpe}
-              onChange={(e) => setRpe(Number(e.target.value))}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-center bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-            >
-              {[...Array(10)].map((_, i) => (
-                <option key={i + 1} value={i + 1}>
-                  {i + 1}
-                </option>
-              ))}
-            </select>
           </div>
         </div>
 

@@ -1,15 +1,16 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  Dumbbell, 
-  Library, 
-  ArrowRight, 
-  Clock, 
-  Target, 
+import {
+  Dumbbell,
+  Library,
+  ArrowRight,
+  Clock,
+  Target,
   TrendingUp,
   Flame,
   BookOpen,
   Wrench
+
 } from 'lucide-react';
 import { BackButton } from '../components/ui/BackButton';
 import { supabase } from '../lib/supabase';
@@ -23,13 +24,32 @@ interface WorkoutCategory {
   gradient: string;
   features: string[];
   stats: {
-    count: number;
-    label: string;
+  count: number;
+  label: string;
   };
   comingSoon?: boolean;
 }
 
-const workoutCategories: WorkoutCategory[] = [
+const defaultWorkoutCategories: WorkoutCategory[] = [
+  {
+    id: 'community-workouts',
+    title: 'Community Workouts',
+    description: 'Browse and join workouts created by other users. Only public workouts are shown, including the creator name.',
+    icon: Library,
+    color: 'text-orange-600',
+    gradient: 'from-orange-500/20 to-yellow-500/20',
+    features: [
+      'User-created routines',
+      'See who created each workout',
+      'Join and track community workouts',
+      'Public workouts only'
+    ],
+    stats: {
+      count: 0,
+      label: 'Community Workouts'
+    },
+    comingSoon: false
+  },
   {
     id: 'exercise-library',
     title: 'Exercise Library',
@@ -46,7 +66,7 @@ const workoutCategories: WorkoutCategory[] = [
       'Video demonstrations'
     ],
     stats: {
-      count: 800,
+      count: 0,
       label: 'Exercises'
     }
   },
@@ -66,7 +86,7 @@ const workoutCategories: WorkoutCategory[] = [
       'Performance tracking'
     ],
     stats: {
-      count: 45,
+      count: 0,
       label: 'Workouts'
     }
   },
@@ -165,21 +185,44 @@ function WorkoutCategoryCard({ category }: { category: WorkoutCategory }) {
 }
 
 export function WorkoutPage() {
-  const [createdWorkouts, setCreatedWorkouts] = React.useState<number | null>(null);
+  const [workoutCategories, setWorkoutCategories] = React.useState<WorkoutCategory[]>(defaultWorkoutCategories);
 
   React.useEffect(() => {
-    const fetchCreatedWorkouts = async () => {
-      const { count, error } = await supabase
+    async function fetchCounts() {
+      // Community Workouts (public only)
+      const { count: communityCount } = await supabase
+        .from('custom_workouts')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_public', true);
+
+      // Exercise Library
+      const { count: exerciseCount } = await supabase
+        .from('exercises')
+        .select('*', { count: 'exact', head: true });
+
+      // Workout Library (pre-designed workouts)
+      const { count: workoutLibCount } = await supabase
+        .from('workouts')
+        .select('*', { count: 'exact', head: true });
+
+      // Custom Workouts (all user-created)
+      const { count: customCount } = await supabase
         .from('custom_workouts')
         .select('*', { count: 'exact', head: true });
-      if (error) {
-        setCreatedWorkouts(null);
-      } else {
-        setCreatedWorkouts(count ?? 0);
-      }
-    };
-    fetchCreatedWorkouts();
+
+      setWorkoutCategories((prev) =>
+        prev.map((cat) => {
+          if (cat.id === 'community-workouts') return { ...cat, stats: { ...cat.stats, count: communityCount ?? 0 } };
+          if (cat.id === 'exercise-library') return { ...cat, stats: { ...cat.stats, count: exerciseCount ?? 0 } };
+          if (cat.id === 'workout-library') return { ...cat, stats: { ...cat.stats, count: workoutLibCount ?? 0 } };
+          if (cat.id === 'workout-creator') return { ...cat, stats: { ...cat.stats, count: customCount ?? 0 } };
+          return cat;
+        })
+      );
+    }
+    fetchCounts();
   }, []);
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Back Button */}
@@ -205,7 +248,7 @@ export function WorkoutPage() {
               </h1>
               <p className="text-xl text-gray-200 mb-6">
                 Transform your fitness journey with our comprehensive workout system. 
-                From individual exercises to complete routines and custom workout creation.
+                Individual exercises to complete routines and custom workout creation.
               </p>
               <div className="flex flex-wrap gap-4">
                 <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2 text-white">
@@ -230,21 +273,19 @@ export function WorkoutPage() {
         {/* Quick Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
           <div className="bg-white dark:bg-gray-800 rounded-lg p-4 text-center shadow-sm">
-            <div className="text-2xl font-bold text-orange-600 mb-1">800+</div>
+            <div className="text-2xl font-bold text-orange-600 mb-1">{workoutCategories.find(c => c.id === 'exercise-library')?.stats.count ?? '...'}</div>
             <div className="text-sm text-gray-600 dark:text-gray-400">Exercises</div>
           </div>
           <div className="bg-white dark:bg-gray-800 rounded-lg p-4 text-center shadow-sm">
-            <div className="text-2xl font-bold text-green-600 mb-1">45+</div>
+            <div className="text-2xl font-bold text-green-600 mb-1">{workoutCategories.find(c => c.id === 'workout-library')?.stats.count ?? '...'}</div>
             <div className="text-sm text-gray-600 dark:text-gray-400">Workouts</div>
           </div>
           <div className="bg-white dark:bg-gray-800 rounded-lg p-4 text-center shadow-sm">
-            <div className="text-2xl font-bold text-blue-600 mb-1">8</div>
+            <div className="text-2xl font-bold text-blue-600 mb-1">{workoutCategories.length}</div>
             <div className="text-sm text-gray-600 dark:text-gray-400">Categories</div>
           </div>
           <div className="bg-white dark:bg-gray-800 rounded-lg p-4 text-center shadow-sm">
-            <div className="text-2xl font-bold text-purple-600 mb-1">
-              {createdWorkouts !== null ? createdWorkouts : '...'}
-            </div>
+            <div className="text-2xl font-bold text-purple-600 mb-1">{workoutCategories.find(c => c.id === 'workout-creator')?.stats.count ?? '...'}</div>
             <div className="text-sm text-gray-600 dark:text-gray-400">Created workouts</div>
           </div>
         </div>
@@ -258,7 +299,7 @@ export function WorkoutPage() {
             {workoutCategories.map((category) => (
               <Link
                 key={category.id}
-                to={`/modules/workout/${category.id}`}
+                to={category.id === 'community-workouts' ? '/modules/workout/community' : `/modules/workout/${category.id}`}
                 className={`block ${category.comingSoon ? 'pointer-events-none' : ''}`}
               >
                 <WorkoutCategoryCard category={category} />
