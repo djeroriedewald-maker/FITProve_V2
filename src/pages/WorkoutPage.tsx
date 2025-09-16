@@ -170,7 +170,7 @@ export function WorkoutPage() {
   React.useEffect(() => {
     const fetchCreatedWorkouts = async () => {
       const { count, error } = await supabase
-        .from('workouts')
+        .from('custom_workouts')
         .select('*', { count: 'exact', head: true });
       if (error) {
         setCreatedWorkouts(null);

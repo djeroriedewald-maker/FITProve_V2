@@ -12,7 +12,6 @@ import {
   Trash2,
   Share2,
   Clock,
-  Target,
   Dumbbell,
   Users,
   Lock,
@@ -236,13 +235,15 @@ function WorkoutCard({
 
           {/* Difficulty badge */}
           <div className="absolute top-3 right-3">
-            <span className={`px-2 py-1 backdrop-blur-sm text-white text-xs font-medium rounded-full ${
-              workout.difficulty === 'beginner' 
-                ? 'bg-green-600/80' 
-                : workout.difficulty === 'intermediate' 
-                ? 'bg-yellow-600/80' 
-                : 'bg-red-600/80'
-            }`}>
+            <span
+              className={`px-2 py-1 backdrop-blur-sm text-white text-xs font-medium rounded-full ${
+                workout.difficulty === 'beginner'
+                  ? 'bg-green-600/80'
+                  : workout.difficulty === 'intermediate'
+                    ? 'bg-yellow-600/80'
+                    : 'bg-red-600/80'
+              }`}
+            >
               {workout.difficulty.charAt(0).toUpperCase() + workout.difficulty.slice(1)}
             </span>
           </div>
@@ -257,14 +258,18 @@ function WorkoutCard({
           
           {/* Difficulty badge */}
           <div className="absolute top-3 right-3">
-            <span className={`px-2 py-1 backdrop-blur-sm text-white text-xs font-medium rounded-full ${
-              workout.difficulty === 'beginner' 
-                ? 'bg-green-600/80' 
-                : workout.difficulty === 'intermediate' 
-                ? 'bg-yellow-600/80' 
-                : 'bg-red-600/80'
-            }`}>
-              {workout.difficulty ? workout.difficulty.charAt(0).toUpperCase() + workout.difficulty.slice(1) : 'Unknown'}
+            <span
+              className={`px-2 py-1 backdrop-blur-sm text-white text-xs font-medium rounded-full ${
+                workout.difficulty === 'beginner'
+                  ? 'bg-green-600/80'
+                  : workout.difficulty === 'intermediate'
+                  ? 'bg-yellow-600/80'
+                  : 'bg-red-600/80'
+              }`}
+            >
+              {workout.difficulty
+                ? workout.difficulty.charAt(0).toUpperCase() + workout.difficulty.slice(1)
+                : 'Unknown'}
             </span>
           </div>
         </div>
@@ -282,6 +287,18 @@ function WorkoutCard({
                 <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-3 leading-relaxed">
                   {workout.description}
                 </p>
+              </div>
+            )}
+            {workout.tags && workout.tags.length > 0 && (
+              <div className="flex flex-wrap gap-1 mb-2">
+                {workout.tags.map((tag: string) => (
+                  <span
+                    key={tag}
+                    className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-xs font-medium"
+                  >
+                    #{tag}
+                  </span>
+                ))}
               </div>
             )}
           </div>
@@ -345,24 +362,34 @@ function WorkoutCard({
         </div>
 
         {/* Stats */}
-        <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400 mb-4">
+        <div className="flex items-center gap-6 text-sm text-gray-600 dark:text-gray-400 mb-4">
           <div className="flex items-center gap-1">
             <Dumbbell className="w-4 h-4" />
-            <span>{workout.total_exercises} exercises</span>
+            <span>{workout.exercise_count ?? 0} oefeningen</span>
           </div>
-          {workout.estimated_duration && (
-            <div className="flex items-center gap-1">
-              <Clock className="w-4 h-4" />
-              <span>{workout.estimated_duration}m</span>
-            </div>
-          )}
-          {!workout.hero_image_url && (
-            <div className="flex items-center gap-1">
-              <Target className="w-4 h-4" />
-              <span className="capitalize">{workout.difficulty}</span>
-            </div>
-          )}
+          <div className="flex items-center gap-1">
+            <span className="font-bold">{workout.total_sets ?? 0}</span>
+            <span>sets</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <Clock className="w-4 h-4" />
+            <span>{workout.estimated_duration ? `${workout.estimated_duration} min` : '--'}</span>
+          </div>
         </div>
+
+        {/* Muscle Groups */}
+        {workout.primary_muscle_groups && workout.primary_muscle_groups.length > 0 && (
+          <div className="flex flex-wrap gap-1 mb-2">
+            {workout.primary_muscle_groups.slice(0, 4).map((muscle: string) => (
+              <span
+                key={muscle}
+                className="px-2 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 rounded-full text-xs font-medium"
+              >
+                {muscle}
+              </span>
+            ))}
+          </div>
+        )}
 
         {/* Muscle Groups */}
         {workout.primary_muscle_groups && workout.primary_muscle_groups.length > 0 && (

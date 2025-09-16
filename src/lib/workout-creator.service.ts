@@ -35,90 +35,176 @@ export class WorkoutCreatorService {
    */
   static async deleteWorkout(workoutId: string): Promise<boolean> {
     try {
-      const { error } = await supabase
-        .from('workouts')
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      const { data: deletedRows, error } = await (supabase as any)
+        .from('custom_workouts')
         .delete()
-        .eq('id', workoutId);
+        .eq('id', workoutId)
+        .eq('user_id', user.id)
+        .select('id');
+
       if (error) {
         console.error('Error deleting workout:', error);
         return false;
       }
+
+      if (!deletedRows || deletedRows.length === 0) {
+        const { error: legacyDeleteError } = await supabase
+          .from('workouts')
+          .delete()
+          .eq('id', workoutId);
+
+        if (legacyDeleteError) {
+          console.error('Error deleting legacy workout:', legacyDeleteError);
+          return false;
+        }
+      }
+
       return true;
     } catch (err) {
       console.error('Exception deleting workout:', err);
       return false;
     }
   }
+
   /**
    * Create a new custom workout
    */
   static async createWorkout(workoutData: WorkoutFormData, userId?: string): Promise<CustomWorkout | null> {
-    console.log('🔄 WorkoutCreatorService.createWorkout called');
-    console.log('🔄 Provided userId:', userId);
-    console.log('📋 Workout data:', workoutData);
+    console.log('[createWorkout] called');
+    console.log('[createWorkout] Provided userId:', userId);
+    console.log('[createWorkout] Workout data:', workoutData);
 
     try {
-      // IMPORTANT: Use fresh client with session to ensure RLS works
-      const { createClient } = await import('@supabase/supabase-js');
-      const supabaseWithSession = createClient(supabaseUrl, supabaseKey, {
-        auth: {
-          persistSession: true,
-          autoRefreshToken: true,
-          detectSessionInUrl: true,
-          storage: typeof window !== 'undefined' ? window.localStorage : undefined,
-          storageKey: 'fitprove-auth-token',
-          flowType: 'pkce'
-        }
-      });
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
 
-      // Get current session to ensure authenticated user
-      const { data: { session }, error: sessionError } = await supabaseWithSession.auth.getSession();
-
-      if (sessionError || !session?.user) {
-        console.error('❌ Session error or no user:', sessionError);
+      if (userError || !user) {
+        console.error('[createWorkout] Session error or no user:', userError);
         throw new Error('User must be authenticated to create workout');
       }
 
-      console.log('✅ Session found for user:', session.user.id);
-      const finalUserId = userId || session.user.id;
+      const finalUserId = userId || user.id;
+      console.log('[createWorkout] Session found for user:', finalUserId);
+      console.log('[createWorkout] Creating workout for user:', finalUserId);
 
-      console.log('🎯 Creating workout for user:', finalUserId);
+      const normalizedExercises = (workoutData.exercises || []).map((exercise) => ({
+        ...exercise,
+        sets: Math.max(exercise.sets ?? 0, 1),
+        rest_seconds: exercise.rest_seconds ?? 60,
+      }));
+      const exerciseCount = normalizedExercises.length;
+      const totalSets = normalizedExercises.reduce((sum, ex) => sum + ex.sets, 0);
+      const estimatedDurationMinutes = Math.max(
+        5,
+        Math.round(
+          normalizedExercises.reduce((total, ex) => {
+            const workTime = ex.sets * 45;
+            const restTime = ex.sets * ex.rest_seconds;
+            return total + workTime + restTime;
+          }, 0) / 60
+        )
+      );
 
-      // Insert workout with authenticated session using the correct workouts table
-      const { data: workout, error: workoutError } = await supabaseWithSession
-        .from('workouts')
+      const uniqueExerciseIds = Array.from(
+        new Set(normalizedExercises.map((ex) => ex.exercise_id).filter((id): id is string => Boolean(id)))
+      );
+
+      let primaryMuscleGroups: string[] = [];
+      let equipmentNeeded: string[] = [];
+
+      if (uniqueExerciseIds.length > 0) {
+        const { data: exerciseRows, error: exerciseLookupError } = await (supabase as any)
+          .from('exercises')
+          .select('id, primary_muscles, secondary_muscles, equipment')
+          .in('id', uniqueExerciseIds);
+
+        if (exerciseLookupError) {
+          console.error('[createWorkout] Error loading exercise metadata:', exerciseLookupError);
+        } else if (exerciseRows) {
+          const muscles = new Set<string>();
+          const equipment = new Set<string>();
+          for (const row of exerciseRows as any[]) {
+            (row.primary_muscles || []).forEach((muscle: string) => muscles.add(muscle));
+            (row.secondary_muscles || []).forEach((muscle: string) => muscles.add(muscle));
+            (row.equipment || []).forEach((item: string) => equipment.add(item));
+          }
+          primaryMuscleGroups = Array.from(muscles);
+          equipmentNeeded = Array.from(equipment);
+        }
+      }
+
+      const estimatedCalories = Math.max(estimatedDurationMinutes * 5, 20);
+
+      const { data: workout, error: workoutError } = await (supabase as any)
+        .from('custom_workouts')
         .insert({
-          title: workoutData.name,
-          level: workoutData.difficulty || 'beginner',
-          goal: workoutData.description || 'general fitness',
-          duration_min: 30, // Default duration since it's not in WorkoutFormData
+          user_id: finalUserId,
+          name: workoutData.name,
+          description: workoutData.description || 'general fitness',
+          difficulty: workoutData.difficulty || 'beginner',
+          estimated_duration: estimatedDurationMinutes,
+          estimated_calories: estimatedCalories,
+          total_exercises: exerciseCount,
+          exercise_count: exerciseCount,
+          total_sets: totalSets,
           tags: workoutData.tags || [],
-          signature: `user-${finalUserId}-${Date.now()}`,
           hero_image_url: workoutData.hero_image_url || null,
+          is_public: workoutData.is_public ?? false,
+          primary_muscle_groups: primaryMuscleGroups,
+          equipment_needed: equipmentNeeded,
         })
-        .select()
+        .select('*')
         .single();
 
       if (workoutError) {
-        console.error('❌ Error creating workout:', workoutError);
+        console.error('[createWorkout] Error creating workout:', workoutError);
         throw workoutError;
       }
 
-      console.log('✅ Workout created successfully:', workout);
+      if (normalizedExercises.length > 0 && workout?.id) {
+        const exerciseInserts = normalizedExercises.map((exercise, index) => ({
+          custom_workout_id: workout.id,
+          exercise_id: exercise.exercise_id,
+          order_index: index,
+          sets: exercise.sets,
+          reps: exercise.reps || '8-12',
+          weight_suggestion: exercise.weight_suggestion ?? null,
+          rest_seconds: exercise.rest_seconds,
+          notes: exercise.notes || '',
+          is_warmup: exercise.is_warmup || false,
+          is_cooldown: exercise.is_cooldown || false,
+          superset_group: exercise.superset_group ?? null,
+        }));
 
-      // TODO: Add exercises functionality later - for now just save the basic workout
-      if (workoutData.exercises && workoutData.exercises.length > 0) {
-        console.log('⚠️ Exercise functionality temporarily disabled');
-        console.log('📝 Would add', workoutData.exercises.length, 'exercises');
+        const { error: exercisesError } = await (supabase as any)
+          .from('custom_workout_exercises')
+          .insert(exerciseInserts);
+
+        if (exercisesError) {
+          console.error('[createWorkout] Error saving workout exercises:', exercisesError);
+        }
       }
 
-      // Return the created workout (simplified for now)
-      return workout as any;
-
-      console.log('🎉 Workout creation completed successfully!');
-      return workout;
+      return {
+        ...workout,
+        exercise_count: exerciseCount,
+        total_sets: totalSets,
+        primary_muscle_groups: primaryMuscleGroups,
+        equipment_needed: workout?.equipment_needed ?? equipmentNeeded,
+        estimated_duration: workout?.estimated_duration ?? estimatedDurationMinutes,
+        total_exercises: workout?.total_exercises ?? exerciseCount,
+      } as any;
     } catch (error) {
-      console.error('❌ WorkoutCreatorService.createWorkout failed:', error);
+      console.error('[createWorkout] Failed:', error);
       throw error;
     }
   }
@@ -128,24 +214,20 @@ export class WorkoutCreatorService {
    */
   static async getUserWorkouts(): Promise<CustomWorkout[]> {
     try {
-      // Use the shared supabase client from auth context
       const {
         data: { user },
         error: userError,
       } = await supabase.auth.getUser();
-      
+
       if (userError || !user) {
         console.error('Error getting user:', userError);
         return [];
       }
 
-      console.log('👤 Getting workouts for user:', user.id);
-
-      // Query the workouts table (not custom_workouts)
-      // For now, get all workouts since we don't have user tracking yet
-      const { data, error } = await supabase
-        .from('workouts')
+      const { data: workouts, error } = await (supabase as any)
+        .from('custom_workouts')
         .select('*')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -153,29 +235,83 @@ export class WorkoutCreatorService {
         return [];
       }
 
-      console.log('✅ Found workouts:', data?.length || 0);
-      
-      // Convert to CustomWorkout format for compatibility
-      return (data || []).map(workout => ({
-        ...workout,
-        name: workout.title, // Map title back to name for UI compatibility
-        difficulty_level: workout.level, // Map level back to difficulty_level
-        difficulty: workout.level, // Also map to difficulty for WorkoutCard
-        description: workout.goal, // Map goal to description
-        hero_image_url: workout.hero_image_url || null, // Gebruik image uit database
-        total_exercises: 0, // TODO: Count from exercises when implemented
-        estimated_duration: workout.duration_min, // Map duration
-        primary_muscle_groups: [], // TODO: Derive from exercises
-        is_public: false, // Default for now
-        like_count: 0,
-        use_count: 0,
-        share_count: 0,
-        user_id: 'temp', // Temporary value
-        equipment_needed: [],
-        is_featured: false,
-        updated_at: workout.created_at
-      })) as any;
-      
+      const workoutList = workouts || [];
+      if (workoutList.length === 0) {
+        const { data: legacyWorkouts, error: legacyError } = await supabase
+          .from('workouts')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (legacyError) {
+          console.error('Error getting legacy workouts:', legacyError);
+          return [];
+        }
+
+        return (legacyWorkouts || []).map((workout: any) => ({
+          ...workout,
+          name: workout.title,
+          difficulty: workout.level,
+          difficulty_level: workout.level,
+          description: workout.goal,
+          hero_image_url: workout.hero_image_url || null,
+          total_exercises: 0,
+          exercise_count: 0,
+          total_sets: 0,
+          estimated_duration: workout.duration_min,
+          primary_muscle_groups: [],
+          equipment_needed: [],
+          is_public: false,
+          like_count: 0,
+          use_count: 0,
+          share_count: 0,
+          user_id: user.id,
+          updated_at: workout.created_at,
+        })) as any;
+      }
+
+      const workoutIds = workoutList.map((w: any) => w.id);
+      const aggregates: Record<string, { count: number; sets: number; durationSeconds: number }> = {};
+
+      if (workoutIds.length > 0) {
+        const { data: exerciseRows, error: exerciseError } = await (supabase as any)
+          .from('custom_workout_exercises')
+          .select('custom_workout_id, sets, rest_seconds')
+          .in('custom_workout_id', workoutIds);
+
+        if (exerciseError) {
+          console.error('Error getting workout exercises:', exerciseError);
+        } else if (exerciseRows) {
+          for (const row of exerciseRows as any[]) {
+            const workoutId = row.custom_workout_id;
+            if (!aggregates[workoutId]) {
+              aggregates[workoutId] = { count: 0, sets: 0, durationSeconds: 0 };
+            }
+            const sets = row.sets || 0;
+            const restSeconds = row.rest_seconds || 0;
+            aggregates[workoutId].count += 1;
+            aggregates[workoutId].sets += sets;
+            aggregates[workoutId].durationSeconds += sets * 45 + sets * restSeconds;
+          }
+        }
+      }
+
+      return workoutList.map((workout: any) => {
+        const aggregate = aggregates[workout.id] || { count: 0, sets: 0, durationSeconds: 0 };
+        const derivedDuration = aggregate.durationSeconds > 0
+          ? Math.max(5, Math.round(aggregate.durationSeconds / 60))
+          : 0;
+        return {
+          ...workout,
+          exercise_count: workout.exercise_count ?? aggregate.count,
+          total_exercises: workout.total_exercises ?? aggregate.count,
+          total_sets: workout.total_sets ?? aggregate.sets,
+          primary_muscle_groups: workout.primary_muscle_groups ?? [],
+          equipment_needed: workout.equipment_needed ?? [],
+          estimated_duration: workout.estimated_duration && workout.estimated_duration > 0
+            ? workout.estimated_duration
+            : derivedDuration,
+        };
+      }) as any;
     } catch (error) {
       console.error('Error in getUserWorkouts:', error);
       return [];
@@ -188,7 +324,7 @@ export class WorkoutCreatorService {
   static async getWorkoutById(workoutId: string): Promise<WorkoutDetails | null> {
     try {
       // Get the workout
-      const { data: workout, error: workoutError } = await supabaseUntyped
+      const { data: workout, error: workoutError } = await (supabase as any)
         .from('custom_workouts')
         .select('*')
         .eq('id', workoutId)
@@ -200,22 +336,34 @@ export class WorkoutCreatorService {
       }
 
       // Get the exercises for this workout
-      const { data: exercises, error: exercisesError } = await supabaseUntyped
+      const { data: exercises, error: exercisesError } = await (supabase as any)
         .from('custom_workout_exercises')
         .select(`
-          *,
-          exercises:exercise_id (
+          id,
+          custom_workout_id,
+          exercise_id,
+          order_index,
+          sets,
+          reps,
+          weight_suggestion,
+          rest_seconds,
+          notes,
+          is_warmup,
+          is_cooldown,
+          superset_group,
+          exercise:exercise_id (
             id,
             name,
             description,
-            muscle_groups,
+            primary_muscles,
+            secondary_muscles,
             equipment,
             instructions,
-            category,
-            difficulty_level
+            category_id,
+            difficulty
           )
         `)
-        .eq('workout_id', workoutId)
+        .eq('custom_workout_id', workoutId)
         .order('order_index');
 
       if (exercisesError) {
@@ -295,7 +443,7 @@ export class WorkoutCreatorService {
       const {
         data: { user },
         error: userError,
-      } = await supabaseUntyped.auth.getUser();
+      } = await supabase.auth.getUser();
       if (userError || !user) {
         console.error('Error getting user:', userError);
         return null;
@@ -303,16 +451,30 @@ export class WorkoutCreatorService {
 
       const finalUserId = userId || user.id;
 
-      const { data: session, error } = await supabaseUntyped
+      const { data: workout, error: workoutLookupError } = await (supabase as any)
+        .from('custom_workouts')
+        .select('name')
+        .eq('id', workoutId)
+        .single();
+
+      if (workoutLookupError || !workout) {
+        console.error('Error loading workout for session:', workoutLookupError);
+        return null;
+      }
+
+      const startedAt = new Date().toISOString();
+
+      const { data: session, error } = await (supabase as any)
         .from('workout_sessions')
         .insert({
-          workout_id: workoutId,
+          custom_workout_id: workoutId,
+          workout_name: workout.name,
+          workout_type: 'custom',
           user_id: finalUserId,
-          started_at: new Date().toISOString(),
+          started_at: startedAt,
           status: 'in_progress',
         })
-        .select()
-        .single();
+        .select().single();
 
       if (error) {
         console.error('Error starting workout session:', error);
@@ -335,7 +497,7 @@ export class WorkoutCreatorService {
   ): Promise<WorkoutSession | null> {
     try {
       // Update the session
-      const { data: session, error: sessionError } = await supabaseUntyped
+      const { data: session, error: sessionError } = await (supabase as any)
         .from('workout_sessions')
         .update({
           completed_at: new Date().toISOString(),
@@ -352,7 +514,7 @@ export class WorkoutCreatorService {
 
       // Save exercise results if provided
       if (exerciseResults.length > 0) {
-        const { error: resultsError } = await supabaseUntyped
+        const { error: resultsError } = await (supabase as any)
           .from('workout_exercise_results')
           .insert(
             exerciseResults.map((result) => ({
@@ -406,3 +568,4 @@ export class WorkoutCreatorService {
     }
   }
 }
+
