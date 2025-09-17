@@ -1,4 +1,3 @@
-
 import { Heart, Dumbbell, Flame, Trophy, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { FadeIn, ScaleIn } from '../components/ui/Animations';
@@ -7,8 +6,35 @@ import { FloatingActionButton } from '../components/ui/FloatingActionButton';
 import { CommunityHighlights } from '../components/ui/CommunityHighlights';
 import { StatCard } from '../components/ui/StatCard';
 import { UpcomingEvents } from '../components/ui/UpcomingEvents';
+import { useAuth } from '../contexts/AuthContext';
+import { useEffect, useState } from 'react';
+import { WorkoutCreatorService } from '../lib/workout-creator.service';
 
 export const HomePage = () => {
+  const { user, profile } = useAuth();
+  const [createdWorkouts, setCreatedWorkouts] = useState<number>(0);
+  const [completedWorkouts, setCompletedWorkouts] = useState<number>(0);
+  const [loading, setLoading] = useState(true);
+
+  // Badges/achievements from profile
+  const badgesEarned = profile?.achievements?.filter((a) => a.unlockedAt)?.length || 0;
+  // Personal records: placeholder (implement real logic if available)
+  const personalRecords = 0;
+
+  useEffect(() => {
+    async function fetchStats() {
+      setLoading(true);
+      // Created workouts
+      const workouts = await WorkoutCreatorService.getUserWorkouts();
+      setCreatedWorkouts(workouts.length);
+      // Completed workouts
+      const sessions = await WorkoutCreatorService.getUserWorkoutSessions();
+  setCompletedWorkouts(sessions.filter((s) => s.status === 'completed').length);
+      setLoading(false);
+    }
+    if (user) fetchStats();
+  }, [user]);
+
   const upcomingEvents = [
     {
       id: '1',
@@ -32,8 +58,7 @@ export const HomePage = () => {
 
   return (
     <div className="min-h-screen pt-4 pb-16 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
-
-  {/* Hero Section */}
+      {/* Hero Section */}
       <section className="relative overflow-hidden py-16 sm:py-20 md:py-32">
         <div className="absolute inset-0">
           <ProgressiveImage
@@ -44,14 +69,13 @@ export const HomePage = () => {
           <div className="absolute inset-0 bg-gradient-to-r from-primary/30 to-purple-500/30 mix-blend-overlay" />
           <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/20 dark:from-black/20 dark:via-transparent dark:to-black/40" />
         </div>
-        
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-3xl mx-auto text-center">
             <FadeIn delay={0.2}>
-              <h2 className="text-3xl sm:text-4xl md:text-6xl font-bold mb-4 sm:mb-6 text-gray-900 dark:text-white leading-tight">
-                Transform Your{" "}
+              <h2 className="text-4xl sm:text-5xl md:text-7xl font-extrabold mb-4 sm:mb-6 text-gray-900 dark:text-white leading-tight">
+                Your Progress,<br />
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-purple-600 dark:from-primary dark:to-purple-400">
-                  Fitness Journey
+                  Proven.
                 </span>
               </h2>
             </FadeIn>
@@ -62,21 +86,15 @@ export const HomePage = () => {
             </FadeIn>
             <FadeIn delay={0.6}>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 px-4">
-                <motion.button 
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="w-full sm:w-auto px-6 sm:px-8 py-4 bg-gradient-to-r from-primary to-purple-600 text-white rounded-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300 group min-h-[44px] touch-manipulation"
-                >
-                  Get Started
-                  <ArrowRight className="inline ml-2 group-hover:translate-x-1 transition-transform" />
-                </motion.button>
-                <motion.button 
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="w-full sm:w-auto px-6 sm:px-8 py-4 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200 dark:border-gray-700 min-h-[44px] touch-manipulation"
-                >
-                  View Demo
-                </motion.button>
+                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  <a
+                    href="/signin"
+                    className="w-full sm:w-auto px-6 sm:px-8 py-4 bg-gradient-to-r from-primary to-purple-600 text-white rounded-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300 group min-h-[44px] touch-manipulation flex items-center justify-center"
+                  >
+                    Get Started
+                    <ArrowRight className="inline ml-2 group-hover:translate-x-1 transition-transform" />
+                  </a>
+                </motion.div>
               </div>
             </FadeIn>
           </div>
@@ -86,52 +104,54 @@ export const HomePage = () => {
       {/* Stats Section */}
       <section className="py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-12 relative z-10">
+          <div className="mb-8 text-center">
+            <h3 className="text-2xl sm:text-3xl font-semibold text-gray-900 dark:text-white">
+              Your Fitness Journey in Real Time
+            </h3>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <ScaleIn delay={0.2}>
               <StatCard
                 icon={Dumbbell}
                 title="Workouts Completed"
-                value={24}
+                value={loading ? '...' : completedWorkouts}
                 animate={true}
-                trend={{ value: 12, isPositive: true }}
-                description="This month"
+                description="All time"
                 className="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20"
                 iconClassName="text-emerald-500"
               />
             </ScaleIn>
             <ScaleIn delay={0.3}>
               <StatCard
-                icon={Heart}
-                title="Avg Heart Rate"
-                value={128}
-                animate={true}
-                suffix=" BPM"
-                description="Last workout"
-                className="bg-gradient-to-br from-rose-50 to-pink-50 dark:from-rose-900/20 dark:to-pink-900/20"
-                iconClassName="text-rose-500"
-              />
-            </ScaleIn>
-            <ScaleIn delay={0.4}>
-              <StatCard
                 icon={Flame}
-                title="Calories Burned"
-                value={12450}
+                title="Workouts Created"
+                value={loading ? '...' : createdWorkouts}
                 animate={true}
-                trend={{ value: 8, isPositive: true }}
-                description="This week"
+                description="All time"
                 className="bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20"
                 iconClassName="text-orange-500"
               />
             </ScaleIn>
-            <ScaleIn delay={0.5}>
+            <ScaleIn delay={0.4}>
               <StatCard
                 icon={Trophy}
-                title="Personal Records"
-                value={5}
+                title="Badges Earned"
+                value={loading ? '...' : badgesEarned}
                 animate={true}
-                description="New this month"
+                description="All time"
                 className="bg-gradient-to-br from-purple-50 to-violet-50 dark:from-purple-900/20 dark:to-violet-900/20"
                 iconClassName="text-purple-500"
+              />
+            </ScaleIn>
+            <ScaleIn delay={0.5}>
+              <StatCard
+                icon={Heart}
+                title="Personal Records"
+                value={loading ? '...' : personalRecords}
+                animate={true}
+                description="All time"
+                className="bg-gradient-to-br from-rose-50 to-pink-50 dark:from-rose-900/20 dark:to-pink-900/20"
+                iconClassName="text-rose-500"
               />
             </ScaleIn>
           </div>

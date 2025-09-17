@@ -55,6 +55,7 @@ export default defineConfig({
                 maxAgeSeconds: 60 * 60 * 24, // 24 hours
               },
               cacheableResponse: {
+<<<<<<< HEAD
                 statuses: [0, 200],
               },
             },
@@ -67,3 +68,20 @@ export default defineConfig({
     allowedHosts: ['ff5219e0bcf4.ngrok-free.app'],
   },
 });
+=======
+                statuses: [0, 200]
+              }
+            }
+          }
+        ]
+      }
+    })
+  ],
+  server: {
+    allowedHosts: [
+      'localhost',
+      'ff5219e0bcf4.ngrok-free.app', // <— voeg jouw ngrok domein hier toe
+    ],
+  },
+})
+>>>>>>> b621278 (Homepage hero and KPIs: live stats, new headline, and style updates)
