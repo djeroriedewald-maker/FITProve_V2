@@ -1,3 +1,110 @@
+
+// Search for public/followable user profiles by name or username
+export interface PublicUserProfile {
+  id: string;
+  displayName: string;
+  username: string;
+  avatarUrl: string;
+  isPublic: boolean;
+  allowFollow: boolean;
+}
+
+export async function searchPublicProfiles(query: string): Promise<PublicUserProfile[]> {
+  // Only search public profiles
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, display_name, username, avatar_url, is_public, allow_follow')
+    .eq('is_public', true)
+    .ilike('display_name', `%${query}%`)
+    .ilike('username', `%${query}%`);
+  if (error) {
+    console.error('Error searching profiles:', error);
+    return [];
+  }
+  // Remove duplicates (if both name and username match)
+  const unique = new Map();
+  (data || []).forEach((profile: any) => {
+    unique.set(profile.id, {
+      id: profile.id,
+      displayName: profile.display_name,
+      username: profile.username,
+      avatarUrl: profile.avatar_url,
+      isPublic: profile.is_public,
+      allowFollow: profile.allow_follow,
+    });
+  });
+  return Array.from(unique.values());
+}
+
+// --- FOLLOW SYSTEM ---
+// Check if the current user follows a given user
+export async function isFollowingUser(targetUserId: string): Promise<boolean> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return false;
+  const { data, error } = await supabase
+    .from('followers')
+    .select('id')
+    .eq('follower_id', user.id)
+    .eq('following_id', targetUserId)
+    .maybeSingle();
+  if (error) {
+    console.error('Error checking follow state:', error);
+    return false;
+  }
+  return !!data;
+}
+
+// Follow a user
+export async function followUser(targetUserId: string): Promise<boolean> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return false;
+
+  // Fetch target user's privacy settings
+  const { data: targetProfile, error: profileError } = await supabase
+    .from('profiles')
+    .select('is_public, allow_follow')
+    .eq('id', targetUserId)
+    .maybeSingle();
+  if (profileError) {
+    console.error('Error fetching target profile:', profileError);
+    return false;
+  }
+  if (!targetProfile || targetProfile.is_public === false || targetProfile.allow_follow === false) {
+    // Not allowed to follow
+    return false;
+  }
+
+  const { error } = await supabase
+    .from('followers')
+    .insert({ follower_id: user.id, following_id: targetUserId });
+  if (error) {
+    console.error('Error following user:', error);
+    return false;
+  }
+  return true;
+}
+
+// Unfollow a user
+export async function unfollowUser(targetUserId: string): Promise<boolean> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return false;
+  const { error } = await supabase
+    .from('followers')
+    .delete()
+    .eq('follower_id', user.id)
+    .eq('following_id', targetUserId);
+  if (error) {
+    console.error('Error unfollowing user:', error);
+    return false;
+  }
+  return true;
+}
 import { supabase } from './supabase';
 import { UserProfile } from '../types/profile.types';
 import { Post, CreatePostData, CreateCommentData, ToggleLikeData, Comment } from '../types/social.types';
@@ -22,8 +129,11 @@ interface UpdateProfileParams {
   avatarUrl: string;
   fitnessGoals: string[];
   avatarFile?: File | null;
+  isPublic?: boolean;
+  allowFollow: boolean;
 }
 
+// --- PROFILE UPDATE ---
 export async function updateUserProfile({
   userId,
   displayName,
@@ -32,6 +142,8 @@ export async function updateUserProfile({
   avatarUrl,
   fitnessGoals,
   avatarFile,
+  isPublic,
+  allowFollow,
 }: UpdateProfileParams): Promise<{ data: UserProfile | null; error: Error | null }> {
   try {
     // First, check if the username is already taken (excluding current user)
@@ -138,6 +250,8 @@ export async function updateUserProfile({
       bio,
       avatar_url: finalAvatarUrl,
       fitness_goals: fitnessGoals,
+      ...(typeof isPublic === 'boolean' ? { is_public: isPublic } : {}),
+      ...(typeof allowFollow === 'boolean' ? { allow_follow: allowFollow } : {}),
     });
 
     if (updateError) {

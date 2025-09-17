@@ -1,24 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Edit, Share2, Loader2, Settings, Zap, Dumbbell } from 'lucide-react';
 import { toast } from 'sonner';
 import { UserProfile as IUserProfile } from '../../types/profile.types';
 import { UserStatsGrid } from './UserStatsGrid';
-import { AchievementsGrid } from './AchievementsGrid';
-import { BadgesGrid, Badge } from './BadgesGrid';
+import { BadgesGrid } from './BadgesGrid';
 import { WorkoutHistoryList } from './WorkoutHistoryList';
 import { EditProfileModal } from './EditProfileModal';
 import { AutoPostSettingsModal } from './AutoPostSettingsModal';
 import { ManualWorkoutPostModal } from '../social/ManualWorkoutPostModal';
 import { AnalyticsDashboard } from '../ui/AnalyticsDashboard';
+import { UserSearchModal } from './UserSearchModal';
 import { useAuth } from '../../contexts/AuthContext';
-import { updateUserProfile } from '../../lib/api.ts';
-
-interface UserProfileProps {
-  profile: IUserProfile & { badges?: Badge[]; badgesCount?: number };
-  isOwnProfile?: boolean;
-}
+import { updateUserProfile, isFollowingUser, followUser, unfollowUser } from '../../lib/api.ts';
 
 export const UserProfile: React.FC<UserProfileProps> = ({ profile, isOwnProfile = false }) => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -26,6 +21,45 @@ export const UserProfile: React.FC<UserProfileProps> = ({ profile, isOwnProfile 
   const [isManualPostModalOpen, setIsManualPostModalOpen] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const { user, refreshProfile } = useAuth();
+  // Follow state
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
+
+  // User search modal state
+  const [isUserSearchOpen, setIsUserSearchOpen] = useState(false);
+
+  // Fetch follow state from backend
+  useEffect(() => {
+    let mounted = true;
+    if (!user || isOwnProfile || !profile.allowFollow) return;
+    setFollowLoading(true);
+    isFollowingUser(profile.id)
+      .then((following) => {
+        if (mounted) setIsFollowing(following);
+      })
+      .finally(() => {
+        if (mounted) setFollowLoading(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [user, isOwnProfile, profile.allowFollow, profile.id]);
+
+  const handleFollowToggle = async () => {
+    if (!user) return;
+    setFollowLoading(true);
+    let success = false;
+    if (isFollowing) {
+      success = await unfollowUser(profile.id);
+    } else {
+      success = await followUser(profile.id);
+      if (!success) {
+        toast.error('Cannot follow this user. Their privacy settings do not allow it.');
+      }
+    }
+    if (success) setIsFollowing((prev) => !prev);
+    setFollowLoading(false);
+  };
 
   const handleProfileUpdate = async (
   updatedProfile: Partial<IUserProfile> & { avatarFile?: File | null }
@@ -94,6 +128,15 @@ export const UserProfile: React.FC<UserProfileProps> = ({ profile, isOwnProfile 
         isUpdating={isUpdating}
       />
 
+      <UserSearchModal
+        isOpen={isUserSearchOpen}
+        onClose={() => setIsUserSearchOpen(false)}
+        onUserSelected={(user) => {
+          // Optionally navigate to user profile or do something
+          setIsUserSearchOpen(false);
+        }}
+      />
+
       <AutoPostSettingsModal
         isOpen={isAutoPostSettingsOpen}
         onClose={() => setIsAutoPostSettingsOpen(false)}
@@ -124,9 +167,21 @@ export const UserProfile: React.FC<UserProfileProps> = ({ profile, isOwnProfile 
 
           <div className="flex-1 text-center md:text-left">
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                {profile.displayName}
-              </h1>
+              <div className="flex items-center gap-3 justify-center md:justify-start">
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+                  {profile.displayName}
+                </h1>
+                {/* Follow button logic */}
+                {!isOwnProfile && profile.allowFollow && profile.isPublic !== false && user && (
+                  <button
+                    onClick={handleFollowToggle}
+                    disabled={followLoading}
+                    className={`px-4 py-1 rounded-full font-semibold text-sm shadow transition focus:outline-none ${isFollowing ? 'bg-gray-300 dark:bg-gray-700 text-gray-800 dark:text-gray-200' : 'bg-primary text-white hover:bg-primary/90'} ${followLoading ? 'opacity-60' : ''}`}
+                  >
+                    {followLoading ? '...' : isFollowing ? 'Unfollow' : 'Follow'}
+                  </button>
+                )}
+              </div>
               <p className="text-gray-600 dark:text-gray-400">@{profile.username}</p>
               <p className="mt-2 text-gray-700 dark:text-gray-300 max-w-2xl">{profile.bio}</p>
 
@@ -140,59 +195,56 @@ export const UserProfile: React.FC<UserProfileProps> = ({ profile, isOwnProfile 
                   </span>
                 ))}
               </div>
+              {/* Profile Action Buttons - Mobile Friendly Vertical/2-col Grid */}
+              {isOwnProfile && (
+                <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-md mx-auto">
+                  <button
+                    onClick={() => setIsEditModalOpen(true)}
+                    disabled={isUpdating}
+                    className="flex items-center justify-center gap-2 px-4 py-2 bg-primary text-white rounded-lg font-semibold shadow-sm hover:bg-primary/90 transition disabled:opacity-50"
+                  >
+                    {isUpdating ? <Loader2 className="w-5 h-5 animate-spin" /> : <Edit className="w-5 h-5" />}
+                    <span>Bewerken</span>
+                  </button>
+                  {/* Find Users Button */}
+                  <button
+                    onClick={() => setIsUserSearchOpen(true)}
+                    className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold shadow-sm hover:bg-blue-700 transition"
+                  >
+                    <span>Find Users</span>
+                  </button>
+                  <button
+                    onClick={() => setIsManualPostModalOpen(true)}
+                    className="flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg font-semibold shadow-sm hover:bg-green-700 transition"
+                  >
+                    <Zap className="w-5 h-5" />
+                    <span>Workout Post</span>
+                  </button>
+                  <button
+                    onClick={() => setIsAutoPostSettingsOpen(true)}
+                    className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg font-semibold shadow-sm hover:bg-gray-700 transition"
+                  >
+                    <Settings className="w-5 h-5" />
+                    <span>Auto-Posts</span>
+                  </button>
+                  <Link
+                    to="/modules/workout/my-workouts"
+                    className="flex items-center justify-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg font-semibold shadow-sm hover:bg-orange-700 transition"
+                  >
+                    <Dumbbell className="w-5 h-5" />
+                    <span>My Workouts</span>
+                  </Link>
+                  <button className="flex items-center justify-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-lg font-semibold shadow-sm border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                    <Share2 className="w-5 h-5" />
+                    <span>Share</span>
+                  </button>
+                </div>
+              )}
             </motion.div>
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {isOwnProfile ? (
-              <>
-                <button
-                  onClick={() => setIsEditModalOpen(true)}
-                  disabled={isUpdating}
-                  className="px-4 py-2 bg-primary text-white rounded-lg shadow hover:shadow-lg transition-shadow disabled:opacity-50 flex items-center space-x-2"
-                >
-                  {isUpdating ? (
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                  ) : (
-                    <Edit className="w-5 h-5" />
-                  )}
-                  <span>Bewerken</span>
-                </button>
-
-                <button
-                  onClick={() => setIsManualPostModalOpen(true)}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg shadow hover:shadow-lg transition-shadow flex items-center space-x-2"
-                >
-                  <Zap className="w-5 h-5" />
-                  <span>Workout Post</span>
-                </button>
-
-                <button
-                  onClick={() => setIsAutoPostSettingsOpen(true)}
-                  className="px-4 py-2 bg-gray-600 text-white rounded-lg shadow hover:shadow-lg transition-shadow flex items-center space-x-2"
-                >
-                  <Settings className="w-5 h-5" />
-                  <span>Auto-Posts</span>
-                </button>
-
-                <Link
-                  to="/modules/workout/my-workouts"
-                  className="px-4 py-2 bg-orange-600 text-white rounded-lg shadow hover:shadow-lg transition-shadow flex items-center space-x-2 hover:bg-orange-700"
-                >
-                  <Dumbbell className="w-5 h-5" />
-                  <span>My Workouts</span>
-                </Link>
-              </>
-            ) : (
-              <button className="px-4 py-2 bg-primary text-white rounded-lg shadow hover:shadow-lg transition-shadow">
-                Follow
-              </button>
-            )}
-
-            <button className="px-4 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-lg shadow hover:shadow-lg transition-shadow border border-gray-200 dark:border-gray-700 flex items-center space-x-2">
-              <Share2 className="w-5 h-5" />
-              <span>Share</span>
-            </button>
+            {/* (Old button group removed; now handled above for mobile/desktop) */}
           </div>
         </div>
       </div>
@@ -226,4 +278,4 @@ export const UserProfile: React.FC<UserProfileProps> = ({ profile, isOwnProfile 
       </section>
     </div>
   );
-};
+}

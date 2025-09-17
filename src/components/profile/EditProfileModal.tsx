@@ -25,6 +25,8 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
     avatarUrl: profile.avatarUrl,
     fitnessGoals: [...profile.fitnessGoals],
     avatarFile: null as File | null,
+    isPublic: profile.isPublic ?? false,
+    allowFollow: profile.allowFollow ?? false,
   });
 
   const [newGoal, setNewGoal] = useState('');
@@ -211,8 +213,33 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
           )}
         </div>
 
+        {/* Privacy & Follow Settings */}
+        <div className="pt-3 border-t border-gray-200 dark:border-gray-700 space-y-3">
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="isPublic"
+              checked={formData.isPublic}
+              onChange={e => setFormData(prev => ({ ...prev, isPublic: e.target.checked }))}
+              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+            />
+            <label htmlFor="isPublic" className="text-sm text-gray-700 dark:text-gray-300">Allow my profile to be found (public)</label>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="allowFollow"
+              checked={formData.allowFollow}
+              onChange={e => setFormData(prev => ({ ...prev, allowFollow: e.target.checked }))}
+              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+              disabled={!formData.isPublic}
+            />
+            <label htmlFor="allowFollow" className="text-sm text-gray-700 dark:text-gray-300">Allow other users to follow me</label>
+          </div>
+        </div>
+
         {/* Action Buttons - Compact */}
-        <div className="flex justify-end gap-2 pt-3 border-t border-gray-200 dark:border-gray-700">
+        <div className="flex justify-end gap-2 pt-3">
           <button
             type="button"
             onClick={onClose}
