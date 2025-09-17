@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { UserProfile as IUserProfile } from '../../types/profile.types';
 import { UserStatsGrid } from './UserStatsGrid';
 import { AchievementsGrid } from './AchievementsGrid';
+import { BadgesGrid, Badge } from './BadgesGrid';
 import { WorkoutHistoryList } from './WorkoutHistoryList';
 import { EditProfileModal } from './EditProfileModal';
 import { AutoPostSettingsModal } from './AutoPostSettingsModal';
@@ -15,7 +16,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { updateUserProfile } from '../../lib/api.ts';
 
 interface UserProfileProps {
-  profile: IUserProfile;
+  profile: IUserProfile & { badges?: Badge[]; badgesCount?: number };
   isOwnProfile?: boolean;
 }
 
@@ -27,22 +28,22 @@ export const UserProfile: React.FC<UserProfileProps> = ({ profile, isOwnProfile 
   const { user, refreshProfile } = useAuth();
 
   const handleProfileUpdate = async (
-    updatedProfile: Partial<IUserProfile> & { avatarFile?: File | null }
+  updatedProfile: Partial<IUserProfile> & { avatarFile?: File | null }
   ) => {
-    if (!user) return;
+  if (!user) return;
 
-    const promise = new Promise((resolve, reject) => {
-      setIsUpdating(true);
-      updateUserProfile({
-        userId: user.id,
-        displayName: updatedProfile.displayName || profile.displayName,
-        username: updatedProfile.username || profile.username,
-        bio: updatedProfile.bio || profile.bio,
-        avatarUrl: updatedProfile.avatarUrl || profile.avatarUrl,
-        fitnessGoals: updatedProfile.fitnessGoals || profile.fitnessGoals,
-        avatarFile: (updatedProfile as any).avatarFile || null,
-      })
-        .then(({ data, error }: { data: IUserProfile | null; error: Error | null }) => {
+  const promise = new Promise((resolve, reject) => {
+  setIsUpdating(true);
+  updateUserProfile({
+  userId: user.id,
+  displayName: updatedProfile.displayName || profile.displayName,
+  username: updatedProfile.username || profile.username,
+  bio: updatedProfile.bio || profile.bio,
+  avatarUrl: updatedProfile.avatarUrl || profile.avatarUrl,
+  fitnessGoals: updatedProfile.fitnessGoals || profile.fitnessGoals,
+  avatarFile: (updatedProfile as any).avatarFile || null,
+  })
+  .then(({ data, error }: { data: IUserProfile | null; error: Error | null }) => {
           if (error) {
             console.error('Profile update error:', error);
             reject(error);
@@ -199,13 +200,13 @@ export const UserProfile: React.FC<UserProfileProps> = ({ profile, isOwnProfile 
       {/* Stats Section */}
       <section className="mb-12">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Stats Overview</h2>
-        <UserStatsGrid stats={profile.stats} />
+        <UserStatsGrid stats={{ ...profile.stats, achievementsCount: profile.badgesCount ?? 0 }} />
       </section>
 
       {/* Achievements Section */}
       <section className="mb-12">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Achievements</h2>
-        <AchievementsGrid achievements={profile.achievements} />
+        <BadgesGrid userId={profile.id} />
       </section>
 
       {/* Analytics Section - Only for own profile */}

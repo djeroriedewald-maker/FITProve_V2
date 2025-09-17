@@ -1,16 +1,22 @@
+// removed duplicate import
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Settings, LogOut, Dumbbell } from 'lucide-react';
+import { AdminPanelMenuItem } from './AdminPanelMenuItem2';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 
 export const ProfileMenu = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
+    navigate('/signin');
+  };
+
+  const handleSignIn = () => {
     navigate('/signin');
   };
 
@@ -27,11 +33,23 @@ export const ProfileMenu = () => {
   const getInitials = (name: string) => {
     return name
       .split(' ')
-      .map(part => part[0])
+      .map((part) => part[0])
       .join('')
       .toUpperCase()
       .slice(0, 2);
   };
+
+  if (!user) {
+    return (
+      <button
+        onClick={handleSignIn}
+        className="flex items-center space-x-2 px-3 py-2 text-sm text-primary hover:bg-primary/10 rounded-lg transition-colors"
+      >
+        <User className="w-4 h-4" />
+        <span>Sign in</span>
+      </button>
+    );
+  }
 
   return (
     <div className="relative">
@@ -73,6 +91,8 @@ export const ProfileMenu = () => {
               <Dumbbell className="w-4 h-4" />
               <span>My Workouts</span>
             </button>
+            {/* [ProfileMenu] Rendering <AdminPanelMenuItem /> */}
+            <AdminPanelMenuItem />
             <button className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
               <Settings className="w-4 h-4" />
               <span>Settings</span>

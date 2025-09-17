@@ -2,13 +2,38 @@
 
 A modern fitness/workout Progressive Web App (PWA) focused on tracking workouts and personal achievements.
 
+
 ## 🚀 Features
 
 - **PWA Support:** Install as a native app, works offline
 - **Workout Library:** Version-controlled workout database
 - **Session Management:** Start, log, and complete workout sessions
-- **Achievements:** Track progress with badges
+- **Achievements:** Track progress with badges (incl. progressiebar)
 - **Smart Prefill:** Quick log entry based on previous sessions
+
+## 🏅 Badges & Progressie
+
+Badges worden opgeslagen in de `badges` tabel. Sommige badges hebben een progressiebar. Dit werkt als volgt:
+
+- **Badges zonder progressiebar:**
+   - Hebben `criteria = NULL`.
+   - Worden direct toegekend bij het behalen van de actie.
+- **Badges met progressiebar:**
+   - Hebben een JSON string in de kolom `criteria`, bijvoorbeeld: `{ "target": 5, "type": "likes_given" }`.
+   - De frontend toont een progressiebar als er een badge_progress record is met een target > 0.
+   - De backend moet bijhouden hoeveel progressie de gebruiker heeft voor deze badge.
+
+**Voorbeeld badge met progressie:**
+
+```sql
+INSERT INTO badges (id, name, ..., criteria) VALUES (
+   gen_random_uuid(), 'Motivator', 'Geef 5 likes', ..., '{"target":5,"type":"likes_given"}'
+);
+```
+
+**Let op:**
+- Voeg alleen een progressie-criteria toe aan badges waar een voortgangsbalk logisch is (zoals streaks, aantal volgers, aantal likes, etc).
+- De frontend toont alleen een progressiebar als er een target in criteria staat én er een badge_progress record is voor de gebruiker.
 
 ## 🛠 Tech Stack
 
