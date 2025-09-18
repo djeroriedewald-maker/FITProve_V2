@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+
+import { CommunityWorkoutCard } from '../components/workout/CommunityWorkoutCard';
 import { supabase } from '../lib/supabase';
 
 interface CommunityWorkout {
@@ -12,6 +13,9 @@ interface CommunityWorkout {
 }
 
 export function CommunityWorkoutsPage() {
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, []);
   const [workouts, setWorkouts] = useState<CommunityWorkout[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -22,10 +26,10 @@ export function CommunityWorkoutsPage() {
       setError(null);
       try {
         const { data, error } = await supabase
-          .from('custom_workouts')
-          .select(`id, name, description, hero_image_url, is_public, user_id, profiles!custom_workouts_user_id_fkey(display_name, username)`) // join profiles for creator info
-          .eq('is_public', true)
-          .order('created_at', { ascending: false });
+         .from('custom_workouts')
+         .select(`id, name, description, hero_image_url, is_public, user_id, profiles!custom_workouts_user_id_fkey(display_name, username)`) // join profiles for creator info
+         .eq('is_public', true)
+         .order('created_at', { ascending: false });
         if (error) throw error;
         // Map creator info
         const mapped = (data || []).map((w: any) => ({
@@ -58,17 +62,7 @@ export function CommunityWorkoutsPage() {
       <h1 className="text-3xl font-bold mb-6 text-center">Community Workouts</h1>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {workouts.map((workout) => (
-          <div key={workout.id} className="bg-white dark:bg-gray-800 rounded-xl shadow p-6 flex flex-col">
-            {workout.hero_image_url && (
-              <img src={workout.hero_image_url} alt={workout.name} className="w-full h-40 object-cover rounded-lg mb-4" />
-            )}
-            <h2 className="text-xl font-semibold mb-2">{workout.name}</h2>
-            <p className="text-gray-600 dark:text-gray-300 mb-2 line-clamp-3">{workout.description}</p>
-            <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-              Created by: <span className="font-medium">{workout.creator_name || workout.creator_username || 'Unknown'}</span>
-            </div>
-            <Link to={`/modules/workout/execute/${workout.id}`} className="mt-auto inline-block px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-center font-semibold">Start Workout</Link>
-          </div>
+          <CommunityWorkoutCard key={workout.id} {...workout} />
         ))}
       </div>
       {workouts.length === 0 && <div className="text-center text-gray-500 mt-8">No community workouts found.</div>}

@@ -6,6 +6,9 @@ import { Badge } from '../components/profile/BadgesGrid';
 import { UserProfile } from '../components/profile/UserProfile';
 
 export default function ProfilePage() {
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, []);
   const { user, profile } = useAuth();
   const [userBadges, setUserBadges] = useState<Badge[]>([]);
 

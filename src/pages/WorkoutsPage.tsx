@@ -6,6 +6,9 @@ import { WorkoutCreatorService } from '../lib/workout-creator.service';
 import { CustomWorkout } from '../types/workout-creator.types';
 
 export function WorkoutsPage() {
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, []);
   const [workouts, setWorkouts] = useState<CustomWorkout[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

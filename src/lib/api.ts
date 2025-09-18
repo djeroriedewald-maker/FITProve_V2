@@ -10,13 +10,12 @@ export interface PublicUserProfile {
 }
 
 export async function searchPublicProfiles(query: string): Promise<PublicUserProfile[]> {
-  // Only search public profiles
+  // Search for users who are public OR allow follow, and match either display name OR username
   const { data, error } = await supabase
     .from('profiles')
     .select('id, display_name, username, avatar_url, is_public, allow_follow')
-    .eq('is_public', true)
-    .ilike('display_name', `%${query}%`)
-    .ilike('username', `%${query}%`);
+    .or('is_public.eq.true,allow_follow.eq.true')
+    .or(`display_name.ilike.%${query}%,username.ilike.%${query}%`);
   if (error) {
     console.error('Error searching profiles:', error);
     return [];

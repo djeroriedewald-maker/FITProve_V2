@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Dumbbell,
@@ -29,6 +29,7 @@ interface WorkoutCategory {
   };
   comingSoon?: boolean;
 }
+
 
 const defaultWorkoutCategories: WorkoutCategory[] = [
   {
@@ -185,6 +186,9 @@ function WorkoutCategoryCard({ category }: { category: WorkoutCategory }) {
 }
 
 export function WorkoutPage() {
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, []);
   const [workoutCategories, setWorkoutCategories] = React.useState<WorkoutCategory[]>(defaultWorkoutCategories);
 
   React.useEffect(() => {

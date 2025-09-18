@@ -3,6 +3,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 export function ResetPasswordPage() {
+  React.useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, []);
   const { updatePassword } = useAuth();
   const navigate = useNavigate();
   const [password, setPassword] = React.useState('');

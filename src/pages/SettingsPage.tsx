@@ -4,7 +4,12 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { updateUserProfile } from '../lib/api';
 
+import { useEffect } from 'react';
+
 export default function SettingsPage() {
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, []);
   const navigate = useNavigate();
   const { profile, refreshProfile } = useAuth();
   const [isPublic, setIsPublic] = useState(profile?.isPublic ?? false);

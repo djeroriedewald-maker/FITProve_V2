@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Modal } from '../ui/Modal';
 import { searchPublicProfiles, PublicUserProfile } from '../../lib/api';
+import { supabase } from '../../lib/supabase';
+import { UserCardModal } from './UserCardModal';
 
 interface UserSearchModalProps {
   isOpen: boolean;
@@ -8,11 +10,14 @@ interface UserSearchModalProps {
   onUserSelected?: (user: PublicUserProfile) => void;
 }
 
+
 export const UserSearchModal: React.FC<UserSearchModalProps> = ({ isOpen, onClose, onUserSelected }) => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<PublicUserProfile[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedUser, setSelectedUser] = useState<PublicUserProfile | null>(null);
+  const [showUserCard, setShowUserCard] = useState(false);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,9 +34,36 @@ export const UserSearchModal: React.FC<UserSearchModalProps> = ({ isOpen, onClos
     }
   };
 
+  // Fetch full profile info for modal (hero, bio, tags, badgesCount)
+  const handleViewUser = async (user: PublicUserProfile) => {
+    // Fetch extra fields from profiles table
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('id, display_name, username, avatar_url, bio, hero_image_url, tags, badges_count')
+      .eq('id', user.id)
+      .maybeSingle();
+    if (profile) {
+      setSelectedUser({
+        ...user,
+        bio: profile.bio || '',
+        hero_image_url: profile.hero_image_url || '',
+        tags: profile.tags || [],
+        badgesCount: profile.badges_count ?? undefined,
+      });
+    } else {
+      setSelectedUser(user);
+    }
+    setShowUserCard(true);
+  };
+
+  const handleCloseUserCard = () => {
+    setShowUserCard(false);
+    setSelectedUser(null);
+  };
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Find Users">
-      <>
+    <>
+      <Modal isOpen={isOpen} onClose={onClose} title="Find Users">
         <form onSubmit={handleSearch} className="flex gap-2 mb-4">
           <input
             type="text"
@@ -55,7 +87,7 @@ export const UserSearchModal: React.FC<UserSearchModalProps> = ({ isOpen, onClos
               <div className="flex gap-2">
                 <button
                   className="px-3 py-1 bg-blue-600 text-white rounded-full text-sm"
-                  onClick={() => onUserSelected && onUserSelected(user)}
+                  onClick={() => handleViewUser(user)}
                 >
                   View
                 </button>
@@ -89,7 +121,8 @@ export const UserSearchModal: React.FC<UserSearchModalProps> = ({ isOpen, onClos
             <li className="py-2 text-gray-500 text-center">No users found</li>
           )}
         </ul>
-      </>
-    </Modal>
+      </Modal>
+      <UserCardModal user={selectedUser} isOpen={showUserCard} onClose={handleCloseUserCard} />
+    </>
   );
 };

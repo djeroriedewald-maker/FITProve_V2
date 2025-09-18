@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { FadeIn, ScaleIn } from '../components/ui/Animations';
 import { ProgressiveImage } from '../components/ui/ProgressiveImage';
 import { FloatingActionButton } from '../components/ui/FloatingActionButton';
-import { CommunityHighlights } from '../components/ui/CommunityHighlights';
+
 import { StatCard } from '../components/ui/StatCard';
 import { UpcomingEvents } from '../components/ui/UpcomingEvents';
 import { useAuth } from '../contexts/AuthContext';
@@ -11,6 +11,9 @@ import { useEffect, useState } from 'react';
 import { WorkoutCreatorService } from '../lib/workout-creator.service';
 
 export const HomePage = () => {
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, []);
   const { user, profile } = useAuth();
   const [createdWorkouts, setCreatedWorkouts] = useState<number>(0);
   const [completedWorkouts, setCompletedWorkouts] = useState<number>(0);
@@ -166,10 +169,7 @@ export const HomePage = () => {
             <div className="lg:col-span-2">
               <UpcomingEvents events={upcomingEvents} />
             </div>
-            {/* Community Section */}
-            <div className="space-y-6">
-              <CommunityHighlights />
-            </div>
+
           </div>
         </div>
       </section>

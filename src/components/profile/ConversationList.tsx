@@ -68,33 +68,50 @@ export const ConversationList: React.FC<{ onSelect: (user: UserProfile) => void;
   };
 
   return (
-    <div className="w-80 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 h-full overflow-y-auto">
-      <h3 className="p-4 text-lg font-bold border-b border-gray-200 dark:border-gray-800">Inbox</h3>
+    <div className="w-full max-w-md bg-white dark:bg-gray-900 h-full overflow-y-auto shadow-lg rounded-xl border border-gray-200 dark:border-gray-800 flex flex-col">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-800 bg-gradient-to-r from-primary to-purple-600">
+        <span className="text-xl font-extrabold text-white tracking-wide">FITProve</span>
+        <button className="text-white opacity-80 hover:opacity-100 focus:outline-none">
+          <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="feather feather-edit"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19.5 3 21l1.5-4L16.5 3.5z"/></svg>
+        </button>
+      </div>
       {loading ? (
-        <div className="p-4 text-gray-400">Loading...</div>
+        <div className="p-6 text-gray-400 text-center">Loading...</div>
       ) : conversations.length === 0 ? (
-        <div className="p-4 text-gray-400">No conversations yet.</div>
+        <div className="p-6 text-gray-400 text-center">No conversations yet.</div>
       ) : (
-        <ul>
+        <ul className="divide-y divide-gray-100 dark:divide-gray-800">
           {conversations.map(convo => (
             <li
               key={convo.user.id}
-              className={`flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition ${selectedUserId === convo.user.id ? 'bg-gray-100 dark:bg-gray-800' : ''}`}
+              className={`flex items-center gap-4 px-5 py-4 cursor-pointer transition group ${selectedUserId === convo.user.id ? 'bg-primary/10 dark:bg-primary/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800'}`}
               onClick={() => onSelect(convo.user)}
             >
               <img
                 src={convo.user.avatarUrl || '/images/default-avatar.png'}
                 alt={convo.user.displayName || convo.user.username}
-                className="w-10 h-10 rounded-full object-cover border"
+                className="w-12 h-12 rounded-full object-cover border-2 border-primary shadow-sm"
               />
               <div className="flex-1 min-w-0">
-                <div className="font-semibold truncate">{convo.user.displayName || convo.user.username}</div>
-                <div className="text-xs text-gray-500 truncate">{convo.lastMessage}</div>
+                <div className="font-bold text-gray-900 dark:text-white text-base truncate">{convo.user.displayName || convo.user.username}</div>
+                <div className="text-sm text-gray-500 dark:text-gray-300 truncate max-w-xs">{convo.lastMessage}</div>
               </div>
-              <div className="flex flex-col items-end">
-                <span className="text-xs text-gray-400">{new Date(convo.lastMessageTime).toLocaleTimeString()}</span>
+              <div className="flex flex-col items-end min-w-[60px]">
+                <span className="text-xs text-gray-400 font-medium">
+                  {(() => {
+                    const date = new Date(convo.lastMessageTime);
+                    const now = new Date();
+                    if (date.toDateString() === now.toDateString()) {
+                      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    } else if (date.getFullYear() === now.getFullYear()) {
+                      return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+                    } else {
+                      return date.toLocaleDateString();
+                    }
+                  })()}
+                </span>
                 {convo.unreadCount > 0 && (
-                  <span className="mt-1 bg-blue-500 text-white text-xs rounded-full px-2 py-0.5">{convo.unreadCount}</span>
+                  <span className="mt-1 bg-primary text-white text-xs rounded-full px-2 py-0.5 font-semibold shadow">{convo.unreadCount}</span>
                 )}
               </div>
             </li>

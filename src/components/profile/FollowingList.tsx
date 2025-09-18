@@ -20,12 +20,12 @@ export const FollowingList: React.FC = () => {
 
   const loadFollowing = async () => {
     setLoading(true);
-    const { data: follows } = await supabase
-      .from('follows')
-      .select('followed_id')
+    const { data: followers } = await supabase
+      .from('followers')
+      .select('following_id')
       .eq('follower_id', user.id);
-    if (!follows) return setLoading(false);
-    const ids = follows.map((f: any) => f.followed_id);
+    if (!followers) return setLoading(false);
+    const ids = followers.map((f: any) => f.following_id);
     if (ids.length) {
       const { data: profiles } = await supabase
         .from('profiles')

@@ -3,6 +3,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { isAdmin } from '../api/admin';
 
 export default function AdminPanel() {
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, []);
   const { user } = useAuth();
   const [isAdminUser, setIsAdminUser] = useState<boolean | null>(null);
 

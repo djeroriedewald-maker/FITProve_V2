@@ -7,6 +7,7 @@ import { ExerciseImage, useImagePreloader } from '../components/ui/ProgressiveIm
 import { analyticsService } from '../lib/analytics.service';
 import { BackButton } from '../components/ui/BackButton';
 
+
 // Filter options for the UI
 const muscleGroupOptions: { value: MuscleGroup; label: string }[] = [
   { value: 'chest', label: 'Chest' },
@@ -208,6 +209,9 @@ function ExerciseCard({ exercise, viewMode, onVideoClick, onAddToWorkout, onExer
 }
 
 export function ExerciseLibraryPage() {
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, []);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMuscleGroups, setSelectedMuscleGroups] = useState<MuscleGroup[]>([]);
   const [selectedEquipment, setSelectedEquipment] = useState<EquipmentType[]>([]);

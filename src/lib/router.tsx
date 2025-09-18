@@ -14,6 +14,7 @@ import { SignInForm } from '../components/SignInForm';
 import { RootLayout } from '../components/RootLayout';
 import { ResetPasswordPage } from '../pages/ResetPasswordPage';
 import SettingsPage from '../pages/SettingsPage';
+import FriendsPage from '../pages/FriendsPage';
 
 export const router = createBrowserRouter(
   [
@@ -34,7 +35,8 @@ export const router = createBrowserRouter(
         { path: 'modules/workout/my-workouts', element: <MyWorkoutsPage /> },
   { path: 'modules/workout/workout-library', element: <div className="p-4">Workout Library Page (Coming Soon)</div> },
   { path: 'modules/workout/community', element: <CommunityWorkoutsPage /> },
-        { path: 'community', element: <CommunityPage /> },
+  { path: 'community', element: <CommunityPage /> },
+  { path: 'friends', element: <FriendsPage /> },
   { path: 'signin', element: <SignInForm /> },
   { path: 'reset-password', element: <ResetPasswordPage /> },
   { path: 'settings', element: <SettingsPage /> },

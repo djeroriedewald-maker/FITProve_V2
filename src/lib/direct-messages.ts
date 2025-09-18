@@ -1,4 +1,6 @@
 import { supabase } from './supabase';
+import { supabase } from './supabase';
+
 
 export interface DirectMessage {
   id: string;
@@ -9,20 +11,24 @@ export interface DirectMessage {
   readAt?: string | null;
 }
 
+
 // Check if two users mutually follow each other and both allow DMs
-export async function canSendDirectMessage(senderId: string, recipientId: string): Promise<boolean> {
-  // Check mutual follow
+export async function canSendDirectMessage(
+  senderId: string,
+  recipientId: string
+): Promise<boolean> {
+  // Check mutual follow using 'followers' table
   const { data: follows1 } = await supabase
-    .from('follows')
+    .from('followers')
     .select('id')
     .eq('follower_id', senderId)
-    .eq('followed_id', recipientId)
+    .eq('following_id', recipientId)
     .maybeSingle();
   const { data: follows2 } = await supabase
-    .from('follows')
+    .from('followers')
     .select('id')
     .eq('follower_id', recipientId)
-    .eq('followed_id', senderId)
+    .eq('following_id', senderId)
     .maybeSingle();
   if (!follows1 || !follows2) return false;
 
@@ -41,7 +47,11 @@ export async function canSendDirectMessage(senderId: string, recipientId: string
 }
 
 // Send a direct message
-export async function sendDirectMessage(senderId: string, recipientId: string, message: string): Promise<{ success: boolean; error?: string }> {
+export async function sendDirectMessage(
+  senderId: string,
+  recipientId: string,
+  message: string
+): Promise<{ success: boolean; error?: string }> {
   if (!(await canSendDirectMessage(senderId, recipientId))) {
     return { success: false, error: 'You cannot send a message to this user.' };
   }
@@ -49,6 +59,24 @@ export async function sendDirectMessage(senderId: string, recipientId: string, m
     .from('direct_messages')
     .insert({ sender_id: senderId, recipient_id: recipientId, message });
   if (error) return { success: false, error: error.message };
+
+  // Send notification to recipient
+  try {
+    // Dynamically import to avoid circular dependency
+    const { createNotification } = await import('./notifications');
+    await createNotification({
+      user_id: recipientId,
+      type: 'mention', // or 'message' if you add this type
+      title: 'New Direct Message',
+      message: 'You have received a new direct message.',
+      data: { senderId, message },
+      from_user_id: senderId
+    });
+  } catch (e) {
+    // Log but don't block DM delivery
+    console.error('Failed to create DM notification:', e);
+  }
+
   return { success: true };
 }
 

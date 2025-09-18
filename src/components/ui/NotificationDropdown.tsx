@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, X, Heart, MessageCircle, Trophy, User } from 'lucide-react';
 import { Notification } from '../../types/notification.types';
 import { 
-  getNotifications, 
-  getUnreadNotificationCount, 
   markNotificationAsRead, 
-  markAllNotificationsAsRead,
-  subscribeToNotifications 
+  markAllNotificationsAsRead
 } from '../../lib/notifications';
+import { useNotificationContext } from '../../contexts/NotificationContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
 import { nl } from 'date-fns/locale';
@@ -99,36 +98,16 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
   className = '' 
 }) => {
   const { user } = useAuth();
+  const { notifications, unreadCount, setNotifications, setUnreadCount, reloadNotifications } = useNotificationContext();
   const [isOpen, setIsOpen] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (user && isOpen) {
-      loadNotifications();
+      reloadNotifications();
     }
-  }, [user, isOpen]);
-
-  useEffect(() => {
-    if (user) {
-      loadUnreadCount();
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (!user) return;
-
-    const subscription = subscribeToNotifications(user.id, (newNotification) => {
-      setNotifications(prev => [newNotification, ...prev]);
-      setUnreadCount(prev => prev + 1);
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [user]);
+  }, [user, isOpen, reloadNotifications]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -143,26 +122,7 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
     }
   }, [isOpen]);
 
-  const loadNotifications = async () => {
-    setLoading(true);
-    try {
-      const fetchedNotifications = await getNotifications(20);
-      setNotifications(fetchedNotifications);
-    } catch (error) {
-      console.error('Error loading notifications:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadUnreadCount = async () => {
-    try {
-      const count = await getUnreadNotificationCount();
-      setUnreadCount(count);
-    } catch (error) {
-      console.error('Error loading unread count:', error);
-    }
-  };
+  // Notification state and reload now come from NotificationContext
 
   const handleMarkAsRead = async (notificationId: string) => {
     try {
@@ -202,61 +162,79 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
         )}
       </button>
 
-      {isOpen && (
-        <div className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
-          <div className="flex items-center justify-between p-4 border-b border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900">Notificaties</h3>
-            <div className="flex items-center space-x-2">
-              {unreadCount > 0 && (
-                <button
-                  onClick={handleMarkAllAsRead}
-                  className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-                >
-                  Alles markeren als gelezen
-                </button>
-              )}
-              <button
-                onClick={() => setIsOpen(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-
-          <div className="max-h-96 overflow-y-auto">
-            {loading ? (
-              <div className="p-6 text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
-                <p className="text-gray-500 mt-2">Notificaties laden...</p>
+      <AnimatePresence>
+        {isOpen && (
+          <>
+            {/* Modal Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 bg-black bg-opacity-40 flex items-center justify-center"
+              onClick={() => setIsOpen(false)}
+            />
+            {/* Modal Content */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: -40 }}
+              animate={{ opacity: 1, scale: 1, y: 60 }}
+              exit={{ opacity: 0, scale: 0.95, y: -40 }}
+              className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-24"
+            >
+              <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-md flex flex-col max-h-[80vh]">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Notificaties</h3>
+                  <div className="flex items-center space-x-2">
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={handleMarkAllAsRead}
+                        className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                      >
+                        Alles markeren als gelezen
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setIsOpen(false)}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto px-2 py-2">
+                  {loading ? (
+                    <div className="p-6 text-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+                      <p className="text-gray-500 mt-2">Notificaties laden...</p>
+                    </div>
+                  ) : notifications.length === 0 ? (
+                    <div className="p-6 text-center text-gray-500">
+                      <Bell className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                      <p>Geen notificaties</p>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-gray-100">
+                      {notifications.map((notification) => (
+                        <NotificationItem
+                          key={notification.id}
+                          notification={notification}
+                          onMarkAsRead={handleMarkAsRead}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {notifications.length > 0 && (
+                  <div className="p-3 border-t border-gray-200 text-center">
+                    <button className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                      Alle notificaties bekijken
+                    </button>
+                  </div>
+                )}
               </div>
-            ) : notifications.length === 0 ? (
-              <div className="p-6 text-center text-gray-500">
-                <Bell className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                <p>Geen notificaties</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-gray-100">
-                {notifications.map((notification) => (
-                  <NotificationItem
-                    key={notification.id}
-                    notification={notification}
-                    onMarkAsRead={handleMarkAsRead}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-
-          {notifications.length > 0 && (
-            <div className="p-3 border-t border-gray-200 text-center">
-              <button className="text-sm text-blue-600 hover:text-blue-800 font-medium">
-                Alle notificaties bekijken
-              </button>
-            </div>
-          )}
-        </div>
-      )}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
