@@ -41,4 +41,6 @@ export interface UserProfile {
   recentWorkouts: WorkoutHistory[];
   fitnessGoals: string[];
   allowDirectMessages?: boolean;
+  allowFollow?: boolean;
+  isPublic?: boolean;
 }

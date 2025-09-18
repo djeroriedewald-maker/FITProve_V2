@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ThemeToggle } from '../components/ui/ThemeToggle';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { updateUserProfile } from '../lib/api';
@@ -8,7 +9,9 @@ export default function SettingsPage() {
   const { profile, refreshProfile } = useAuth();
   const [isPublic, setIsPublic] = useState(profile?.isPublic ?? false);
   const [allowFollow, setAllowFollow] = useState(profile?.allowFollow ?? false);
-  const [allowDirectMessages, setAllowDirectMessages] = useState(profile?.allowDirectMessages ?? false);
+  const [allowDirectMessages, setAllowDirectMessages] = useState(
+    profile?.allowDirectMessages ?? false
+  );
 
   // Keep settings in sync with profile changes (e.g., after save or refresh)
   React.useEffect(() => {
@@ -59,6 +62,10 @@ export default function SettingsPage() {
       </button>
       <h1 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">Settings</h1>
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 w-full max-w-md space-y-6">
+        <div className="flex items-center gap-3 w-full mb-2">
+          <ThemeToggle />
+          <span className="text-sm text-gray-700 dark:text-gray-300">Toggle light/dark mode</span>
+        </div>
         <div className="flex items-center gap-2">
           <input
             type="checkbox"

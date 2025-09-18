@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom';
-import { ThemeToggle } from './ui/ThemeToggle';
 import { NotificationDropdown } from './ui/NotificationDropdown';
 import { InboxButton } from './ui/InboxButton';
 import { Users } from 'lucide-react';
@@ -22,7 +21,6 @@ export function Header() {
 
           {/* Right side navigation items */}
           <div className="flex items-center space-x-6">
-            <ThemeToggle />
             <NotificationDropdown />
             <InboxButton />
             <button
