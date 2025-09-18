@@ -40,4 +40,5 @@ export interface UserProfile {
   achievements: Achievement[];
   recentWorkouts: WorkoutHistory[];
   fitnessGoals: string[];
+  allowDirectMessages?: boolean;
 }

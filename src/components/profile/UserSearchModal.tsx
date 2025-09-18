@@ -47,17 +47,42 @@ export const UserSearchModal: React.FC<UserSearchModalProps> = ({ isOpen, onClos
         {error && <div className="text-red-500 mb-2">{error}</div>}
         <ul className="divide-y divide-gray-200">
           {results.map((user) => (
-            <li key={user.id} className="py-2 flex items-center justify-between">
+            <li key={user.id} className="py-2 flex items-center justify-between gap-2">
               <div>
                 <div className="font-semibold">{user.displayName}</div>
                 <div className="text-sm text-gray-500">@{user.username}</div>
               </div>
-              <button
-                className="px-3 py-1 bg-blue-600 text-white rounded-full text-sm"
-                onClick={() => onUserSelected && onUserSelected(user)}
-              >
-                View
-              </button>
+              <div className="flex gap-2">
+                <button
+                  className="px-3 py-1 bg-blue-600 text-white rounded-full text-sm"
+                  onClick={() => onUserSelected && onUserSelected(user)}
+                >
+                  View
+                </button>
+                <button
+                  className="px-3 py-1 bg-green-600 text-white rounded-full text-sm"
+                  onClick={async () => {
+                    setLoading(true);
+                    setError(null);
+                    try {
+                      const { followUser } = await import('../../lib/api');
+                      const success = await followUser(user.id);
+                      if (success) {
+                        setError('Followed!');
+                      } else {
+                        setError('Could not follow user.');
+                      }
+                    } catch (e) {
+                      setError('Could not follow user.');
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                  disabled={loading}
+                >
+                  Follow
+                </button>
+              </div>
             </li>
           ))}
           {!loading && results.length === 0 && (

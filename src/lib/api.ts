@@ -73,7 +73,7 @@ export async function followUser(targetUserId: string): Promise<boolean> {
     console.error('Error fetching target profile:', profileError);
     return false;
   }
-  if (!targetProfile || targetProfile.is_public === false || targetProfile.allow_follow === false) {
+  if (!targetProfile || targetProfile.allow_follow === false) {
     // Not allowed to follow
     return false;
   }
@@ -144,6 +144,7 @@ export async function updateUserProfile({
   avatarFile,
   isPublic,
   allowFollow,
+  allowDirectMessages,
 }: UpdateProfileParams): Promise<{ data: UserProfile | null; error: Error | null }> {
   try {
     // First, check if the username is already taken (excluding current user)
@@ -250,8 +251,9 @@ export async function updateUserProfile({
       bio,
       avatar_url: finalAvatarUrl,
       fitness_goals: fitnessGoals,
-      ...(typeof isPublic === 'boolean' ? { is_public: isPublic } : {}),
-      ...(typeof allowFollow === 'boolean' ? { allow_follow: allowFollow } : {}),
+          ...(typeof isPublic === 'boolean' ? { is_public: isPublic } : {}),
+          ...(typeof allowFollow === 'boolean' ? { allow_follow: allowFollow } : {}),
+          ...(typeof allowDirectMessages === 'boolean' ? { allow_direct_messages: allowDirectMessages } : {}),
     });
 
     if (updateError) {

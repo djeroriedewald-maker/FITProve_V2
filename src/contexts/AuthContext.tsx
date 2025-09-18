@@ -125,7 +125,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select('id, display_name, name, username, bio, avatar_url, created_at, fitness_goals, level, stats')
+        .select('id, display_name, name, username, bio, avatar_url, created_at, fitness_goals, level, stats, is_public, allow_follow, allow_direct_messages')
         .eq('id', userId)
         .maybeSingle();
 
@@ -198,7 +198,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 followingCount: 0
               },
               achievements: [],
-              recentWorkouts: []
+              recentWorkouts: [],
+              isPublic: p.is_public,
+              allowFollow: p.allow_follow,
+              allowDirectMessages: p.allow_direct_messages,
             },
             error: null
           }));
@@ -227,7 +230,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 followingCount: 0
               },
               achievements: [],
-              recentWorkouts: []
+              recentWorkouts: [],
+              isPublic: p.is_public,
+              allowFollow: p.allow_follow,
+              allowDirectMessages: p.allow_direct_messages,
             },
             error: null
           }));

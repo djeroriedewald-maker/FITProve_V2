@@ -1,6 +1,7 @@
 import { createBrowserRouter } from 'react-router-dom';
 import { HomePage } from '../pages/HomePage';
 import ProfilePage from '../pages/ProfilePage';
+import { FollowingList } from '../components/profile/FollowingList';
 import { CommunityPage } from '../pages/CommunityPage';
 import { ModulesPage } from '../pages/ModulesPage';
 import { WorkoutPage } from '../pages/WorkoutPage';
@@ -18,7 +19,7 @@ export const router = createBrowserRouter(
   [
     {
       path: '/',
-      element: <RootLayout />,
+      element: <RootLayout />, 
       children: [
         { index: true, element: <HomePage /> },
         { path: 'profile', element: <ProfilePage /> },
@@ -36,7 +37,8 @@ export const router = createBrowserRouter(
         { path: 'community', element: <CommunityPage /> },
   { path: 'signin', element: <SignInForm /> },
   { path: 'reset-password', element: <ResetPasswordPage /> },
-  { path: 'settings', element: <SettingsPage /> }
+  { path: 'settings', element: <SettingsPage /> },
+  { path: 'following', element: <FollowingList /> }
       ]
     }
   ],

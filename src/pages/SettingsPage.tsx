@@ -8,6 +8,14 @@ export default function SettingsPage() {
   const { profile, refreshProfile } = useAuth();
   const [isPublic, setIsPublic] = useState(profile?.isPublic ?? false);
   const [allowFollow, setAllowFollow] = useState(profile?.allowFollow ?? false);
+  const [allowDirectMessages, setAllowDirectMessages] = useState(profile?.allowDirectMessages ?? false);
+
+  // Keep settings in sync with profile changes (e.g., after save or refresh)
+  React.useEffect(() => {
+    setIsPublic(profile?.isPublic ?? false);
+    setAllowFollow(profile?.allowFollow ?? false);
+    setAllowDirectMessages(profile?.allowDirectMessages ?? false);
+  }, [profile]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -26,6 +34,7 @@ export default function SettingsPage() {
         fitnessGoals: profile.fitnessGoals,
         isPublic,
         allowFollow,
+        allowDirectMessages,
       });
       await refreshProfile();
       setMessage('Settings saved!');
@@ -73,6 +82,16 @@ export default function SettingsPage() {
             disabled={!isPublic}
           />
           <label htmlFor="allowFollow" className="text-sm text-gray-700 dark:text-gray-300">Allow other users to follow me</label>
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="allowDirectMessages"
+            checked={allowDirectMessages}
+            onChange={e => setAllowDirectMessages(e.target.checked)}
+            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+          />
+          <label htmlFor="allowDirectMessages" className="text-sm text-gray-700 dark:text-gray-300">Allow direct messages from users you follow</label>
         </div>
         <button
           onClick={handleSave}
