@@ -68,13 +68,7 @@ export const ConversationList: React.FC<{ onSelect: (user: UserProfile) => void;
   };
 
   return (
-    <div className="w-full max-w-md bg-white dark:bg-gray-900 h-full overflow-y-auto shadow-lg rounded-xl border border-gray-200 dark:border-gray-800 flex flex-col">
-      <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-800 bg-gradient-to-r from-primary to-purple-600">
-        <span className="text-xl font-extrabold text-white tracking-wide">FITProve</span>
-        <button className="text-white opacity-80 hover:opacity-100 focus:outline-none">
-          <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="feather feather-edit"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19.5 3 21l1.5-4L16.5 3.5z"/></svg>
-        </button>
-      </div>
+    <div className="w-full h-full bg-white dark:bg-gray-900 overflow-y-auto flex flex-col">
       {loading ? (
         <div className="p-6 text-gray-400 text-center">Loading...</div>
       ) : conversations.length === 0 ? (

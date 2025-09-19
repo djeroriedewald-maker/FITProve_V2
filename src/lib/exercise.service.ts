@@ -84,14 +84,18 @@ function transformExercise(exerciseDB: ExerciseDB): Exercise {
 
 export class ExerciseService {
   // Get all exercises with optional filtering
-  static async getExercises(filters?: ExerciseFilter): Promise<ExerciseSearchResult> {
+  static async getExercises(filters?: ExerciseFilter & { page?: number; pageSize?: number }): Promise<ExerciseSearchResult> {
     try {
+      const page = filters?.page || 1;
+      const pageSize = filters?.pageSize || 50;
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+
       let query = supabase
         .from('exercises')
-        .select('*')
-        .eq('is_active', true)
-        .eq('approval_status', 'approved')
-        .order('popularity_score', { ascending: false });
+        .select('*', { count: 'exact' })
+        .order('popularity_score', { ascending: false })
+        .range(from, to);
 
       // Apply filters
       if (filters?.muscle_groups?.length) {
@@ -111,7 +115,6 @@ export class ExerciseService {
       }
 
       if (filters?.search_query) {
-        // Use simple case-insensitive search in name field
         query = query.ilike('name', `%${filters.search_query}%`);
       }
 

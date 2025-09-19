@@ -209,6 +209,9 @@ function ExerciseCard({ exercise, viewMode, onVideoClick, onAddToWorkout, onExer
 }
 
 export function ExerciseLibraryPage() {
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50); // Aantal per pagina
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, []);
@@ -235,28 +238,23 @@ export function ExerciseLibraryPage() {
       try {
         setLoading(true);
         setError(null);
-        
+
         const filters = {
           search_query: searchQuery || undefined,
           muscle_groups: selectedMuscleGroups.length > 0 ? selectedMuscleGroups : undefined,
           equipment: selectedEquipment.length > 0 ? selectedEquipment : undefined,
           difficulty: selectedDifficulties.length > 0 ? selectedDifficulties : undefined,
+          page,
+          pageSize
         };
-        
-        const result = await ExerciseService.getExercises(filters);
-        console.log('🔍 Exercise data sample:', result.exercises.slice(0, 3).map(ex => ({
-          name: ex.name,
-          youtube_id: ex.youtube_id,
-          image_url: ex.image_url,
-          gif_url: ex.gif_url
-        })));
+
+        const result = await ExerciseService.getExercises({ ...filters, page, pageSize });
         setExercises(result.exercises);
         setTotalCount(result.total_count);
 
-        // Track search/filter usage if there are active filters or search query
         if (searchQuery || selectedMuscleGroups.length > 0 || selectedEquipment.length > 0 || selectedDifficulties.length > 0) {
           analyticsService.trackSearch(
-            searchQuery, 
+            searchQuery,
             {
               muscle_groups: selectedMuscleGroups,
               equipment: selectedEquipment,
@@ -275,7 +273,7 @@ export function ExerciseLibraryPage() {
     };
 
     fetchExercises();
-  }, [searchQuery, selectedMuscleGroups, selectedEquipment, selectedDifficulties]);
+  }, [searchQuery, selectedMuscleGroups, selectedEquipment, selectedDifficulties, page, pageSize]);
 
   // Preload images for the first few exercises for better performance
   const imagesToPreload = exercises.slice(0, 8).map(ex => ex.image_url).filter(Boolean) as string[];
@@ -283,6 +281,11 @@ export function ExerciseLibraryPage() {
 
   // Get filtered exercises (now from state instead of local filtering)
   const filteredExercises = exercises;
+
+  // Pagination helpers
+  const totalPages = Math.ceil(totalCount / pageSize);
+  const canPrev = page > 1;
+  const canNext = page < totalPages;
 
   const handleVideoClick = (exercise: Exercise) => {
     analyticsService.trackExerciseInteraction(
@@ -389,7 +392,7 @@ export function ExerciseLibraryPage() {
             Exercise Library
           </h1>
           <p className="text-gray-600 dark:text-gray-300 mb-6">
-            Discover {totalCount}+ exercises with detailed instructions and video demonstrations
+            Discover {exercises.length}+ exercises with detailed instructions and video demonstrations
           </p>
 
           {/* Search and Controls */}
@@ -530,9 +533,27 @@ export function ExerciseLibraryPage() {
           ) : error ? (
             <p className="text-red-600 dark:text-red-400">{error}</p>
           ) : (
-            <p className="text-gray-600 dark:text-gray-300">
-              Showing {filteredExercises.length} of {totalCount} exercises
-            </p>
+            <>
+              <p className="text-gray-600 dark:text-gray-300">
+                Showing {filteredExercises.length} of {totalCount} exercises (page {page} of {totalPages})
+              </p>
+              <div className="flex gap-2 mt-2">
+                <button
+                  className="px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 disabled:opacity-50"
+                  onClick={() => canPrev && setPage(page - 1)}
+                  disabled={!canPrev}
+                >
+                  Previous
+                </button>
+                <button
+                  className="px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 disabled:opacity-50"
+                  onClick={() => canNext && setPage(page + 1)}
+                  disabled={!canNext}
+                >
+                  Next
+                </button>
+              </div>
+            </>
           )}
         </div>
 

@@ -1,7 +1,7 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
-import { PublicUserProfile, followUser } from '../../lib/api';
+import { PublicUserProfile, followUser, isFollowingUser } from '../../lib/api';
 
 interface UserCardModalProps {
   user: (PublicUserProfile & {
@@ -18,6 +18,16 @@ export const UserCardModal: React.FC<UserCardModalProps> = ({ user, isOpen, onCl
   const [adding, setAdding] = useState(false);
   const [added, setAdded] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const checkFriend = async () => {
+      if (user && isOpen) {
+        const alreadyFriend = await isFollowingUser(user.id);
+        setAdded(alreadyFriend);
+      }
+    };
+    checkFriend();
+  }, [user, isOpen]);
 
   if (!user) return null;
 
@@ -47,7 +57,7 @@ export const UserCardModal: React.FC<UserCardModalProps> = ({ user, isOpen, onCl
           onClick={handleAddFriend}
           disabled={adding || added}
         >
-          {added ? 'Added' : adding ? 'Adding...' : 'Add Friend'}
+          {added ? 'Friend added' : adding ? 'Adding...' : 'Add Friend'}
         </button>
         {/* Hero section */}
         <div className="relative w-full h-48 md:h-56 bg-gray-800 flex items-end justify-center overflow-hidden">

@@ -265,7 +265,24 @@ export async function updateUserProfile({
       throw new Error('Failed to update profile');
     }
 
-    // Convert database types to frontend types
+    // Award the 'Starter' badge for profile completion if not already present
+    try {
+      // Find the badge id for 'Starter' (profile completion)
+      const { data: badges } = await supabase.rpc('get_active_badges');
+      const starterBadge = (badges || []).find((b: any) => b.name === 'Starter');
+      if (starterBadge) {
+        // Check if user already has this badge
+        const { data: userBadges } = await supabase.rpc('get_user_badges', { uid: userId });
+        const alreadyHas = (userBadges || []).some((ub: any) => ub.badge_id === starterBadge.id);
+        if (!alreadyHas) {
+          await supabase.rpc('award_badge', { uid: userId, badge: starterBadge.id });
+        }
+      }
+    } catch (badgeErr) {
+      // Log but do not block profile update if badge logic fails
+      console.warn('Could not award Starter badge:', badgeErr);
+    }
+
     return { 
       data: {
         id: updatedProfile.id,

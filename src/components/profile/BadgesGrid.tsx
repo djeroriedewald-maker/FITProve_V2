@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { ConfettiBurst } from "./ConfettiBurst";
 import { toast } from 'react-hot-toast';
-import { supabase } from '../../lib/supabaseClient';
+import { supabase } from '../../lib/supabase';
 
 export type Badge = {
   id: string;
@@ -138,14 +138,7 @@ export function BadgesGrid({ userId }: { userId: string }) {
                   <div style={{ fontSize: 11, color: '#666', marginTop: 2 }}>{progress.progress} / {progress.target}</div>
                 </div>
               )}
-              {!userBadges.has(badge.id) && (
-                <button
-                  style={{ marginTop: 8, padding: '4px 12px', borderRadius: 6, background: '#4ade80', color: '#fff', border: 'none', cursor: 'pointer' }}
-                  onClick={() => handleAwardBadge(badge.id)}
-                >
-                  Verdien badge
-                </button>
-              )}
+              {/* De handmatige 'Verdien badge' knop is verwijderd. Badges worden alleen via backend toegekend. */}
             </div>
           );
         })}

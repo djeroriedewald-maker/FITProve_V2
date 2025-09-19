@@ -13,6 +13,7 @@ interface UserProfileProps {
     allowFollow?: boolean;
   };
   isOwnProfile?: boolean;
+  onProfileUpdated?: () => void;
 }
 
 import { UserStatsGrid } from './UserStatsGrid';
@@ -25,19 +26,24 @@ import { AnalyticsDashboard } from '../ui/AnalyticsDashboard';
 import { UserSearchModal } from './UserSearchModal';
 import { useAuth } from '../../contexts/AuthContext';
 import { updateUserProfile, isFollowingUser, followUser, unfollowUser } from '../../lib/api.ts';
+import { useNavigate } from 'react-router-dom';
 
-export const UserProfile: React.FC<UserProfileProps> = ({ profile, isOwnProfile = false }) => {
+export const UserProfile: React.FC<UserProfileProps> = ({ profile, isOwnProfile = false, onProfileUpdated }) => {
+  const navigate = useNavigate();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAutoPostSettingsOpen, setIsAutoPostSettingsOpen] = useState(false);
   const [isManualPostModalOpen, setIsManualPostModalOpen] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
-  const { user, refreshProfile } = useAuth();
+  const { user, refreshProfile, profile: contextProfile } = useAuth();
   // Follow state
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
 
   // User search modal state
   const [isUserSearchOpen, setIsUserSearchOpen] = useState(false);
+
+  // Use the latest profile from context if this is the user's own profile
+  const displayProfile = isOwnProfile && contextProfile ? contextProfile : profile;
 
   // Fetch follow state from backend
   useEffect(() => {
@@ -73,31 +79,39 @@ export const UserProfile: React.FC<UserProfileProps> = ({ profile, isOwnProfile 
   };
 
   const handleProfileUpdate = async (
-  updatedProfile: Partial<IUserProfile> & { avatarFile?: File | null }
+    updatedProfile: Partial<IUserProfile> & { avatarFile?: File | null }
   ) => {
-  if (!user) return;
+    if (!user) return;
 
-  const promise = new Promise((resolve, reject) => {
-  setIsUpdating(true);
-  updateUserProfile({
-    userId: user.id,
-    displayName: updatedProfile.displayName || profile.displayName,
-    username: updatedProfile.username || profile.username,
-    bio: updatedProfile.bio || profile.bio,
-    avatarUrl: updatedProfile.avatarUrl || profile.avatarUrl,
-    fitnessGoals: updatedProfile.fitnessGoals || profile.fitnessGoals,
-    avatarFile: (updatedProfile as { avatarFile?: File | null }).avatarFile || null,
-  })
-  .then(({ data, error }: { data: IUserProfile | null; error: Error | null }) => {
+    const promise = new Promise((resolve, reject) => {
+      setIsUpdating(true);
+      updateUserProfile({
+        userId: user.id,
+        displayName: updatedProfile.displayName || profile.displayName,
+        username: updatedProfile.username || profile.username,
+        bio: updatedProfile.bio || profile.bio,
+        avatarUrl: updatedProfile.avatarUrl || profile.avatarUrl,
+        fitnessGoals: updatedProfile.fitnessGoals || profile.fitnessGoals,
+        avatarFile: (updatedProfile as { avatarFile?: File | null }).avatarFile || null,
+        allowFollow: typeof profile.allowFollow === 'boolean' ? profile.allowFollow : true,
+      })
+        .then(({ data, error }: { data: IUserProfile | null; error: Error | null }) => {
           if (error) {
             console.error('Profile update error:', error);
             reject(error);
           } else {
             // Als het gelukt is, ververs dan het profiel en resolve
             refreshProfile()
-              .then(() => resolve(data))
+              .then(() => {
+                if (onProfileUpdated) onProfileUpdated();
+                // Force full page reload to guarantee all state is up to date
+                window.location.reload();
+                resolve(data);
+              })
               .catch((refreshError) => {
                 console.error('Profile refresh error:', refreshError);
+                if (onProfileUpdated) onProfileUpdated();
+                window.location.reload();
                 // Zelfs als refresh faalt, is de update wel gelukt
                 resolve(data);
               });
@@ -134,7 +148,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ profile, isOwnProfile 
       <EditProfileModal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
-        profile={profile}
+  profile={displayProfile}
         onSave={handleProfileUpdate}
         isUpdating={isUpdating}
       />
@@ -214,13 +228,6 @@ export const UserProfile: React.FC<UserProfileProps> = ({ profile, isOwnProfile 
                   >
                     {isUpdating ? <Loader2 className="w-5 h-5 animate-spin" /> : <Edit className="w-5 h-5" />}
                     <span>Bewerken</span>
-                  </button>
-                  {/* Find Users Button */}
-                  <button
-                    onClick={() => setIsUserSearchOpen(true)}
-                    className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold shadow-sm hover:bg-blue-700 transition"
-                  >
-                    <span>Find Users</span>
                   </button>
                   <button className="flex items-center justify-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-lg font-semibold shadow-sm border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
                     <Share2 className="w-5 h-5" />

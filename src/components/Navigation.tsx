@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Dumbbell, BarChart2, Newspaper, Layers, Users, UserPlus } from 'lucide-react';
+import { Home, BarChart2, Newspaper, Layers, Users, UserPlus } from 'lucide-react';
 
 const navigationItems = [
   { name: 'Home', icon: Home, path: '/' },

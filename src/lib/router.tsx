@@ -5,6 +5,7 @@ import { FollowingList } from '../components/profile/FollowingList';
 import { CommunityPage } from '../pages/CommunityPage';
 import { ModulesPage } from '../pages/ModulesPage';
 import { WorkoutPage } from '../pages/WorkoutPage';
+import WorkoutLibraryPage from '../pages/workout-library/WorkoutLibraryPage';
 import { ExerciseLibraryPage } from '../pages/ExerciseLibraryPage';
 import { WorkoutCreatorPage } from '../pages/workout-creator/WorkoutCreatorPage';
 import { WorkoutExecutePage } from '../pages/workout-creator/WorkoutExecutePage';
@@ -33,7 +34,7 @@ export const router = createBrowserRouter(
         { path: 'modules/workout/workout-creator', element: <WorkoutCreatorPage /> },
         { path: 'modules/workout/execute/:workoutId', element: <WorkoutExecutePage /> },
         { path: 'modules/workout/my-workouts', element: <MyWorkoutsPage /> },
-  { path: 'modules/workout/workout-library', element: <div className="p-4">Workout Library Page (Coming Soon)</div> },
+  { path: 'modules/workout/workout-library', element: <WorkoutLibraryPage /> },
   { path: 'modules/workout/community', element: <CommunityWorkoutsPage /> },
   { path: 'community', element: <CommunityPage /> },
   { path: 'friends', element: <FriendsPage /> },
