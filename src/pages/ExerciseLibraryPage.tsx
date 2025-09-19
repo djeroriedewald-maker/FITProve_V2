@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Search, Grid, List, Clock, Target, Dumbbell } from 'lucide-react';
 import { Exercise, MuscleGroup, EquipmentType, DifficultyLevel } from '../types/exercise.types';
 import { ExerciseService } from '../lib/exercise.service';
@@ -6,6 +7,7 @@ import { ExerciseDetailModal } from '../components/ui/ExerciseDetailModal';
 import { ExerciseImage } from '../components/ui/ProgressiveImage';
 
 export function ExerciseLibraryPage() {
+  const navigate = useNavigate();
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [search, setSearch] = useState('');
   const [selectedMuscle, setSelectedMuscle] = useState<string>('');
@@ -16,7 +18,7 @@ export function ExerciseLibraryPage() {
   const [showModal, setShowModal] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [page, setPage] = useState(1);
-  const [pageSize] = useState(12);
+  const [pageSize] = useState(20);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(false);
 
@@ -45,7 +47,7 @@ export function ExerciseLibraryPage() {
     const start = (page - 1) * pageSize;
     const end = start + pageSize;
     setExercises(filtered.slice(start, end));
-    setTotalCount(filtered.length);
+    setTotalCount(result.total_count);
     setLoading(false);
   };
 
@@ -91,6 +93,14 @@ export function ExerciseLibraryPage() {
 
   return (
     <div className="p-2 sm:p-4 max-w-5xl mx-auto w-full overflow-x-hidden">
+      {/* Back Button */}
+      <button
+        onClick={() => navigate(-1)}
+        className="mb-4 flex items-center gap-2 px-4 py-2 rounded-lg border bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+        aria-label="Go back"
+      >
+        <span className="text-xl">←</span> Back
+      </button>
       {/* Hero Section */}
       <div className="relative w-full h-48 sm:h-64 md:h-80 rounded-xl overflow-hidden mb-6">
         <img

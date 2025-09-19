@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { X, ExternalLink, Play } from 'lucide-react';
+import { X, Play } from 'lucide-react';
+import { Exercise } from '../../types/exercise.types';
+import { ExerciseImage } from './ProgressiveImage';
 
 interface YouTubeSearchModalProps {
   isOpen: boolean;
   onClose: () => void;
   exerciseName: string;
+  exercise?: Exercise | null;
 }
 
 interface YouTubeVideo {
@@ -19,7 +22,8 @@ interface YouTubeVideo {
 export const YouTubeSearchModal: React.FC<YouTubeSearchModalProps> = ({
   isOpen,
   onClose,
-  exerciseName
+  exerciseName,
+  exercise,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [videos, setVideos] = useState<YouTubeVideo[]>([]);
@@ -40,7 +44,7 @@ export const YouTubeSearchModal: React.FC<YouTubeSearchModalProps> = ({
       thumbnail: `https://img.youtube.com/vi/IODxDxX7oi4/mqdefault.jpg`,
       channelTitle: 'Fitness Blender',
       duration: '3:24',
-      viewCount: '2.1M views'
+      viewCount: '2.1M views',
     },
     {
       id: '4Y2ZdHCOXok',
@@ -48,7 +52,7 @@ export const YouTubeSearchModal: React.FC<YouTubeSearchModalProps> = ({
       thumbnail: `https://img.youtube.com/vi/4Y2ZdHCOXok/mqdefault.jpg`,
       channelTitle: 'Athlean-X',
       duration: '5:12',
-      viewCount: '1.5M views'
+      viewCount: '1.5M views',
     },
     {
       id: 'eGo4IYlbE5g',
@@ -56,7 +60,7 @@ export const YouTubeSearchModal: React.FC<YouTubeSearchModalProps> = ({
       thumbnail: `https://img.youtube.com/vi/eGo4IYlbE5g/mqdefault.jpg`,
       channelTitle: 'Calisthenic Movement',
       duration: '4:30',
-      viewCount: '890K views'
+      viewCount: '890K views',
     },
     {
       id: 'ytGaGIn3SjE',
@@ -64,13 +68,14 @@ export const YouTubeSearchModal: React.FC<YouTubeSearchModalProps> = ({
       thumbnail: `https://img.youtube.com/vi/ytGaGIn3SjE/mqdefault.jpg`,
       channelTitle: 'Jeff Nippard',
       duration: '8:15',
-      viewCount: '1.2M views'
-    }
+      viewCount: '1.2M views',
+    },
   ];
 
   const handleSearch = () => {
     setIsLoading(true);
     // Simulate API call delay
+
     setTimeout(() => {
       setVideos(mockYouTubeResults);
       setIsLoading(false);
@@ -81,16 +86,21 @@ export const YouTubeSearchModal: React.FC<YouTubeSearchModalProps> = ({
     window.open(`https://www.youtube.com/watch?v=${videoId}`, '_blank');
   };
 
-  const openYouTubeSearch = () => {
-    const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(searchQuery)}`;
-    window.open(searchUrl, '_blank');
-  };
-
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
+        {/* Hero Image */}
+        {exercise && (
+          <div className="w-full h-48 sm:h-64 md:h-72 bg-black bg-opacity-10 flex items-center justify-center overflow-hidden">
+            <ExerciseImage
+              exercise={exercise}
+              className="w-full h-full object-cover"
+              priority={true}
+            />
+          </div>
+        )}
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
           <div>
@@ -120,20 +130,6 @@ export const YouTubeSearchModal: React.FC<YouTubeSearchModalProps> = ({
               className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 dark:bg-gray-700 dark:text-white"
               onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
             />
-            <button
-              onClick={handleSearch}
-              disabled={isLoading}
-              className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? 'Zoeken...' : 'Zoeken'}
-            </button>
-            <button
-              onClick={openYouTubeSearch}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2"
-            >
-              <ExternalLink className="w-4 h-4" />
-              Open YouTube
-            </button>
           </div>
         </div>
 
@@ -180,7 +176,8 @@ export const YouTubeSearchModal: React.FC<YouTubeSearchModalProps> = ({
           ) : (
             <div className="text-center py-8">
               <p className="text-gray-500 dark:text-gray-400 mb-4">
-                Klik op "Zoeken" om YouTube videos te vinden voor "{exerciseName}"
+                Klik op &quot;Zoeken&quot; om YouTube videos te vinden voor &quot;{exerciseName}
+                &quot;
               </p>
               <button
                 onClick={handleSearch}

@@ -423,6 +423,7 @@ export function ExerciseDetailModal({
         isOpen={isYouTubeModalOpen}
         onClose={() => setIsYouTubeModalOpen(false)}
         exerciseName={exercise.name}
+        exercise={exercise}
       />
     </div>
   );

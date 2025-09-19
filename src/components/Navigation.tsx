@@ -1,10 +1,10 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, BarChart2, Newspaper, Layers, Users, UserPlus } from 'lucide-react';
+import { Home, BarChart2, Layers, Users, UserPlus } from 'lucide-react';
 
 const navigationItems = [
   { name: 'Home', icon: Home, path: '/' },
   { name: 'Stats', icon: BarChart2, path: '/stats' },
-  { name: 'News', icon: Newspaper, path: '/news' },
+  // News removed as requested
   { name: 'Modules', icon: Layers, path: '/modules' },
   { name: 'Community', icon: Users, path: '/community' },
   { name: 'Friends', icon: UserPlus, path: '/friends' },
