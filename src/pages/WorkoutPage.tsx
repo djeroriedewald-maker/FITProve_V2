@@ -233,7 +233,7 @@ export function WorkoutPage() {
       <div className="max-w-7xl mx-auto px-4 pt-4">
         <BackButton text="Back to Modules" to="/modules" />
       </div>
-      
+
       {/* Hero Section */}
       <div className="relative h-80 overflow-hidden">
         <img
@@ -241,36 +241,22 @@ export function WorkoutPage() {
           alt="Workout"
           className="w-full h-full object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-        
-        {/* Hero Content */}
-        <div className="absolute inset-0 flex items-end">
-          <div className="max-w-7xl mx-auto px-4 pb-12 w-full">
-            <div className="max-w-2xl">
-              <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-                Workout Module
-              </h1>
-              <p className="text-xl text-gray-200 mb-6">
-                Transform your fitness journey with our comprehensive workout system. 
-                Individual exercises to complete routines and custom workout creation.
-              </p>
-              <div className="flex flex-wrap gap-4">
-                <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2 text-white">
-                  <Dumbbell className="h-5 w-5" />
-                  <span className="font-semibold">800+ Exercises</span>
-                </div>
-                <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2 text-white">
-                  <Target className="h-5 w-5" />
-                  <span className="font-semibold">45+ Workouts</span>
-                </div>
-                <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2 text-white">
-                  <TrendingUp className="h-5 w-5" />
-                  <span className="font-semibold">All Levels</span>
-                </div>
-              </div>
-            </div>
-          </div>
+        {/* Dark overlay */}
+        <div className="absolute inset-0 bg-black/70" />
+        {/* Centered Hero Content */}
+        <div className="absolute inset-0 flex items-center justify-center">
+          <h1 className="text-4xl md:text-5xl font-bold text-white text-center mb-4 drop-shadow-lg">
+            Workout Module
+          </h1>
         </div>
+      </div>
+
+      {/* Description below hero image */}
+      <div className="max-w-7xl mx-auto px-4 mt-8">
+        <p className="text-xl text-gray-800 dark:text-gray-100 text-center max-w-2xl mb-6 mx-auto">
+          Transform your fitness journey with our comprehensive workout system.<br />
+          Individual exercises to complete routines and custom workout creation.
+        </p>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-12">
