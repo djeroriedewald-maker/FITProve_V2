@@ -1,5 +1,17 @@
 import React, { useState } from 'react';
-import { X, Play, Clock, Target, Dumbbell, AlertTriangle, Lightbulb, Zap, ChevronDown, ChevronUp, Youtube } from 'lucide-react';
+import {
+  X,
+  Play,
+  Clock,
+  Target,
+  Dumbbell,
+  AlertTriangle,
+  Lightbulb,
+  Zap,
+  ChevronDown,
+  ChevronUp,
+  Youtube,
+} from 'lucide-react';
 import { Exercise } from '../../types/exercise.types';
 import { EnhancedYouTubePlayer } from './YouTubePlayer';
 import { ExerciseImage } from './ProgressiveImage';
@@ -9,7 +21,9 @@ interface ExerciseDetailModalProps {
   exercise: Exercise | null;
   isOpen: boolean;
   onClose: () => void;
-  onAddToWorkout: (exercise: Exercise) => void;
+  onWatchVideo: (exercise: Exercise) => void;
+  isYouTubeModalOpen: boolean;
+  setIsYouTubeModalOpen: (open: boolean) => void;
 }
 
 interface Section {
@@ -20,10 +34,18 @@ interface Section {
   isExpandable?: boolean;
 }
 
-export function ExerciseDetailModal({ exercise, isOpen, onClose, onAddToWorkout }: ExerciseDetailModalProps) {
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['description', 'instructions']));
+export function ExerciseDetailModal({
+  exercise,
+  isOpen,
+  onClose,
+  onWatchVideo,
+  isYouTubeModalOpen,
+  setIsYouTubeModalOpen,
+}: ExerciseDetailModalProps) {
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(
+    new Set(['description', 'instructions'])
+  );
   const [activeMediaTab, setActiveMediaTab] = useState<'image' | 'gif' | 'video'>('image');
-  const [isYouTubeModalOpen, setIsYouTubeModalOpen] = useState(false);
 
   if (!isOpen || !exercise) return null;
 
@@ -39,15 +61,19 @@ export function ExerciseDetailModal({ exercise, isOpen, onClose, onAddToWorkout 
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
-      case 'beginner': return 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400';
-      case 'intermediate': return 'text-yellow-600 bg-yellow-100 dark:bg-yellow-900/30 dark:text-yellow-400';
-      case 'advanced': return 'text-red-600 bg-red-100 dark:bg-red-900/30 dark:text-red-400';
-      default: return 'text-gray-600 bg-gray-100 dark:bg-gray-700 dark:text-gray-400';
+      case 'beginner':
+        return 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400';
+      case 'intermediate':
+        return 'text-yellow-600 bg-yellow-100 dark:bg-yellow-900/30 dark:text-yellow-400';
+      case 'advanced':
+        return 'text-red-600 bg-red-100 dark:bg-red-900/30 dark:text-red-400';
+      default:
+        return 'text-gray-600 bg-gray-100 dark:bg-gray-700 dark:text-gray-400';
     }
   };
 
   const getMechanicsColor = (mechanics: string) => {
-    return mechanics === 'compound' 
+    return mechanics === 'compound'
       ? 'text-purple-600 bg-purple-100 dark:bg-purple-900/30 dark:text-purple-400'
       : 'text-blue-600 bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400';
   };
@@ -61,7 +87,7 @@ export function ExerciseDetailModal({ exercise, isOpen, onClose, onAddToWorkout 
         <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
           {exercise.description || 'No description available.'}
         </p>
-      )
+      ),
     },
     {
       id: 'instructions',
@@ -75,16 +101,14 @@ export function ExerciseDetailModal({ exercise, isOpen, onClose, onAddToWorkout 
                 <span className="flex-shrink-0 w-6 h-6 bg-orange-600 text-white rounded-full flex items-center justify-center text-sm font-medium">
                   {index + 1}
                 </span>
-                <span className="text-gray-700 dark:text-gray-300 leading-relaxed">
-                  {step}
-                </span>
+                <span className="text-gray-700 dark:text-gray-300 leading-relaxed">{step}</span>
               </li>
             ))
           ) : (
             <p className="text-gray-500 dark:text-gray-400 italic">No instructions available.</p>
           )}
         </ol>
-      )
+      ),
     },
     {
       id: 'tips',
@@ -104,7 +128,7 @@ export function ExerciseDetailModal({ exercise, isOpen, onClose, onAddToWorkout 
           )}
         </ul>
       ),
-      isExpandable: true
+      isExpandable: true,
     },
     {
       id: 'mistakes',
@@ -124,7 +148,7 @@ export function ExerciseDetailModal({ exercise, isOpen, onClose, onAddToWorkout 
           )}
         </ul>
       ),
-      isExpandable: true
+      isExpandable: true,
     },
     {
       id: 'variations',
@@ -144,15 +168,15 @@ export function ExerciseDetailModal({ exercise, isOpen, onClose, onAddToWorkout 
           )}
         </ul>
       ),
-      isExpandable: true
-    }
+      isExpandable: true,
+    },
   ];
 
   const availableMedia = [
     { type: 'image' as const, available: !!exercise.image_url, label: 'Image' },
     { type: 'gif' as const, available: !!exercise.gif_url, label: 'GIF' },
-    { type: 'video' as const, available: !!exercise.youtube_id, label: 'Video' }
-  ].filter(media => media.available);
+    { type: 'video' as const, available: !!exercise.youtube_id, label: 'Video' },
+  ].filter((media) => media.available);
 
   // Debug log to see what's available
   console.log('Exercise data:', {
@@ -160,7 +184,7 @@ export function ExerciseDetailModal({ exercise, isOpen, onClose, onAddToWorkout 
     image_url: exercise.image_url,
     gif_url: exercise.gif_url,
     youtube_id: exercise.youtube_id,
-    availableMedia: availableMedia.map(m => m.type)
+    availableMedia: availableMedia.map((m) => m.type),
   });
 
   return (
@@ -173,11 +197,15 @@ export function ExerciseDetailModal({ exercise, isOpen, onClose, onAddToWorkout 
               {exercise.name}
             </h2>
             <div className="flex flex-wrap gap-1 sm:gap-2">
-              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(exercise.difficulty)}`}>
+              <span
+                className={`px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(exercise.difficulty)}`}
+              >
                 {exercise.difficulty}
               </span>
               {exercise.mechanics && (
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getMechanicsColor(exercise.mechanics)}`}>
+                <span
+                  className={`px-2 py-1 rounded-full text-xs font-medium ${getMechanicsColor(exercise.mechanics)}`}
+                >
                   {exercise.mechanics}
                 </span>
               )}
@@ -190,7 +218,7 @@ export function ExerciseDetailModal({ exercise, isOpen, onClose, onAddToWorkout 
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setIsYouTubeModalOpen(true)}
+              onClick={() => onWatchVideo(exercise)}
               className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors flex-shrink-0 group"
               title="Zoek YouTube videos"
             >
@@ -213,148 +241,162 @@ export function ExerciseDetailModal({ exercise, isOpen, onClose, onAddToWorkout 
               {/* Media Tabs */}
               {availableMedia.length > 1 && (
                 <div className="flex mb-4 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
-                  {availableMedia.map(media => (
+                  {availableMedia.map((media) => (
                     <button
                       key={media.type}
                       onClick={() => setActiveMediaTab(media.type)}
                       className={`flex-1 py-2 px-2 rounded-md text-xs font-medium transition-colors ${
                         activeMediaTab === media.type
-                        ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
-                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                    }`}
-                  >
-                    {media.label}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* Media Display */}
-            <div className="bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden aspect-video flex items-center justify-center">
-              {activeMediaTab === 'image' && exercise.image_url ? (
-                <ExerciseImage
-                  exercise={exercise}
-                  className="w-full h-full"
-                  priority={true}
-                />
-              ) : activeMediaTab === 'gif' && exercise.gif_url ? (
-                <ExerciseImage
-                  exercise={exercise}
-                  className="w-full h-full"
-                  showGif={true}
-                  priority={true}
-                />
-              ) : activeMediaTab === 'video' && exercise.youtube_id ? (
-                <EnhancedYouTubePlayer
-                  videoId={exercise.youtube_id}
-                  title={`${exercise.name} - Exercise Demonstration`}
-                  className="w-full h-full"
-                  showTitle={false}
-                  showControls={false}
-                  fallbackContent={
-                    <div className="w-full h-full bg-gray-900 flex items-center justify-center">
-                      <button 
-                        onClick={() => window.open(`https://www.youtube.com/watch?v=${exercise.youtube_id}`, '_blank')}
-                        className="flex items-center gap-2 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                      >
-                        <Play className="w-5 h-5" />
-                        Watch on YouTube
-                      </button>
-                    </div>
-                  }
-                />
-              ) : (
-                <div className="text-gray-400 dark:text-gray-500">
-                  <Dumbbell className="w-16 h-16 mx-auto mb-2" />
-                  <p>No media available</p>
+                          ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
+                          : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                      }`}
+                    >
+                      {media.label}
+                    </button>
+                  ))}
                 </div>
               )}
-            </div>
 
-            {/* Quick Stats */}
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              <div className="bg-gray-50 dark:bg-gray-700 p-2 rounded-lg">
-                <div className="flex items-center gap-1 mb-1">
-                  <Target className="w-3 h-3 text-orange-600" />
-                  <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Primary</span>
-                </div>
-                <p className="text-xs font-semibold text-gray-900 dark:text-white truncate">
-                  {exercise.primary_muscles?.[0] || 'N/A'}
-                </p>
+              {/* Media Display */}
+              <div className="bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden aspect-video flex items-center justify-center">
+                {activeMediaTab === 'image' && exercise.image_url ? (
+                  <ExerciseImage exercise={exercise} className="w-full h-full" priority={true} />
+                ) : activeMediaTab === 'gif' && exercise.gif_url ? (
+                  <ExerciseImage
+                    exercise={exercise}
+                    className="w-full h-full"
+                    showGif={true}
+                    priority={true}
+                  />
+                ) : activeMediaTab === 'video' && exercise.youtube_id ? (
+                  <EnhancedYouTubePlayer
+                    videoId={exercise.youtube_id}
+                    title={`${exercise.name} - Exercise Demonstration`}
+                    className="w-full h-full"
+                    showTitle={false}
+                    showControls={false}
+                    fallbackContent={
+                      <div className="w-full h-full bg-gray-900 flex items-center justify-center">
+                        <button
+                          onClick={() =>
+                            window.open(
+                              `https://www.youtube.com/watch?v=${exercise.youtube_id}`,
+                              '_blank'
+                            )
+                          }
+                          className="flex items-center gap-2 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                        >
+                          <Play className="w-5 h-5" />
+                          Watch on YouTube
+                        </button>
+                      </div>
+                    }
+                  />
+                ) : (
+                  <div className="text-gray-400 dark:text-gray-500">
+                    <Dumbbell className="w-16 h-16 mx-auto mb-2" />
+                    <p>No media available</p>
+                  </div>
+                )}
               </div>
-              
-              <div className="bg-gray-50 dark:bg-gray-700 p-2 rounded-lg">
-                <div className="flex items-center gap-1 mb-1">
-                  <Dumbbell className="w-3 h-3 text-orange-600" />
-                  <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Equipment</span>
-                </div>
-                <p className="text-xs font-semibold text-gray-900 dark:text-white truncate">
-                  {exercise.equipment || 'None'}
-                </p>
-              </div>
-              
-              {exercise.recommended_sets && (
+
+              {/* Quick Stats */}
+              <div className="mt-4 grid grid-cols-2 gap-2">
                 <div className="bg-gray-50 dark:bg-gray-700 p-2 rounded-lg">
                   <div className="flex items-center gap-1 mb-1">
                     <Target className="w-3 h-3 text-orange-600" />
-                    <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Sets</span>
+                    <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                      Primary
+                    </span>
                   </div>
-                  <p className="text-xs font-semibold text-gray-900 dark:text-white">
-                    {exercise.recommended_sets}
+                  <p className="text-xs font-semibold text-gray-900 dark:text-white truncate">
+                    {exercise.primary_muscles?.[0] || 'N/A'}
                   </p>
                 </div>
-              )}
-              
-              {exercise.recommended_reps && (
+
                 <div className="bg-gray-50 dark:bg-gray-700 p-2 rounded-lg">
                   <div className="flex items-center gap-1 mb-1">
-                    <Clock className="w-3 h-3 text-orange-600" />
-                    <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Reps</span>
+                    <Dumbbell className="w-3 h-3 text-orange-600" />
+                    <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                      Equipment
+                    </span>
                   </div>
-                  <p className="text-xs font-semibold text-gray-900 dark:text-white">
-                    {exercise.recommended_reps}
+                  <p className="text-xs font-semibold text-gray-900 dark:text-white truncate">
+                    {exercise.equipment || 'None'}
                   </p>
                 </div>
-              )}
-            </div>
-          </div>
 
-          {/* Details Section */}
-          <div className="lg:w-1/2 flex-1">
-            <div className="p-4 space-y-3">
-              {sections.map((section) => {
-                const isExpanded = expandedSections.has(section.id);
-                
-                return (
-                  <div key={section.id} className="border-b border-gray-200 dark:border-gray-700 last:border-b-0 pb-3 last:pb-0">
-                    <button
-                      onClick={() => section.isExpandable && toggleSection(section.id)}
-                      className={`flex items-center gap-2 w-full text-left ${section.isExpandable ? 'hover:text-orange-600 dark:hover:text-orange-400' : ''}`}
-                    >
-                      <span className="text-orange-600 dark:text-orange-400">
-                        {section.icon}
+                {exercise.recommended_sets && (
+                  <div className="bg-gray-50 dark:bg-gray-700 p-2 rounded-lg">
+                    <div className="flex items-center gap-1 mb-1">
+                      <Target className="w-3 h-3 text-orange-600" />
+                      <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                        Sets
                       </span>
-                      <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex-1">
-                        {section.title}
-                      </h3>
-                      {section.isExpandable && (
-                        <span className="text-gray-400">
-                          {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                        </span>
-                      )}
-                    </button>
-                    
-                    {(!section.isExpandable || isExpanded) && (
-                      <div className="mt-2 ml-6 text-sm text-gray-700 dark:text-gray-300">
-                        {section.content}
-                      </div>
-                    )}
+                    </div>
+                    <p className="text-xs font-semibold text-gray-900 dark:text-white">
+                      {exercise.recommended_sets}
+                    </p>
                   </div>
-                );
-              })}
+                )}
+
+                {exercise.recommended_reps && (
+                  <div className="bg-gray-50 dark:bg-gray-700 p-2 rounded-lg">
+                    <div className="flex items-center gap-1 mb-1">
+                      <Clock className="w-3 h-3 text-orange-600" />
+                      <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                        Reps
+                      </span>
+                    </div>
+                    <p className="text-xs font-semibold text-gray-900 dark:text-white">
+                      {exercise.recommended_reps}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Details Section */}
+            <div className="lg:w-1/2 flex-1">
+              <div className="p-4 space-y-3">
+                {sections.map((section) => {
+                  const isExpanded = expandedSections.has(section.id);
+
+                  return (
+                    <div
+                      key={section.id}
+                      className="border-b border-gray-200 dark:border-gray-700 last:border-b-0 pb-3 last:pb-0"
+                    >
+                      <button
+                        onClick={() => section.isExpandable && toggleSection(section.id)}
+                        className={`flex items-center gap-2 w-full text-left ${section.isExpandable ? 'hover:text-orange-600 dark:hover:text-orange-400' : ''}`}
+                      >
+                        <span className="text-orange-600 dark:text-orange-400">{section.icon}</span>
+                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex-1">
+                          {section.title}
+                        </h3>
+                        {section.isExpandable && (
+                          <span className="text-gray-400">
+                            {isExpanded ? (
+                              <ChevronUp className="w-4 h-4" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4" />
+                            )}
+                          </span>
+                        )}
+                      </button>
+
+                      {(!section.isExpandable || isExpanded) && (
+                        <div className="mt-2 ml-6 text-sm text-gray-700 dark:text-gray-300">
+                          {section.content}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
-        </div>
         </div>
 
         {/* Footer - Fixed */}
@@ -367,16 +409,16 @@ export function ExerciseDetailModal({ exercise, isOpen, onClose, onAddToWorkout 
               Close
             </button>
             <button
-              onClick={() => onAddToWorkout(exercise)}
-              className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-medium"
+              onClick={() => onWatchVideo(exercise)}
+              className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-medium flex items-center justify-center gap-2"
             >
-              Add to Workout
+              <Youtube className="w-5 h-5" />
+              Watch video
             </button>
           </div>
         </div>
       </div>
-      
-      {/* YouTube Search Modal */}
+
       <YouTubeSearchModal
         isOpen={isYouTubeModalOpen}
         onClose={() => setIsYouTubeModalOpen(false)}

@@ -1,3 +1,5 @@
+# Ignore large Kaggle dataset
+scripts/exercise-import/programs_detailed_boostcamp_kaggle.csv
 # Logs
 logs
 *.log
