@@ -1,37 +1,86 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { UserProfile } from '../../types/profile.types';
+// Minimal user type for following list
+type FollowingUser = {
+  id: string;
+  displayName: string;
+  username: string;
+  avatarUrl: string;
+  bio?: string;
+  hero_image_url?: string;
+  tags?: string[];
+  badgesCount?: number;
+  isPublic: boolean;
+  allowFollow: boolean;
+};
 import { DirectMessageModal } from './DirectMessageModal';
 import { UserCardModal } from './UserCardModal';
-import { useNavigate } from 'react-router-dom';
 
 export const FollowingList: React.FC = () => {
   const { user } = useAuth();
-  const [following, setFollowing] = useState<UserProfile[]>([]);
+  const [following, setFollowing] = useState<FollowingUser[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
+  const [selectedUser, setSelectedUser] = useState<FollowingUser | null>(null);
   const [showDM, setShowDM] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
-  const navigate = useNavigate();
 
   useEffect(() => {
-    if (user) loadFollowing();
-    // eslint-disable-next-line
+    const loadFollowing = async () => {
+      if (!user) return;
+      setLoading(true);
+      const { data: followers } = await supabase
+        .from('followers')
+        .select('following_id')
+        .eq('follower_id', user.id);
+      if (!followers) {
+        setLoading(false);
+        return;
+      }
+      const ids = followers.map((f: { following_id: string }) => f.following_id);
+      if (ids.length) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, display_name, username, avatar_url, bio, hero_image_url, tags, badges_count, is_public, allow_follow')
+          .in('id', ids);
+        setFollowing(
+          (profiles || []).map((p: any) => ({
+            id: p.id,
+            displayName: p.display_name,
+            username: p.username,
+            avatarUrl: p.avatar_url,
+            bio: p.bio || '',
+            hero_image_url: p.hero_image_url || '',
+            tags: p.tags || [],
+            badgesCount: p.badges_count ?? undefined,
+            isPublic: p.is_public ?? false,
+            allowFollow: p.allow_follow ?? false,
+          }))
+        );
+      }
+      setLoading(false);
+    };
+    if (user) {
+      loadFollowing();
+    }
   }, [user]);
 
   const loadFollowing = async () => {
+    if (!user) return;
     setLoading(true);
     const { data: followers } = await supabase
       .from('followers')
       .select('following_id')
       .eq('follower_id', user.id);
-    if (!followers) return setLoading(false);
-    const ids = followers.map((f: any) => f.following_id);
+    if (!followers) {
+      setLoading(false);
+      return;
+    }
+    const ids = followers.map((f: { following_id: string }) => f.following_id);
     if (ids.length) {
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('id, display_name, username, avatar_url')
+        .select('id, display_name, username, avatar_url, bio, hero_image_url, tags, badges_count, is_public, allow_follow')
         .in('id', ids);
       setFollowing(
         (profiles || []).map((p: any) => ({
@@ -39,6 +88,12 @@ export const FollowingList: React.FC = () => {
           displayName: p.display_name,
           username: p.username,
           avatarUrl: p.avatar_url,
+          bio: p.bio || '',
+          hero_image_url: p.hero_image_url || '',
+          tags: p.tags || [],
+          badgesCount: p.badges_count ?? undefined,
+          isPublic: p.is_public ?? false,
+          allowFollow: p.allow_follow ?? false,
         }))
       );
     }
@@ -89,13 +144,7 @@ export const FollowingList: React.FC = () => {
       )}
       {selectedUser && showProfile && (
         <UserCardModal
-          user={{
-            ...selectedUser,
-            hero_image_url: undefined,
-            bio: selectedUser.bio,
-            tags: [],
-            badgesCount: undefined,
-          }}
+          user={selectedUser}
           isOpen={showProfile}
           onClose={() => setShowProfile(false)}
         />

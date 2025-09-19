@@ -84,6 +84,30 @@ export async function followUser(targetUserId: string): Promise<boolean> {
     console.error('Error following user:', error);
     return false;
   }
+
+  // Send follow notification
+  try {
+    // Fetch follower's display name for notification
+    const { data: followerProfile } = await supabase
+      .from('profiles')
+      .select('display_name')
+      .eq('id', user.id)
+      .maybeSingle();
+    const followerName = followerProfile?.display_name || 'Someone';
+    // Dynamically import createNotification to avoid circular deps
+    const { createNotification } = await import('./notifications');
+    await createNotification({
+      user_id: targetUserId,
+      type: 'follow',
+      title: 'New Follower',
+      message: `${followerName} started following you.`,
+      data: { followerId: user.id, followerName },
+      from_user_id: user.id,
+    });
+  } catch (notifyErr) {
+    console.error('Error sending follow notification:', notifyErr);
+    // Do not block follow on notification error
+  }
   return true;
 }
 

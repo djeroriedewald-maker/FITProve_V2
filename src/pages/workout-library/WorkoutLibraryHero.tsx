@@ -27,7 +27,7 @@ const WorkoutLibraryHero: React.FC = () => {
         <div className="absolute inset-0 bg-black/40" />
         <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
           <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-4 text-center drop-shadow-lg">
-            Workout Module
+            Workout Library
           </h1>
         </div>
       </div>

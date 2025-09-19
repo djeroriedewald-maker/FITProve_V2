@@ -67,22 +67,28 @@ export default function SettingsPage() {
       </button>
       <h1 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">Settings</h1>
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 w-full max-w-md space-y-6">
-        <div className="flex items-center gap-3 w-full mb-2">
-          <ThemeToggle />
-          <span className="text-sm text-gray-700 dark:text-gray-300">Toggle light/dark mode</span>
+        <div className="mb-2">
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">Functionality</h2>
+          <div className="flex items-center gap-3 w-full">
+            <ThemeToggle />
+            <span className="text-sm text-gray-700 dark:text-gray-300">Toggle light/dark mode</span>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            id="isPublic"
-            checked={isPublic}
-            onChange={e => {
-              setIsPublic(e.target.checked);
-              if (!e.target.checked) setAllowFollow(false);
-            }}
-            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
-          />
-          <label htmlFor="isPublic" className="text-sm text-gray-700 dark:text-gray-300">Allow my profile to be found (public)</label>
+        <div className="mt-6 mb-2">
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">Privacy settings</h2>
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="isPublic"
+              checked={isPublic}
+              onChange={e => {
+                setIsPublic(e.target.checked);
+                if (!e.target.checked) setAllowFollow(false);
+              }}
+              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+            />
+            <label htmlFor="isPublic" className="text-sm text-gray-700 dark:text-gray-300">Allow my profile to be found (public)</label>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <input

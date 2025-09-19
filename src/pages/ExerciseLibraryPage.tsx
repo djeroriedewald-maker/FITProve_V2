@@ -102,14 +102,14 @@ export function ExerciseLibraryPage() {
         <span className="text-xl">←</span> Back
       </button>
       {/* Hero Section */}
-      <div className="relative w-full h-48 sm:h-64 md:h-80 rounded-xl overflow-hidden mb-6">
+      <div className="relative left-1/2 right-1/2 -translate-x-1/2 w-screen h-48 sm:h-64 md:h-80 overflow-hidden mb-6">
         <img
           src="/images/exercise_library.webp"
           alt="Exercise Library Hero"
-          className="absolute inset-0 w-full h-full object-cover"
+          className="absolute inset-0 w-full h-full object-cover object-center"
           loading="eager"
         />
-        <div className="absolute inset-0 bg-black bg-opacity-60 flex items-center justify-center">
+        <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white text-center drop-shadow-lg">
             Exercise Library
           </h1>

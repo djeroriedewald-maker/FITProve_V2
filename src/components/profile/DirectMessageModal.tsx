@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { Modal } from '../ui/Modal';
 import { supabase } from '../../lib/supabase';
 import { sendDirectMessage, fetchDirectMessages, DirectMessage } from '../../lib/direct-messages';
 import { useAuth } from '../../contexts/AuthContext';
@@ -24,6 +25,7 @@ export const DirectMessageModal: React.FC<DirectMessageModalProps> = ({
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
+  const [privacyError, setPrivacyError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Load messages initially and set up real-time subscription
@@ -95,7 +97,17 @@ export const DirectMessageModal: React.FC<DirectMessageModalProps> = ({
       setInput('');
       await loadMessages();
     } else {
-      alert(result.error || 'Failed to send message');
+      // If privacy error, show modal
+      if (
+        result.error &&
+        (result.error.includes('privacy') || result.error.includes('cannot send'))
+      ) {
+        setPrivacyError(
+          'You cannot send a message. Both you and the other user must follow each other and both must allow direct messages in privacy settings.'
+        );
+      } else {
+        alert(result.error || 'Failed to send message');
+      }
     }
     setSending(false);
   };
@@ -109,73 +121,93 @@ export const DirectMessageModal: React.FC<DirectMessageModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md flex flex-col overflow-hidden" style={{ minHeight: 500, maxHeight: '90vh' }}>
-        {/* Top bar */}
-        <div className="flex items-center gap-3 px-4 py-3 border-b bg-[#1a2233]">
-          <button onClick={onClose} className="p-1 mr-1 text-white hover:bg-[#26304a] rounded-full">
-            <ArrowLeft className="w-6 h-6" />
-          </button>
-          <div className="flex items-center gap-2">
-            {recipientAvatarUrl ? (
-              <img src={recipientAvatarUrl} alt={recipientName} className="w-10 h-10 rounded-full object-cover bg-white border-4 border-white shadow-md" />
-            ) : (
-              <div className="w-10 h-10 rounded-full bg-white border-4 border-white shadow-md" />
-            )}
-            <span className="font-semibold text-white text-lg">{recipientName}</span>
+    <>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+        <div className="bg-white rounded-2xl shadow-xl w-full max-w-md flex flex-col overflow-hidden" style={{ minHeight: 500, maxHeight: '90vh' }}>
+          {/* Top bar */}
+          <div className="flex items-center gap-3 px-4 py-3 border-b bg-[#1a2233]">
+            <button onClick={onClose} className="p-1 mr-1 text-white hover:bg-[#26304a] rounded-full">
+              <ArrowLeft className="w-6 h-6" />
+            </button>
+            <div className="flex items-center gap-2">
+              {recipientAvatarUrl ? (
+                <img src={recipientAvatarUrl} alt={recipientName} className="w-10 h-10 rounded-full object-cover bg-white border-4 border-white shadow-md" />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-white border-4 border-white shadow-md" />
+              )}
+              <span className="font-semibold text-white text-lg">{recipientName}</span>
+            </div>
           </div>
-        </div>
-        {/* Chat area */}
-        <div className="flex-1 overflow-y-auto px-3 py-4 bg-white" style={{ minHeight: 0 }}>
-          {loading ? (
-            <div className="text-center text-gray-400">Loading...</div>
-          ) : (
-            messages.map((msg) => {
-              const isUser = user && msg.senderId === user.id;
-              return (
-                <div
-                  key={msg.id}
-                  className={`mb-3 flex ${isUser ? 'justify-end' : 'justify-start'}`}
-                >
+          {/* Chat area */}
+          <div className="flex-1 overflow-y-auto px-3 py-4 bg-white" style={{ minHeight: 0 }}>
+            {loading ? (
+              <div className="text-center text-gray-400">Loading...</div>
+            ) : (
+              messages.map((msg) => {
+                const isUser = user && msg.senderId === user.id;
+                return (
                   <div
-                    className={`relative px-4 py-2 rounded-2xl text-base max-w-[75%] whitespace-pre-line ${
-                      isUser
-                        ? 'bg-blue-600 text-white rounded-br-md'
-                        : 'bg-gray-100 text-gray-900 rounded-bl-md'
-                    }`}
-                    style={{ borderBottomRightRadius: isUser ? 8 : 24, borderBottomLeftRadius: isUser ? 24 : 8 }}
+                    key={msg.id}
+                    className={`mb-3 flex ${isUser ? 'justify-end' : 'justify-start'}`}
                   >
-                    {msg.message}
-                    <div className="text-xs text-gray-400 mt-1 text-right">
-                      {new Date(msg.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    <div
+                      className={`relative px-4 py-2 rounded-2xl text-base max-w-[75%] whitespace-pre-line ${
+                        isUser
+                          ? 'bg-blue-600 text-white rounded-br-md'
+                          : 'bg-gray-100 text-gray-900 rounded-bl-md'
+                      }`}
+                      style={{ borderBottomRightRadius: isUser ? 8 : 24, borderBottomLeftRadius: isUser ? 24 : 8 }}
+                    >
+                      {msg.message}
+                      <div className="text-xs text-gray-400 mt-1 text-right">
+                        {new Date(msg.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })
-          )}
-          <div ref={messagesEndRef} />
+                );
+              })
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+          {/* Input area */}
+          <form onSubmit={handleSend} className="flex items-center gap-2 px-3 py-3 border-t bg-white">
+            <input
+              type="text"
+              className="flex-1 px-4 py-2 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50"
+              placeholder="Message"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              disabled={sending}
+              autoFocus
+            />
+            <button
+              type="submit"
+              className="px-5 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-full font-semibold transition"
+              disabled={sending || !input.trim()}
+            >
+              Send
+            </button>
+          </form>
         </div>
-        {/* Input area */}
-        <form onSubmit={handleSend} className="flex items-center gap-2 px-3 py-3 border-t bg-white">
-          <input
-            type="text"
-            className="flex-1 px-4 py-2 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50"
-            placeholder="Message"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            disabled={sending}
-            autoFocus
-          />
-          <button
-            type="submit"
-            className="px-5 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-full font-semibold transition"
-            disabled={sending || !input.trim()}
-          >
-            Send
-          </button>
-        </form>
       </div>
-    </div>
+      {/* Privacy error modal */}
+      <Modal
+        isOpen={!!privacyError}
+        onClose={() => setPrivacyError(null)}
+        title="Privacy Settings Required"
+      >
+        <div className="text-gray-800 dark:text-gray-100 text-center">
+          {privacyError}
+        </div>
+        <div className="mt-4 flex justify-center">
+          <button
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700"
+            onClick={() => setPrivacyError(null)}
+          >
+            OK
+          </button>
+        </div>
+      </Modal>
+    </>
   );
 };
