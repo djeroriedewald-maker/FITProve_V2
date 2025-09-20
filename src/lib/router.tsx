@@ -1,3 +1,4 @@
+import React from 'react';
 import { createBrowserRouter } from 'react-router-dom';
 import { HomePage } from '../pages/HomePage';
 import ProfilePage from '../pages/ProfilePage';
@@ -10,6 +11,7 @@ import { ExerciseLibraryPage } from '../pages/ExerciseLibraryPage';
 import { WorkoutCreatorPage } from '../pages/workout-creator/WorkoutCreatorPage';
 import { WorkoutExecutePage } from '../pages/workout-creator/WorkoutExecutePage';
 import { MyWorkoutsPage } from '../pages/workout-creator/MyWorkoutsPage';
+import WorkoutGenerator from '../pages/workout-generator';
 import { CommunityWorkoutsPage } from '../pages/CommunityWorkoutsPage';
 import { SignInForm } from '../components/SignInForm';
 import { RootLayout } from '../components/RootLayout';
@@ -33,15 +35,16 @@ export const router = createBrowserRouter(
         { path: 'modules/workout/exercise-library', element: <ExerciseLibraryPage /> },
         { path: 'modules/workout/workout-creator', element: <WorkoutCreatorPage /> },
         { path: 'modules/workout/execute/:workoutId', element: <WorkoutExecutePage /> },
-        { path: 'modules/workout/my-workouts', element: <MyWorkoutsPage /> },
-  { path: 'modules/workout/workout-library', element: <WorkoutLibraryPage /> },
-  { path: 'modules/workout/community', element: <CommunityWorkoutsPage /> },
-  { path: 'community', element: <CommunityPage /> },
-  { path: 'friends', element: <FriendsPage /> },
-  { path: 'signin', element: <SignInForm /> },
-  { path: 'reset-password', element: <ResetPasswordPage /> },
-  { path: 'settings', element: <SettingsPage /> },
-  { path: 'following', element: <FollowingList /> }
+    { path: 'modules/workout/my-workouts', element: <MyWorkoutsPage /> },
+    { path: 'modules/workout/workout-library', element: <WorkoutLibraryPage /> },
+    { path: 'modules/workout/community', element: <CommunityWorkoutsPage /> },
+  { path: 'workout-generator', element: <WorkoutGenerator onComplete={() => {}} /> },
+    { path: 'community', element: <CommunityPage /> },
+    { path: 'friends', element: <FriendsPage /> },
+    { path: 'signin', element: <SignInForm /> },
+    { path: 'reset-password', element: <ResetPasswordPage /> },
+    { path: 'settings', element: <SettingsPage /> },
+    { path: 'following', element: <FollowingList /> }
       ]
     }
   ],

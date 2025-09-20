@@ -30,6 +30,28 @@ interface WorkoutCategory {
 
 const defaultWorkoutCategories: WorkoutCategory[] = [
   {
+    id: 'workout-generator',
+    title: 'Workout Generator',
+    description:
+      'Let us build a workout for you! Answer a few quick questions and get a personalized plan with our smart onboarding flow.',
+    icon: Flame,
+    color: 'text-orange-500',
+    gradient: 'from-orange-400/20 to-red-400/20',
+    features: [
+      'Personalized onboarding',
+      'Smart workout recommendations',
+      'Goal & equipment based plans',
+      'Beginner to advanced',
+      'Fast and easy',
+      'No account required',
+    ],
+    stats: {
+      count: 0,
+      label: 'Generated Workouts',
+    },
+    comingSoon: false,
+  },
+  {
     id: 'community-workouts',
     title: 'Community Workouts',
     description:
@@ -301,6 +323,8 @@ export function WorkoutPage() {
                 to={
                   category.id === 'community-workouts'
                     ? '/modules/workout/community'
+                    : category.id === 'workout-generator'
+                    ? '/workout-generator'
                     : `/modules/workout/${category.id}`
                 }
                 className={`block ${category.comingSoon ? 'pointer-events-none' : ''}`}

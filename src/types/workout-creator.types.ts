@@ -16,17 +16,17 @@ export interface CustomWorkout {
   name: string;
   description: string;
   difficulty: WorkoutDifficulty;
-  
+
   // Workout metadata
   estimated_duration?: number; // minutes
   estimated_calories?: number;
   total_exercises: number;
-  
+
   // Categorization
   tags: string[];
   primary_muscle_groups: string[];
   equipment_needed: string[];
-  
+
   // Visual and social features
   hero_image_url?: string;
   is_public: boolean;
@@ -34,7 +34,7 @@ export interface CustomWorkout {
   like_count: number;
   use_count: number;
   share_count: number;
-  
+
   // Timestamps
   created_at: string;
   updated_at: string;
@@ -47,17 +47,17 @@ export interface CustomWorkoutExercise {
   id: string;
   custom_workout_id: string;
   exercise_id: string;
-  
+
   // Exercise order and grouping
   order_index: number;
   superset_group?: number; // null for individual exercises
-  
+
   // Set configuration
   sets: number;
   reps: string; // "8-12", "AMRAP", "30 seconds", "to failure"
   weight_suggestion?: number;
   rest_seconds: number;
-  
+
   // Additional configuration
   notes: string;
   is_warmup: boolean;
@@ -115,19 +115,19 @@ export interface WorkoutSession {
   id: string;
   user_id: string;
   custom_workout_id?: string;
-  
+
   // Session identification
   workout_name: string;
   workout_type: WorkoutType;
-  
+
   // Session timing
   started_at: string;
   completed_at?: string;
   paused_duration: number; // seconds
-  
+
   // Session status
   status: WorkoutSessionStatus;
-  
+
   // Performance metrics
   total_duration?: number; // minutes
   calories_burned?: number;
@@ -135,15 +135,15 @@ export interface WorkoutSession {
   total_sets: number;
   total_reps: number;
   total_weight_lifted: number;
-  
+
   // Subjective metrics
   difficulty_rating?: number; // 1-10
   energy_level?: number; // 1-10 (pre-workout)
   fatigue_level?: number; // 1-10 (post-workout)
-  
+
   // Session notes
   notes: string;
-  
+
   created_at: string;
 }
 
@@ -155,26 +155,26 @@ export interface WorkoutExerciseResult {
   workout_session_id: string;
   exercise_id: string;
   custom_workout_exercise_id?: string;
-  
+
   // Exercise identification
   exercise_name: string;
   order_index: number;
-  
+
   // Set-by-set results
   set_results: SetResult[];
-  
+
   // Exercise summary
   total_sets: number;
   total_reps: number;
   total_weight: number;
   max_weight: number;
   average_rpe?: number;
-  
+
   // Timing
   exercise_duration?: number; // seconds
   started_at?: string;
   completed_at?: string;
-  
+
   notes: string;
 }
 
@@ -332,5 +332,5 @@ export type {
   CustomWorkout as Workout,
   WorkoutSession as Session,
   WorkoutExerciseResult as ExerciseResult,
-  SetResult as Set
+  SetResult as Set,
 };

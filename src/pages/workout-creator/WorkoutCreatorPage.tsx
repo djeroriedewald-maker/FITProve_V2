@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import OnboardingFlow from '../../components/onboarding/OnboardingFlow';
+// import WorkoutGenerator from '../workout-generator';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Save, Play } from 'lucide-react';
 import { toast } from 'react-hot-toast';
@@ -15,7 +15,7 @@ import { WorkoutCreatorService } from '../../lib/workout-creator.service';
 import { ExerciseService } from '../../lib/exercise.service';
 
 export function WorkoutCreatorPage() {
-  const [showOnboarding, setShowOnboarding] = useState(true);
+  // const [showOnboarding, setShowOnboarding] = useState(true);
   useScrollToTop();
   const navigate = useNavigate();
   const { user, profile } = useAuth();
@@ -190,9 +190,6 @@ export function WorkoutCreatorPage() {
   const isWorkoutValid = workoutData.name.trim() && workoutData.exercises.length > 0;
   const selectedExerciseIds = workoutData.exercises.map((ex) => ex.exercise_id);
 
-  if (showOnboarding) {
-    return <OnboardingFlow onComplete={() => setShowOnboarding(false)} />;
-  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">

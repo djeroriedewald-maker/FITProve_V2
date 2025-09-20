@@ -1,7 +1,7 @@
-
+import React, { useState, useEffect } from 'react';
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Clock, Target, Calendar, Dumbbell } from 'lucide-react';
+import { Plus, Clock, Calendar, Dumbbell } from 'lucide-react';
 import { WorkoutCreatorService } from '../lib/workout-creator.service';
 import { CustomWorkout } from '../types/workout-creator.types';
 
@@ -87,6 +87,22 @@ export function WorkoutsPage() {
           </Link>
         </div>
 
+        {/* Workout Generator Module Card */}
+        <div className="mb-8">
+          <Link
+            to="/workout-generator"
+            className="block bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden hover:shadow-lg transition-shadow p-6 border border-orange-200 dark:border-orange-700 hover:border-orange-400 dark:hover:border-orange-500"
+          >
+            <div className="flex items-center gap-4">
+              <Dumbbell className="w-10 h-10 text-orange-500" />
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">Workout Generator</h2>
+                <p className="text-gray-600 dark:text-gray-300 text-sm">Let us build a workout for you with our smart onboarding flow. Answer a few questions and get a personalized plan!</p>
+              </div>
+            </div>
+          </Link>
+        </div>
+
         {workouts.length === 0 ? (
           <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-8 text-center">
             <Dumbbell className="w-16 h-16 text-gray-400 mx-auto mb-4" />
@@ -114,30 +130,30 @@ export function WorkoutsPage() {
                 <div className="p-6">
                   <div className="flex items-start justify-between mb-4">
                     <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                      {workout.name || workout.title || 'Untitled Workout'}
+                      {workout.name || 'Untitled Workout'}
                     </h3>
                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      (workout.difficulty_level || workout.level) === 'beginner' 
+                      workout.difficulty === 'beginner'
                         ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
-                        : (workout.difficulty_level || workout.level) === 'intermediate'
+                        : workout.difficulty === 'intermediate'
                         ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'
                         : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
                     }`}>
-                      {workout.difficulty_level || workout.level || 'Unknown'}
+                      {workout.difficulty || 'Unknown'}
                     </span>
                   </div>
 
-                  {workout.goal && (
+                  {workout.description && (
                     <p className="text-gray-600 dark:text-gray-400 text-sm mb-4 line-clamp-2">
-                      {workout.goal}
+                      {workout.description}
                     </p>
                   )}
 
                   <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400 mb-4">
-                    {workout.duration_min && (
+                    {typeof workout.estimated_duration === 'number' && (
                       <div className="flex items-center gap-1">
                         <Clock className="w-4 h-4" />
-                        <span>{workout.duration_min} min</span>
+                        <span>{workout.estimated_duration} min</span>
                       </div>
                     )}
                     {workout.created_at && (
