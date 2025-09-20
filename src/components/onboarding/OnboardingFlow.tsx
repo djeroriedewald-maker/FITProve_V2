@@ -381,7 +381,101 @@ export default function OnboardingFlow({ onComplete }: { onComplete: () => void 
             </div>
           </div>
         )}
-        {step === 'level' && (
+        {step === 'equipment' && (
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2" style={{textShadow: '0 2px 8px rgba(0,0,0,0.25)'}}>Welke apparatuur heb je tot je beschikking?</h2>
+            <p className="text-lg font-medium text-gray-800 dark:text-gray-100 mb-6" style={{textShadow: '0 2px 8px rgba(0,0,0,0.18)'}}>Selecteer alles wat je kunt gebruiken voor je workouts:</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-12 sm:gap-16 justify-center items-center my-10 place-items-center">
+              {[
+                { key: 'bodyweight', label: 'Bodyweight', img: '/images/equipment_bodyweight.webp' },
+                { key: 'dumbbells', label: 'Dumbbells', img: '/images/equipment_dumbbells.webp' },
+                { key: 'resistance_bands', label: 'Resistance Bands', img: '/images/equipment_bands.webp' },
+                { key: 'barbell', label: 'Barbell', img: '/images/equipment_barbell.webp' },
+                { key: 'kettlebell', label: 'Kettlebell', img: '/images/equipment_kettlebell.webp' },
+                { key: 'machines', label: 'Machines', img: '/images/equipment_machines.webp' },
+                { key: 'bench', label: 'Bench', img: '/images/equipment_bench.webp' },
+                { key: 'pullup_bar', label: 'Pull-up Bar', img: '/images/equipment_pullupbar.webp' },
+              ].map((eq) => (
+                <button
+                  key={eq.key}
+                  style={{
+                    border: (form.equipment || '').split(',').includes(eq.key) ? '4px solid #fb923c' : '2px solid #b0b0b0',
+                    borderRadius: 28,
+                    background: 'none',
+                    boxShadow: (form.equipment || '').split(',').includes(eq.key) ? '0 0 24px #fb923c33' : 'none',
+                    transition: 'border 0.2s, box-shadow 0.2s',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    outline: 'none',
+                    width: 'min(90vw, 220px)',
+                    height: 320,
+                    maxWidth: 220,
+                    minWidth: 120,
+                    padding: 0,
+                    margin: '0 0 24px 0',
+                  }}
+                  onClick={() => {
+                    setForm((f) => {
+                      const selected = (f.equipment || '').split(',').filter(Boolean);
+                      if (selected.includes(eq.key)) {
+                        return { ...f, equipment: selected.filter((k) => k !== eq.key).join(',') };
+                      } else {
+                        return { ...f, equipment: [...selected, eq.key].join(',') };
+                      }
+                    });
+                  }}
+                >
+                  <img
+                    src={eq.img}
+                    alt={eq.label}
+                    style={{
+                      width: '100%',
+                      height: 200,
+                      objectFit: 'cover',
+                      margin: 0,
+                      borderRadius: 24,
+                      display: 'block',
+                    }}
+                  />
+                  <div
+                    className="text-center font-extrabold text-lg sm:text-xl mt-2"
+                    style={{
+                      color: (form.equipment || '').split(',').includes(eq.key) ? '#fb923c' : 'black',
+                      textShadow: '0 2px 8px rgba(0,0,0,0.18)',
+                    }}
+                  >
+                    <span className="dark:hidden">{eq.label}</span>
+                    <span className="hidden dark:inline" style={{ color: (form.equipment || '').split(',').includes(eq.key) ? '#fb923c' : 'white' }}>{eq.label}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+            <div className="flex flex-row gap-4 mt-8">
+              {stepIdx > 0 && (
+                <button
+                  onClick={prevStep}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 px-6 rounded-xl font-extrabold text-lg transition-all duration-300 bg-gray-200 dark:bg-gray-700 text-orange-500 hover:text-pink-500 hover:bg-gray-300 dark:hover:bg-gray-600 shadow"
+                  style={{ fontSize: 18 }}
+                >
+                  <span className="text-2xl animate-bounce">←</span> Terug
+                </button>
+              )}
+              <button
+                disabled={!(form.equipment && form.equipment.length > 0)}
+                onClick={nextStep}
+                className={`flex-1 flex items-center justify-center gap-2 py-3 px-6 rounded-xl font-extrabold text-lg transition-all duration-300 ${form.equipment && form.equipment.length > 0 ? 'bg-gradient-to-r from-orange-500 via-pink-500 to-purple-500 text-white shadow-lg hover:scale-105 hover:shadow-xl animate-pulse' : 'bg-gray-300 dark:bg-gray-700 text-gray-400 cursor-not-allowed'}`}
+                style={{ letterSpacing: 1, boxShadow: form.equipment && form.equipment.length > 0 ? '0 4px 24px 0 rgba(255, 87, 34, 0.18)' : undefined }}
+              >
+                <span className="inline-block align-middle">Volgende</span>
+                {form.equipment && form.equipment.length > 0 && (
+                  <span className="inline-block align-middle ml-2 animate-bounce">→</span>
+                )}
+              </button>
+            </div>
+          </div>
           <div>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2" style={{textShadow: '0 2px 8px rgba(0,0,0,0.25)'}}>What is your current fitness level?</h2>
             <p className="text-lg font-medium text-gray-800 dark:text-gray-100 mb-6" style={{textShadow: '0 2px 8px rgba(0,0,0,0.18)'}}>Select the option that best describes you:</p>
