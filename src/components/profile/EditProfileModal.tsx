@@ -24,6 +24,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
     bio: profile.bio || '',
     avatarUrl: profile.avatarUrl,
     fitnessGoals: [...profile.fitnessGoals],
+    gender: profile.gender || 'other',
     avatarFile: null as File | null,
     isPublic: profile.isPublic ?? false,
     allowFollow: profile.allowFollow ?? false,
@@ -31,11 +32,12 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
 
   const [newGoal, setNewGoal] = useState('');
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
+    // Always use value as string, never the option element
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: typeof value === 'string' ? value : String(value),
     }));
   };
 
@@ -60,15 +62,16 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
     e.preventDefault();
 
     try {
+      const dataToSave = { ...formData, gender: formData.gender };
       if (formData.avatarFile) {
-        await onSave(formData);
+        await onSave(dataToSave);
 
         // Clean up the blob URL after saving
         if (formData.avatarUrl.startsWith('blob:')) {
           URL.revokeObjectURL(formData.avatarUrl);
         }
       } else {
-        await onSave(formData);
+        await onSave(dataToSave);
       }
       onClose();
     } catch (error) {
@@ -162,6 +165,23 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
               required
             />
           </div>
+        </div>
+
+        {/* Gender Selection */}
+        <div>
+          <label htmlFor="gender" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Gender</label>
+          <select
+            id="gender"
+            name="gender"
+            value={formData.gender}
+            onChange={handleChange}
+            className="w-full px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+            required
+          >
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+            <option value="other">Other</option>
+          </select>
         </div>
 
         {/* Bio - Compact */}

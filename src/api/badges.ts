@@ -2,7 +2,7 @@
 // Backend logica voor badge-module: ophalen, unlocken, status per user
 // Supabase client wordt verwacht als dependency
 
-import { supabase } from '../lib/supabaseClient';
+import { supabase } from '../lib/supabase';
 
 // Badge ophalen (alle badges + unlocked status voor user)
 export async function getAllBadgesWithStatus(userId: string) {

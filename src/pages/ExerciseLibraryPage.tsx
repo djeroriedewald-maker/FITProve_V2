@@ -1,260 +1,11 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useScrollToTop } from '../hooks/useScroll';
 import { useNavigate } from 'react-router-dom';
 import { Search, Grid, List, Clock, Target, Dumbbell } from 'lucide-react';
 import { Exercise, MuscleGroup, EquipmentType, DifficultyLevel } from '../types/exercise.types';
 import { ExerciseService } from '../lib/exercise.service';
 import { ExerciseDetailModal } from '../components/ui/ExerciseDetailModal';
 import { ExerciseImage } from '../components/ui/ProgressiveImage';
-
-export function ExerciseLibraryPage() {
-  const navigate = useNavigate();
-  const [exercises, setExercises] = useState<Exercise[]>([]);
-  const [search, setSearch] = useState('');
-  const [selectedMuscle, setSelectedMuscle] = useState<string>('');
-  const [selectedEquipment, setSelectedEquipment] = useState<string>('');
-  const [selectedDifficulty, setSelectedDifficulty] = useState<string>('');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
-  const [showModal, setShowModal] = useState(false);
-  const [showBackToTop, setShowBackToTop] = useState(false);
-  const [page, setPage] = useState(1);
-  const [pageSize] = useState(20);
-  const [totalCount, setTotalCount] = useState(0);
-  const [loading, setLoading] = useState(false);
-
-  const fetchExercises = async () => {
-    setLoading(true);
-    // Always fetch all exercises for client-side filtering
-    const filters = {
-      muscle_groups: selectedMuscle ? [selectedMuscle as MuscleGroup] : undefined,
-      difficulty: selectedDifficulty ? [selectedDifficulty as DifficultyLevel] : undefined,
-      search_query: search || undefined,
-      page: 1, // always fetch from first page to get all results
-      pageSize: 2000, // large enough to get all exercises
-    };
-    const result = await ExerciseService.getExercises(filters);
-    let filtered = result.exercises;
-    if (selectedEquipment) {
-      const equipmentLower = selectedEquipment.toLowerCase();
-      filtered = filtered.filter(
-        (ex) =>
-          (ex.equipment && ex.equipment.includes(selectedEquipment as EquipmentType)) ||
-          (ex.name && ex.name.toLowerCase().includes(equipmentLower)) ||
-          (ex.description && ex.description.toLowerCase().includes(equipmentLower))
-      );
-    }
-    // Pagination client-side
-    const start = (page - 1) * pageSize;
-    const end = start + pageSize;
-    setExercises(filtered.slice(start, end));
-    setTotalCount(result.total_count);
-    setLoading(false);
-  };
-
-  // Reset to first page when filters change
-  useEffect(() => {
-    setPage(1);
-  }, [search, selectedMuscle, selectedEquipment, selectedDifficulty]);
-
-  useEffect(() => {
-    fetchExercises();
-    // eslint-disable-next-line
-  }, [search, selectedMuscle, selectedEquipment, selectedDifficulty, page]);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setShowBackToTop(window.scrollY > 200);
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  const handleExerciseClick = (exercise: Exercise) => {
-    setSelectedExercise(exercise);
-    setShowModal(true);
-  };
-
-  const handleCloseModal = () => {
-    setShowModal(false);
-    setSelectedExercise(null);
-  };
-
-  const handleBackToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  // --- YouTube Modal State ---
-  const [isYouTubeModalOpen, setIsYouTubeModalOpen] = useState(false);
-
-  function handleWatchVideo(exercise: Exercise) {
-    setSelectedExercise(exercise);
-    setIsYouTubeModalOpen(true);
-  }
-
-  return (
-    <div className="p-2 sm:p-4 max-w-5xl mx-auto w-full overflow-x-hidden">
-      {/* Back Button */}
-      <button
-        onClick={() => navigate(-1)}
-        className="mb-4 flex items-center gap-2 px-4 py-2 rounded-lg border bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-        aria-label="Go back"
-      >
-        <span className="text-xl">←</span> Back
-      </button>
-      {/* Hero Section */}
-      <div className="relative left-1/2 right-1/2 -translate-x-1/2 w-screen h-48 sm:h-64 md:h-80 overflow-hidden mb-6">
-        <img
-          src="/images/exercise_library.webp"
-          alt="Exercise Library Hero"
-          className="absolute inset-0 w-full h-full object-cover object-center"
-          loading="eager"
-        />
-        <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white text-center drop-shadow-lg">
-            Exercise Library
-          </h1>
-        </div>
-      </div>
-      <div className="flex flex-col md:flex-row md:items-end gap-2 md:gap-4 mb-6 w-full">
-        <div className="flex flex-col xs:flex-row flex-1 gap-2 w-full">
-          <div className="relative w-full">
-            <input
-              type="text"
-              className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
-              placeholder="Search exercises..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
-          </div>
-          <div className="flex gap-2 w-full justify-end">
-            <button
-              className={`p-2 rounded-lg border ${viewMode === 'grid' ? 'bg-orange-100 border-orange-400 text-orange-600' : 'bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 text-gray-500'}`}
-              onClick={() => setViewMode('grid')}
-              title="Grid view"
-            >
-              <Grid className="w-5 h-5" />
-            </button>
-            <button
-              className={`p-2 rounded-lg border ${viewMode === 'list' ? 'bg-orange-100 border-orange-400 text-orange-600' : 'bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 text-gray-500'}`}
-              onClick={() => setViewMode('list')}
-              title="List view"
-            >
-              <List className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-        <div className="flex flex-col xs:flex-row gap-2 w-full md:w-auto">
-          <select
-            className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white w-full md:w-auto"
-            value={selectedMuscle}
-            onChange={(e) => setSelectedMuscle(e.target.value)}
-          >
-            <option value="">All Muscles</option>
-            {muscleGroupOptions.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-          <select
-            className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white w-full md:w-auto"
-            value={selectedEquipment}
-            onChange={(e) => setSelectedEquipment(e.target.value)}
-          >
-            <option value="">All Equipment</option>
-            {equipmentOptions.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-          <select
-            className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white w-full md:w-auto"
-            value={selectedDifficulty}
-            onChange={(e) => setSelectedDifficulty(e.target.value)}
-          >
-            <option value="">All Levels</option>
-            {difficultyOptions.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-      {/* Exercise count summary */}
-      <div className="text-sm text-gray-900 dark:text-white mb-2 text-center">
-        Showing{' '}
-        <span className="font-semibold text-orange-600 dark:text-orange-400">
-          {exercises.length}
-        </span>{' '}
-        exercises out of{' '}
-        <span className="font-semibold text-orange-600 dark:text-orange-400">{totalCount}</span>
-      </div>
-      {loading ? (
-        <div className="text-center py-12 text-gray-700 dark:text-gray-300">Loading...</div>
-      ) : exercises.length === 0 ? (
-        <div className="text-gray-700 dark:text-gray-300 text-center py-12">
-          No exercises found.
-        </div>
-      ) : (
-        <>
-          <div
-            className={`grid ${viewMode === 'grid' ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6' : 'grid-cols-1 gap-2 md:gap-4'} w-full`}
-          >
-            {exercises.map((exercise) => (
-              <ExerciseCard
-                key={exercise.id}
-                exercise={exercise}
-                viewMode={viewMode}
-                onExerciseClick={handleExerciseClick}
-              />
-            ))}
-          </div>
-          {/* Pagination Controls */}
-          <div className="flex justify-center items-center gap-4 mt-8">
-            <button
-              className="px-4 py-2 rounded-lg border bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 disabled:opacity-50"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-            >
-              Previous
-            </button>
-            <span className="text-sm text-gray-600 dark:text-gray-300">
-              Page {page} of {Math.max(1, Math.ceil(totalCount / pageSize))}
-            </span>
-            <button
-              className="px-4 py-2 rounded-lg border bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 disabled:opacity-50"
-              onClick={() => setPage((p) => p + 1)}
-              disabled={page >= Math.ceil(totalCount / pageSize)}
-            >
-              Next
-            </button>
-          </div>
-        </>
-      )}
-
-      <ExerciseDetailModal
-        exercise={selectedExercise}
-        isOpen={showModal}
-        onClose={handleCloseModal}
-        onWatchVideo={handleWatchVideo}
-        isYouTubeModalOpen={isYouTubeModalOpen}
-        setIsYouTubeModalOpen={setIsYouTubeModalOpen}
-      />
-      {showBackToTop && (
-        <button
-          onClick={handleBackToTop}
-          className="fixed bottom-28 right-4 sm:right-8 z-50 p-3 rounded-full bg-orange-600 text-white shadow-lg hover:bg-orange-700 transition-colors"
-          aria-label="Back to top"
-        >
-          ↑
-        </button>
-      )}
-    </div>
-  );
-}
 
 const muscleGroupOptions: { value: MuscleGroup; label: string }[] = [
   { value: 'chest', label: 'Chest' },
@@ -391,6 +142,299 @@ function ExerciseCard({ exercise, viewMode, onExerciseClick }: ExerciseCardProps
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+export function ExerciseLibraryPage() {
+  useScrollToTop();
+  const navigate = useNavigate();
+  const [exercises, setExercises] = useState<Exercise[]>([]);
+  const [search, setSearch] = useState('');
+  const [selectedMuscle, setSelectedMuscle] = useState<string>('');
+  const [selectedEquipment, setSelectedEquipment] = useState<string>('');
+  const [selectedDifficulty, setSelectedDifficulty] = useState<string>('');
+  const [selectedEnvironment, setSelectedEnvironment] = useState<string>('');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
+  const [showModal, setShowModal] = useState(false);
+  const [showBackToTop, setShowBackToTop] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(20);
+  const [totalCount, setTotalCount] = useState(0);
+  const [loading, setLoading] = useState(false);
+
+  const fetchExercises = async () => {
+    setLoading(true);
+    // Always fetch all exercises for client-side filtering
+    const filters = {
+      muscle_groups: selectedMuscle ? [selectedMuscle as MuscleGroup] : undefined,
+      difficulty: selectedDifficulty ? [selectedDifficulty as DifficultyLevel] : undefined,
+      search_query: search || undefined,
+      page: 1, // always fetch from first page to get all results
+      pageSize: 2000, // large enough to get all exercises
+    };
+    const result = await ExerciseService.getExercises(filters);
+    // Log the environment field for the first 10 exercises to debug filtering
+    console.log(
+      'Sample environments:',
+      result.exercises.slice(0, 10).map((ex) => ex.environment)
+    );
+    // Log all exercises with environment including 'Outdoor' to debug filtering
+    const outdoorExercises = result.exercises.filter(
+      (ex) => Array.isArray(ex.environment) && ex.environment.includes('Outdoor')
+    );
+    console.log('Outdoor exercises in frontend:', outdoorExercises.length, outdoorExercises);
+    let filtered = result.exercises;
+    if (selectedEquipment) {
+      const equipmentLower = selectedEquipment.toLowerCase();
+      filtered = filtered.filter(
+        (ex) =>
+          (ex.equipment && ex.equipment.includes(selectedEquipment as EquipmentType)) ||
+          (ex.name && ex.name.toLowerCase().includes(equipmentLower)) ||
+          (ex.description && ex.description.toLowerCase().includes(equipmentLower))
+      );
+    }
+    // Environment filter (Gym, Indoor, Outdoor, Event)
+    if (selectedEnvironment) {
+      filtered = filtered.filter((ex) => {
+        // Check for environment in the environment array (case-insensitive)
+        if (Array.isArray(ex.environment)) {
+          return ex.environment.some(
+            (env) =>
+              typeof env === 'string' && env.toLowerCase() === selectedEnvironment.toLowerCase()
+          );
+        }
+        // Fallback: also check tags, description, or name for legacy data
+        const env = selectedEnvironment.toLowerCase();
+        const tags = (ex.tags || []).map((t) => t.toLowerCase());
+        return (
+          tags.includes(env) ||
+          (ex.description && ex.description.toLowerCase().includes(env)) ||
+          (ex.name && ex.name.toLowerCase().includes(env))
+        );
+      });
+    }
+    // Pagination client-side
+    const start = (page - 1) * pageSize;
+    const end = start + pageSize;
+    setExercises(filtered.slice(start, end));
+    setTotalCount(result.total_count);
+    setLoading(false);
+  };
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [search, selectedMuscle, selectedEquipment, selectedDifficulty, selectedEnvironment]);
+
+  useEffect(() => {
+    fetchExercises();
+    // eslint-disable-next-line
+  }, [search, selectedMuscle, selectedEquipment, selectedDifficulty, selectedEnvironment, page]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowBackToTop(window.scrollY > 200);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const handleExerciseClick = (exercise: Exercise) => {
+    setSelectedExercise(exercise);
+    setShowModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setSelectedExercise(null);
+  };
+
+  const handleBackToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // --- YouTube Modal State ---
+  const [isYouTubeModalOpen, setIsYouTubeModalOpen] = useState(false);
+
+  function handleWatchVideo(exercise: Exercise) {
+    setSelectedExercise(exercise);
+    setIsYouTubeModalOpen(true);
+  }
+
+  return (
+    <div className="p-2 sm:p-4 max-w-5xl mx-auto w-full overflow-x-hidden">
+      {/* Back Button */}
+      <button
+        onClick={() => navigate(-1)}
+        className="mb-4 flex items-center gap-2 px-4 py-2 rounded-lg border bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+        aria-label="Go back"
+      >
+        <span className="text-xl">←</span> Back
+      </button>
+      {/* Hero Section */}
+      <div className="relative left-1/2 right-1/2 -translate-x-1/2 w-screen h-48 sm:h-64 md:h-80 overflow-hidden mb-6">
+        <img
+          src="/images/exercise_library.webp"
+          alt="Exercise Library Hero"
+          className="absolute inset-0 w-full h-full object-cover object-center"
+          loading="eager"
+        />
+        <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white text-center drop-shadow-lg">
+            Exercise Library
+          </h1>
+        </div>
+      </div>
+      <div className="flex flex-col md:flex-row md:items-end gap-2 md:gap-4 mb-6 w-full">
+        <div className="flex flex-col xs:flex-row flex-1 gap-2 w-full">
+          <div className="relative w-full">
+            <input
+              type="text"
+              className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+              placeholder="Search exercises..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+          </div>
+          <div className="flex gap-2 w-full justify-end">
+            <button
+              className={`p-2 rounded-lg border ${viewMode === 'grid' ? 'bg-orange-100 border-orange-400 text-orange-600' : 'bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 text-gray-500'}`}
+              onClick={() => setViewMode('grid')}
+              title="Grid view"
+            >
+              <Grid className="w-5 h-5" />
+            </button>
+            <button
+              className={`p-2 rounded-lg border ${viewMode === 'list' ? 'bg-orange-100 border-orange-400 text-orange-600' : 'bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 text-gray-500'}`}
+              onClick={() => setViewMode('list')}
+              title="List view"
+            >
+              <List className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+        <div className="flex flex-col xs:flex-row gap-2 w-full md:w-auto">
+          <select
+            className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white w-full md:w-auto"
+            value={selectedEnvironment}
+            onChange={(e) => setSelectedEnvironment(e.target.value)}
+          >
+            <option value="">All Environments</option>
+            <option value="Gym">Gym</option>
+            <option value="Indoor">Indoor</option>
+            <option value="Outdoor">Outdoor</option>
+            <option value="Event">Event</option>
+          </select>
+          <select
+            className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white w-full md:w-auto"
+            value={selectedMuscle}
+            onChange={(e) => setSelectedMuscle(e.target.value)}
+          >
+            <option value="">All Muscles</option>
+            {muscleGroupOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+          <select
+            className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white w-full md:w-auto"
+            value={selectedEquipment}
+            onChange={(e) => setSelectedEquipment(e.target.value)}
+          >
+            <option value="">All Equipment</option>
+            {equipmentOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+          <select
+            className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white w-full md:w-auto"
+            value={selectedDifficulty}
+            onChange={(e) => setSelectedDifficulty(e.target.value)}
+          >
+            <option value="">All Levels</option>
+            {difficultyOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+      {/* Exercise count summary */}
+      <div className="text-sm text-gray-900 dark:text-white mb-2 text-center">
+        Showing{' '}
+        <span className="font-semibold text-orange-600 dark:text-orange-400">
+          {exercises.length}
+        </span>{' '}
+        exercises out of{' '}
+        <span className="font-semibold text-orange-600 dark:text-orange-400">{totalCount}</span>
+      </div>
+      {loading ? (
+        <div className="text-center py-12 text-gray-700 dark:text-gray-300">Loading...</div>
+      ) : exercises.length === 0 ? (
+        <div className="text-gray-700 dark:text-gray-300 text-center py-12">
+          No exercises found.
+        </div>
+      ) : (
+        <>
+          <div
+            className={`grid ${viewMode === 'grid' ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6' : 'grid-cols-1 gap-2 md:gap-4'} w-full`}
+          >
+            {exercises.map((exercise) => (
+              <ExerciseCard
+                key={exercise.id}
+                exercise={exercise}
+                viewMode={viewMode}
+                onExerciseClick={handleExerciseClick}
+              />
+            ))}
+          </div>
+          {/* Pagination Controls */}
+          <div className="flex justify-center items-center gap-4 mt-8">
+            <button
+              className="px-4 py-2 rounded-lg border bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 disabled:opacity-50"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+            >
+              Previous
+            </button>
+            <span className="text-sm text-gray-600 dark:text-gray-300">
+              Page {page} of {Math.max(1, Math.ceil(totalCount / pageSize))}
+            </span>
+            <button
+              className="px-4 py-2 rounded-lg border bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 disabled:opacity-50"
+              onClick={() => setPage((p) => p + 1)}
+              disabled={page >= Math.ceil(totalCount / pageSize)}
+            >
+              Next
+            </button>
+          </div>
+        </>
+      )}
+
+      <ExerciseDetailModal
+        exercise={selectedExercise}
+        isOpen={showModal}
+        onClose={handleCloseModal}
+        onWatchVideo={handleWatchVideo}
+        isYouTubeModalOpen={isYouTubeModalOpen}
+        setIsYouTubeModalOpen={setIsYouTubeModalOpen}
+      />
+      {showBackToTop && (
+        <button
+          onClick={handleBackToTop}
+          className="fixed bottom-28 right-4 sm:right-8 z-50 p-3 rounded-full bg-orange-600 text-white shadow-lg hover:bg-orange-700 transition-colors"
+          aria-label="Back to top"
+        >
+          ↑
+        </button>
+      )}
     </div>
   );
 }

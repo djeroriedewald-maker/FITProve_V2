@@ -1,7 +1,7 @@
 
 // src/api/admin.ts
 // Admin logica: admin-check, beheer admin users, alleen zichtbaar voor admins
-import { supabase } from '../lib/supabaseClient';
+import { supabase } from '../lib/supabase';
 
 export type AdminUser = {
   id: string;

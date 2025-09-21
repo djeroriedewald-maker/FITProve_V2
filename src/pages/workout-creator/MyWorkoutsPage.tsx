@@ -1,458 +1,387 @@
-/**
- * MyWorkoutsPage - Display user's custom workouts
- * Shows created workouts with options to edit, delete, execute, or share
- */
-
-import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useEffect, useState, useCallback } from 'react';
+import migrateLocalGeneratorWorkoutsToSupabase from '../../lib/migrate-local-generator-workouts';
+import { useAuth } from '../../contexts/AuthContext';
 import {
-  Plus,
-  Play,
-  Edit,
-  Trash2,
-  Share2,
-  Clock,
-  Dumbbell,
-  Users,
-  Lock,
-  Globe,
-  Heart,
-  MoreVertical,
-} from 'lucide-react';
-import { toast } from 'react-hot-toast';
-import { BackButton } from '../../components/ui/BackButton';
-import { useScrollToTop } from '../../hooks/useScroll';
-import { WorkoutDetails } from '../../types/workout-creator.types';
+  getMyGeneratorWorkouts,
+  deleteGeneratorWorkout,
+} from '../../lib/generator-workout.service';
 import { WorkoutCreatorService } from '../../lib/workout-creator.service';
+import type { CustomWorkout } from '../../types/workout-creator.types';
 
-export function MyWorkoutsPage() {
-  useScrollToTop(); // Automatically scroll to top when page loads
-
-  const navigate = useNavigate();
-  const [workouts, setWorkouts] = useState<WorkoutDetails[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
-
-  useEffect(() => {
-    loadMyWorkouts();
-  }, []);
-
-  const loadMyWorkouts = async () => {
-    try {
-      const userWorkouts = await WorkoutCreatorService.getUserWorkouts();
-      setWorkouts(userWorkouts);
-    } catch (error) {
-      console.error('Error loading workouts:', error);
-      toast('Failed to load workouts');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDeleteWorkout = async (workoutId: string, workoutName: string) => {
-    if (
-      !confirm(`Are you sure you want to delete "${workoutName}"? This action cannot be undone.`)
-    ) {
-      return;
-    }
-
-    try {
-      const success = await WorkoutCreatorService.deleteWorkout(workoutId);
-      if (success) {
-        setWorkouts((prev) => prev.filter((w) => w.id !== workoutId));
-        toast('Workout deleted successfully');
-      } else {
-        toast('Failed to delete workout');
-      }
-    } catch (error) {
-      console.error('Error deleting workout:', error);
-      toast('Failed to delete workout');
-    }
-  };
-
-  const handleDuplicateWorkout = async (workoutId: string, workoutName: string) => {
-    try {
-      const duplicated = await WorkoutCreatorService.duplicateWorkout(
-        workoutId,
-        `${workoutName} (Copy)`
-      );
-      if (duplicated) {
-        toast('Workout duplicated successfully');
-        loadMyWorkouts(); // Refresh the list
-      } else {
-        toast('Failed to duplicate workout');
-      }
-    } catch (error) {
-      console.error('Error duplicating workout:', error);
-      toast('Failed to duplicate workout');
-    }
-  };
-
-  const handleStartWorkout = (workoutId: string) => {
-    navigate(`/modules/workout/execute/${workoutId}`);
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="max-w-7xl mx-auto px-4 pt-4">
-          <BackButton text="Back to Workouts" to="/modules/workout" />
-        </div>
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto mb-4"></div>
-            <p className="text-gray-600 dark:text-gray-400">Loading your workouts...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
+// Grid component for 2-column layout and see more logic
+function WorkoutsGrid({ workouts, renderCard }: { workouts: any[]; renderCard: (w: any) => React.ReactNode }) {
+  const [showAll, setShowAll] = useState(false);
+  const visible = showAll ? workouts : workouts.slice(0, 4);
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header */}
-      <div className="max-w-7xl mx-auto px-4 pt-4">
-        <BackButton text="Back to Workouts" to="/modules/workout" />
+    <>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(2, 1fr)',
+          gap: 20,
+          marginBottom: 24,
+        }}
+      >
+        {visible.map(renderCard)}
       </div>
-
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Page Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">My Workouts</h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-2">
-              {workouts.length} custom workout{workouts.length !== 1 ? 's' : ''} created
-            </p>
-          </div>
-
-          <Link
-            to="/modules/workout/workout-creator"
-            className="flex items-center gap-2 px-6 py-3 bg-orange-600 text-white rounded-xl hover:bg-orange-700 transition-colors font-semibold"
+      {workouts.length > 4 && (
+        <div style={{ textAlign: 'center', marginBottom: 40 }}>
+          <button
+            onClick={() => setShowAll((v) => !v)}
+            style={{
+              padding: '10px 32px',
+              borderRadius: 8,
+              border: 'none',
+              background: '#e0e7ef',
+              color: '#333',
+              fontWeight: 700,
+              fontSize: 16,
+              cursor: 'pointer',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+              transition: 'background 0.2s',
+            }}
           >
-            <Plus className="w-5 h-5" />
-            Create Workout
-          </Link>
-        </div>
-
-        {workouts.length === 0 ? (
-          <EmptyState />
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {workouts.map((workout) => (
-              <WorkoutCard
-                key={workout.id}
-                workout={workout}
-                onStart={() => handleStartWorkout(workout.id)}
-                onEdit={() => navigate(`/modules/workout/workout-creator?edit=${workout.id}`)}
-                onDelete={() => handleDeleteWorkout(workout.id, workout.name)}
-                onDuplicate={() => handleDuplicateWorkout(workout.id, workout.name)}
-                activeDropdown={activeDropdown}
-                setActiveDropdown={setActiveDropdown}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function EmptyState() {
-  return (
-    <div className="text-center py-16">
-      <div className="bg-gray-100 dark:bg-gray-800 rounded-full w-24 h-24 mx-auto mb-6 flex items-center justify-center">
-        <Dumbbell className="w-12 h-12 text-gray-400" />
-      </div>
-
-      <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">No workouts yet</h2>
-
-      <p className="text-gray-600 dark:text-gray-400 mb-8 max-w-md mx-auto">
-        Create your first custom workout by selecting exercises from our library and configuring
-        sets, reps, and rest times.
-      </p>
-
-      <div className="flex flex-col sm:flex-row gap-4 justify-center">
-        <Link
-          to="/modules/workout/workout-creator"
-          className="flex items-center gap-2 px-6 py-3 bg-orange-600 text-white rounded-xl hover:bg-orange-700 transition-colors font-semibold"
-        >
-          <Plus className="w-5 h-5" />
-          Create Your First Workout
-        </Link>
-
-        <Link
-          to="/modules/workout/workout-library"
-          className="flex items-center gap-2 px-6 py-3 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-semibold"
-        >
-          <Users className="w-5 h-5" />
-          Browse Community Workouts
-        </Link>
-      </div>
-    </div>
-  );
-}
-
-interface WorkoutCardProps {
-  workout: WorkoutDetails;
-  onStart: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
-  onDuplicate: () => void;
-  activeDropdown: string | null;
-  setActiveDropdown: (id: string | null) => void;
-}
-
-function WorkoutCard({
-  workout,
-  onStart,
-  onEdit,
-  onDelete,
-  onDuplicate,
-  activeDropdown,
-  setActiveDropdown,
-}: WorkoutCardProps) {
-  const isDropdownOpen = activeDropdown === workout.id;
-
-  return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-lg transition-all duration-200">
-      {/* Hero Image */}
-      {workout.hero_image_url ? (
-        <div className="relative h-48 bg-gray-200 dark:bg-gray-700">
-          <img
-            src={workout.hero_image_url}
-            alt={workout.name}
-            className="w-full h-full object-cover"
-          />
-          {/* Gradient overlay for better text readability */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
-          
-          {/* Workout type badge */}
-          <div className="absolute top-3 left-3">
-            <span className="px-2 py-1 bg-black/60 backdrop-blur-sm text-white text-xs font-medium rounded-full">
-              Custom Workout
-            </span>
-          </div>
-
-          {/* Difficulty badge */}
-          <div className="absolute top-3 right-3">
-            <span
-              className={`px-2 py-1 backdrop-blur-sm text-white text-xs font-medium rounded-full ${
-                workout.difficulty === 'beginner'
-                  ? 'bg-green-600/80'
-                  : workout.difficulty === 'intermediate'
-                    ? 'bg-yellow-600/80'
-                    : 'bg-red-600/80'
-              }`}
-            >
-              {workout.difficulty.charAt(0).toUpperCase() + workout.difficulty.slice(1)}
-            </span>
-          </div>
-        </div>
-      ) : (
-        <div className="relative h-48 bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center">
-          {/* Default workout visual */}
-          <div className="text-center text-white">
-            <Dumbbell className="w-16 h-16 mx-auto mb-2 opacity-80" />
-            <span className="text-sm font-medium opacity-90">Custom Workout</span>
-          </div>
-          
-          {/* Difficulty badge */}
-          <div className="absolute top-3 right-3">
-            <span
-              className={`px-2 py-1 backdrop-blur-sm text-white text-xs font-medium rounded-full ${
-                workout.difficulty === 'beginner'
-                  ? 'bg-green-600/80'
-                  : workout.difficulty === 'intermediate'
-                  ? 'bg-yellow-600/80'
-                  : 'bg-red-600/80'
-              }`}
-            >
-              {workout.difficulty
-                ? workout.difficulty.charAt(0).toUpperCase() + workout.difficulty.slice(1)
-                : 'Unknown'}
-            </span>
-          </div>
+            {showAll ? 'Show less' : `See more (${workouts.length - 4})`}
+          </button>
         </div>
       )}
+    </>
+  );
+}
 
-      {/* Header */}
-      <div className="p-6 pb-4">
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 truncate">
-              {workout.name}
-            </h3>
-            {workout.description && workout.description.trim() && (
-              <div className="mb-3">
-                <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-3 leading-relaxed">
-                  {workout.description}
-                </p>
-              </div>
-            )}
-            {workout.tags && workout.tags.length > 0 && (
-              <div className="flex flex-wrap gap-1 mb-2">
-                {workout.tags.map((tag: string) => (
-                  <span
-                    key={tag}
-                    className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-xs font-medium"
-                  >
-                    #{tag}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
+// Shared card style for both generator and creator cards
+const cardStyle: React.CSSProperties = {
+  position: 'relative',
+  borderRadius: 18,
+  overflow: 'hidden',
+  minHeight: 340,
+  height: 340,
+  display: 'flex',
+  flexDirection: 'column',
+  backgroundClip: 'padding-box',
+  cursor: 'pointer',
+  width: '100%',
+  maxWidth: 500,
+  margin: '0 auto',
+  boxShadow: '0 4px 24px 0 rgba(0,0,0,0.18)',
+  backgroundColor: 'rgba(0,0,0,0.10)',
+};
 
-          {/* Dropdown Menu */}
-          <div className="relative ml-3">
-            <button
-              onClick={() => setActiveDropdown(isDropdownOpen ? null : workout.id)}
-              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-            >
-              <MoreVertical className="w-4 h-4 text-gray-500" />
-            </button>
-
-            {isDropdownOpen && (
-              <div className="absolute right-0 top-10 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg py-1 z-10 min-w-[160px]">
-                <button
-                  onClick={() => {
-                    onEdit();
-                    setActiveDropdown(null);
-                  }}
-                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600"
-                >
-                  <Edit className="w-4 h-4" />
-                  Edit
-                </button>
-                <button
-                  onClick={() => {
-                    onDuplicate();
-                    setActiveDropdown(null);
-                  }}
-                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600"
-                >
-                  <Dumbbell className="w-4 h-4" />
-                  Duplicate
-                </button>
-                <button
-                  onClick={() => {
-                    // TODO: Implement sharing
-                    toast('Sharing feature coming soon!');
-                    setActiveDropdown(null);
-                  }}
-                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600"
-                >
-                  <Share2 className="w-4 h-4" />
-                  Share
-                </button>
-                <div className="border-t border-gray-200 dark:border-gray-600 my-1" />
-                <button
-                  onClick={() => {
-                    onDelete();
-                    setActiveDropdown(null);
-                  }}
-                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  Delete
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Stats */}
-        <div className="flex items-center gap-6 text-sm text-gray-600 dark:text-gray-400 mb-4">
-          <div className="flex items-center gap-1">
-            <Dumbbell className="w-4 h-4" />
-            <span>{workout.exercise_count ?? 0} oefeningen</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="font-bold">{workout.total_sets ?? 0}</span>
-            <span>sets</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <Clock className="w-4 h-4" />
-            <span>{workout.estimated_duration ? `${workout.estimated_duration} min` : '--'}</span>
-          </div>
-        </div>
-
-        {/* Muscle Groups */}
-        {workout.primary_muscle_groups && workout.primary_muscle_groups.length > 0 && (
-          <div className="flex flex-wrap gap-1 mb-2">
-            {workout.primary_muscle_groups.slice(0, 4).map((muscle: string) => (
-              <span
-                key={muscle}
-                className="px-2 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 rounded-full text-xs font-medium"
-              >
-                {muscle}
-              </span>
-            ))}
-          </div>
-        )}
-
-        {/* Muscle Groups */}
-        {workout.primary_muscle_groups && workout.primary_muscle_groups.length > 0 && (
-          <div className="flex flex-wrap gap-1 mb-4">
-            {workout.primary_muscle_groups.slice(0, 3).map((muscle) => (
-              <span
-                key={muscle}
-                className="px-2 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 rounded-full text-xs font-medium"
-              >
-                {muscle}
-              </span>
-            ))}
-            {workout.primary_muscle_groups.length > 3 && (
-              <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-full text-xs">
-                +{workout.primary_muscle_groups.length - 3}
-              </span>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Footer */}
-      <div className="px-6 py-4 bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-600">
-        <div className="flex items-center justify-between">
-          {/* Visibility & Stats */}
-          <div className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-400">
-            {workout.is_public ? (
-              <div className="flex items-center gap-1">
-                <Globe className="w-4 h-4" />
-                <span>Public</span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-1">
-                <Lock className="w-4 h-4" />
-                <span>Private</span>
-              </div>
-            )}
-
-            {workout.like_count > 0 && (
-              <div className="flex items-center gap-1">
-                <Heart className="w-4 h-4" />
-                <span>{workout.like_count}</span>
-              </div>
-            )}
-
-            {workout.use_count > 0 && (
-              <div className="flex items-center gap-1">
-                <Play className="w-4 h-4" />
-                <span>{workout.use_count}</span>
-              </div>
-            )}
-          </div>
-
-          {/* Start Button */}
-          <button
-            onClick={onStart}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+// Card for generator workouts (always uses female_pushup.webp)
+function WorkoutCardModern({
+  workout,
+  onDelete,
+  onShare,
+  deleting,
+}: {
+  workout: any;
+  onDelete: () => void;
+  onShare: () => void;
+  deleting: boolean;
+}) {
+  const hero = '/images/female_pushup.webp';
+  const stopPropagation = useCallback((e: React.MouseEvent) => e.stopPropagation(), []);
+  return (
+    <div
+      style={{
+        ...cardStyle,
+        background: `url('${hero}') center/cover no-repeat`,
+      }}
+    >
+  {/* Brighten overlay */}
+  <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.18)', zIndex: 1 }} />
+  {/* Dark overlay */}
+  <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 2 }} />
+  <div style={{ padding: 20, flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, position: 'relative', zIndex: 3, justifyContent: 'flex-end' }}>
+        <div style={{ fontWeight: 700, fontSize: 20, marginBottom: 6, wordBreak: 'break-word', color: '#fff', textShadow: '0 2px 8px #000, 0 0 2px #222' }}>{workout.name}</div>
+        <div style={{ color: '#fff', fontSize: 13, marginBottom: 10, textShadow: '0 1px 4px #000, 0 0 2px #222' }}>{new Date(workout.created_at).toLocaleDateString()}</div>
+        <div style={{ color: '#fff', fontSize: 15, marginBottom: 8, wordBreak: 'break-word', textShadow: '0 1px 4px #000, 0 0 2px #222' }}>{workout.description}</div>
+        <div style={{ color: '#fff', fontSize: 14, textShadow: '0 1px 4px #000, 0 0 2px #222' }}>{workout.total_exercises} exercises &middot; {workout.difficulty}</div>
+        <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
+          <a
+            href={`/modules/workout/community?start=${workout.id}&type=generator`}
+            style={{
+              padding: '6px 16px',
+              borderRadius: 8,
+              border: 'none',
+              background: '#6a5af9',
+              color: '#fff',
+              fontWeight: 700,
+              cursor: 'pointer',
+              textDecoration: 'none',
+              boxShadow: '0 1px 4px #0002',
+              display: 'inline-block',
+            }}
+            onClick={stopPropagation}
           >
-            <Play className="w-4 h-4" />
             Start
+          </a>
+          <button
+            onClick={e => { stopPropagation(e); onShare(); }}
+            style={{
+              padding: '6px 16px',
+              borderRadius: 8,
+              border: 'none',
+              background: '#fff',
+              color: '#222',
+              fontWeight: 600,
+              cursor: 'pointer',
+              boxShadow: '0 1px 4px #0002',
+            }}
+          >
+            Share
+          </button>
+          <button
+            onClick={e => { stopPropagation(e); onDelete(); }}
+            disabled={deleting}
+            style={{
+              padding: '6px 16px',
+              borderRadius: 8,
+              border: 'none',
+              background: deleting ? '#fbb' : '#f44',
+              color: '#fff',
+              fontWeight: 600,
+              cursor: deleting ? 'not-allowed' : 'pointer',
+              boxShadow: '0 1px 4px #0002',
+            }}
+          >
+            {deleting ? 'Deleting...' : 'Delete'}
           </button>
         </div>
       </div>
+      {/* No animated border */}
     </div>
   );
 }
+
+// Card for creator workouts (clickable, glassmorphism, animated border)
+function CreatorWorkoutCard({
+  workout,
+  onDelete,
+  onShare,
+  deleting,
+}: {
+  workout: CustomWorkout;
+  onDelete: () => void;
+  onShare: () => void;
+  deleting: boolean;
+}) {
+  const hero = '/images/community_workout.webp';
+  const workoutUrl = `/workout/${workout.id}?type=creator`;
+  const stopPropagation = useCallback((e: React.MouseEvent) => e.stopPropagation(), []);
+  return (
+    <a
+      href={workoutUrl}
+      style={{
+        textDecoration: 'none',
+        color: 'inherit',
+        display: 'block',
+      }}
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      <div
+        style={{
+          ...cardStyle,
+          background: `url('${hero}') center/cover no-repeat`,
+        }}
+      >
+  {/* Brighten overlay */}
+  <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.18)', zIndex: 1 }} />
+  {/* Dark overlay */}
+  <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 2 }} />
+  <div style={{ padding: 20, flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', zIndex: 3, minHeight: 0, justifyContent: 'flex-end' }}>
+          <div style={{ fontWeight: 700, fontSize: 20, marginBottom: 6, color: '#fff', textShadow: '0 2px 8px #000, 0 0 2px #222' }}>{workout.name}</div>
+          <div style={{ color: '#fff', fontSize: 13, marginBottom: 10, textShadow: '0 1px 4px #000, 0 0 2px #222' }}>
+            {new Date(workout.created_at).toLocaleDateString()}
+          </div>
+          <div style={{ color: '#fff', fontSize: 15, marginBottom: 8, textShadow: '0 1px 4px #000, 0 0 2px #222' }}>{workout.description}</div>
+          <div style={{ color: '#fff', fontSize: 14, textShadow: '0 1px 4px #000, 0 0 2px #222' }}>
+            {workout.total_exercises} exercises &middot; {workout.difficulty}
+          </div>
+          <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
+            <a
+              href={`/modules/workout/community?start=${workout.id}&type=creator`}
+              style={{
+                padding: '6px 16px',
+                borderRadius: 8,
+                border: 'none',
+                background: '#6a5af9',
+                color: '#fff',
+                fontWeight: 700,
+                cursor: 'pointer',
+                textDecoration: 'none',
+                boxShadow: '0 1px 4px #0002',
+                display: 'inline-block',
+              }}
+              onClick={stopPropagation}
+            >
+              Start
+            </a>
+            <button
+              onClick={e => { stopPropagation(e); onShare(); }}
+              style={{
+                padding: '6px 16px',
+                borderRadius: 8,
+                border: 'none',
+                background: '#fff',
+                color: '#222',
+                fontWeight: 600,
+                cursor: 'pointer',
+                boxShadow: '0 1px 4px #0002',
+              }}
+            >
+              Share
+            </button>
+            <button
+              onClick={e => { stopPropagation(e); onDelete(); }}
+              disabled={deleting}
+              style={{
+                padding: '6px 16px',
+                borderRadius: 8,
+                border: 'none',
+                background: deleting ? '#fbb' : '#f44',
+                color: '#fff',
+                fontWeight: 600,
+                cursor: deleting ? 'not-allowed' : 'pointer',
+                boxShadow: '0 1px 4px #0002',
+              }}
+            >
+              {deleting ? 'Deleting...' : 'Delete'}
+            </button>
+          </div>
+        </div>
+        {/* No animated border */}
+      </div>
+    </a>
+  );
+}
+
+const MyWorkoutsPage: React.FC = () => {
+  const [generatorWorkouts, setGeneratorWorkouts] = useState<any[]>([]);
+  const [creatorWorkouts, setCreatorWorkouts] = useState<CustomWorkout[]>([]);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const { user, isLoading } = useAuth();
+
+  useEffect(() => {
+    async function migrateAndFetch(userId: string) {
+      await migrateLocalGeneratorWorkoutsToSupabase(userId);
+      const generator = await getMyGeneratorWorkouts(userId);
+      setGeneratorWorkouts(generator);
+      const creator = await WorkoutCreatorService.getUserWorkouts();
+      setCreatorWorkouts(creator);
+    }
+    if (!isLoading && user?.id) {
+      migrateAndFetch(user.id);
+    } else if (!isLoading && !user?.id) {
+      setGeneratorWorkouts([]);
+      setCreatorWorkouts([]);
+    }
+  }, [user, isLoading]);
+
+  // Delete generator workout
+  async function handleDeleteGenerator(id: string) {
+    if (!user?.id) return;
+    const confirmed = window.confirm('Are you sure you want to delete this workout? This action cannot be undone.');
+    if (!confirmed) return;
+    setDeletingId(id);
+    try {
+      await deleteGeneratorWorkout(id, user.id);
+      setGeneratorWorkouts((prev) => prev.filter((w) => w.id !== id));
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  // Delete creator workout
+  async function handleDeleteCreator(id: string) {
+    const confirmed = window.confirm('Are you sure you want to delete this workout? This action cannot be undone.');
+    if (!confirmed) return;
+    setDeletingId(id);
+    try {
+      await WorkoutCreatorService.deleteWorkout(id);
+      setCreatorWorkouts((prev) => prev.filter((w) => w.id !== id));
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  // Share handler (copies link to clipboard)
+  function handleShare(id: string, type: 'generator' | 'creator') {
+    const url = `${window.location.origin}/workout/${id}?type=${type}`;
+    navigator.clipboard.writeText(url);
+    alert('Shareable link copied to clipboard!');
+  }
+
+  return (
+    <>
+      {/* Header Banner */}
+      <div style={{ position: 'relative', width: '100%', height: '220px', overflow: 'hidden', marginBottom: 32 }}>
+        <img
+          src="/images/gym_banner.webp"
+          alt="Gym Banner"
+          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+        />
+        <h1
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            color: '#fff',
+            fontSize: '2.8rem',
+            fontWeight: 800,
+            letterSpacing: '0.04em',
+            margin: 0,
+            zIndex: 2,
+            textShadow: '0 2px 12px rgba(0,0,0,0.10)'
+          }}
+        >
+          My Workouts
+        </h1>
+      </div>
+
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: 32 }}>
+        {/* Generator Workouts Section */}
+        <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: 16 }}>Saved from Generator</h2>
+        {generatorWorkouts.length === 0 ? (
+          <div style={{ color: '#888', marginBottom: 40 }}>No generator workouts saved yet.</div>
+        ) : (
+          <WorkoutsGrid
+            workouts={generatorWorkouts}
+            renderCard={(w: any) => (
+              <WorkoutCardModern
+                key={w.id}
+                workout={w}
+                onDelete={() => handleDeleteGenerator(w.id)}
+                onShare={() => handleShare(w.id, 'generator')}
+                deleting={deletingId === w.id}
+              />
+            )}
+          />
+        )}
+
+        {/* Creator/Public Workouts Section */}
+        <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: 16 }}>Created Workouts (Public)</h2>
+        {creatorWorkouts.length === 0 ? (
+          <div style={{ color: '#888' }}>No creator workouts yet.</div>
+        ) : (
+          <WorkoutsGrid
+            workouts={creatorWorkouts}
+            renderCard={(w: any) => (
+              <CreatorWorkoutCard
+                key={w.id}
+                workout={w}
+                onDelete={() => handleDeleteCreator(w.id)}
+                onShare={() => handleShare(w.id, 'creator')}
+                deleting={deletingId === w.id}
+              />
+            )}
+          />
+        )}
+      </div>
+    </>
+  );
+};
+
+export { MyWorkoutsPage };

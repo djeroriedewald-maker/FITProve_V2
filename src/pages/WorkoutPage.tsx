@@ -2,13 +2,12 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import {
   Library,
-  ArrowRight,
   Clock,
-  Target,
-  TrendingUp,
   Flame,
   BookOpen,
   Wrench,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react';
 import { BackButton } from '../components/ui/BackButton';
 import { supabase } from '../lib/supabase';
@@ -137,11 +136,15 @@ const defaultWorkoutCategories: WorkoutCategory[] = [
   },
 ];
 
-function WorkoutCategoryCard({ category }: { category: WorkoutCategory }) {
+interface WorkoutCategoryCardProps {
+  category: WorkoutCategory;
+}
+
+function WorkoutCategoryCard({ category }: WorkoutCategoryCardProps) {
   const Icon = category.icon;
 
   return (
-    <div className="group relative overflow-hidden rounded-2xl bg-white dark:bg-gray-800 shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
+    <div className="group relative overflow-hidden rounded-2xl bg-white dark:bg-gray-800 shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 h-full">
       {/* Background Pattern */}
       <div className={`absolute inset-0 bg-gradient-to-br ${category.gradient} opacity-50`} />
 
@@ -197,7 +200,6 @@ function WorkoutCategoryCard({ category }: { category: WorkoutCategory }) {
             <Clock className="h-4 w-4" />
             <span>5-60 min</span>
           </div>
-          <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors duration-200" />
         </div>
       </div>
 
@@ -207,39 +209,66 @@ function WorkoutCategoryCard({ category }: { category: WorkoutCategory }) {
   );
 }
 
-export function WorkoutPage() {
-  const [showHelp, setShowHelp] = React.useState(false);
-  React.useEffect(() => {
-    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
-  }, []);
-  const [workoutCategories, setWorkoutCategories] =
-    React.useState<WorkoutCategory[]>(defaultWorkoutCategories);
+const STORAGE_KEY = 'workoutCategoryOrder';
 
+export function WorkoutPage() {
+  // Restore order from localStorage, fallback to default
+  const [workoutCategories, setWorkoutCategories] = React.useState<WorkoutCategory[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        const ids: string[] = JSON.parse(saved);
+        // Map saved order to actual objects, fallback to default if missing
+        const idToCat = Object.fromEntries(defaultWorkoutCategories.map(c => [c.id, c]));
+        return ids.map(id => idToCat[id]).filter(Boolean).concat(
+          defaultWorkoutCategories.filter(c => !ids.includes(c.id))
+        );
+      } catch {
+        return defaultWorkoutCategories;
+      }
+    }
+    return defaultWorkoutCategories;
+  });
+
+  // Save order to localStorage on change
+  React.useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(workoutCategories.map(c => c.id)));
+  }, [workoutCategories]);
+
+  // Move up/down logic
+  const moveCategory = (from: number, to: number) => {
+    if (to < 0 || to >= workoutCategories.length) return;
+    const updated = [...workoutCategories];
+    const [moved] = updated.splice(from, 1);
+    updated.splice(to, 0, moved);
+    setWorkoutCategories(updated);
+  };
+
+  const handleMoveUp = (index: number) => moveCategory(index, index - 1);
+  const handleMoveDown = (index: number) => moveCategory(index, index + 1);
+
+  // Fetch stats
   React.useEffect(() => {
     async function fetchCounts() {
-      // Community Workouts (public only)
       const { count: communityCount } = await supabase
         .from('custom_workouts')
         .select('*', { count: 'exact', head: true })
         .eq('is_public', true);
 
-      // Exercise Library
       const { count: exerciseCount } = await supabase
         .from('exercises')
         .select('*', { count: 'exact', head: true });
 
-      // Workout Library (pre-designed workouts)
       const { count: workoutLibCount } = await supabase
         .from('workouts')
         .select('*', { count: 'exact', head: true });
 
-      // Custom Workouts (all user-created)
       const { count: customCount } = await supabase
         .from('custom_workouts')
         .select('*', { count: 'exact', head: true });
 
-      setWorkoutCategories((prev) =>
-        prev.map((cat) => {
+      setWorkoutCategories(prev =>
+        prev.map(cat => {
           if (cat.id === 'community-workouts')
             return { ...cat, stats: { ...cat.stats, count: communityCount ?? 0 } };
           if (cat.id === 'exercise-library')
@@ -265,8 +294,8 @@ export function WorkoutPage() {
       {/* Hero Section */}
       <div className="relative h-80 overflow-hidden">
         <img src="/images/workout_1.webp" alt="Workout" className="w-full h-full object-cover" />
-  {/* Brighter overlay */}
-  <div className="absolute inset-0 bg-black/40" />
+        {/* Brighter overlay */}
+        <div className="absolute inset-0 bg-black/40" />
         {/* Centered Hero Content */}
         <div className="absolute inset-0 flex items-center justify-center">
           <h1 className="text-4xl md:text-5xl font-bold text-white text-center mb-4 drop-shadow-lg">
@@ -311,220 +340,52 @@ export function WorkoutPage() {
           </div>
         </div>
 
-        {/* Categories Grid */}
+        {/* Categories Grid with Up/Down Arrows */}
         <div className="mb-12">
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-8 text-center">
             Choose Your Workout Experience
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {workoutCategories.map((category) => (
-              <Link
-                key={category.id}
-                to={
-                  category.id === 'community-workouts'
-                    ? '/modules/workout/community'
-                    : category.id === 'workout-generator'
-                    ? '/workout-generator'
-                    : `/modules/workout/${category.id}`
-                }
-                className={`block ${category.comingSoon ? 'pointer-events-none' : ''}`}
-              >
-                <WorkoutCategoryCard category={category} />
-              </Link>
+          <div className="flex flex-wrap gap-8">
+            {workoutCategories.map((category, index) => (
+              <div key={category.id} className="relative w-full md:w-auto">
+                {/* Up/Down Arrows - absolutely positioned, bottom right, not inside Link */}
+                <div className="absolute bottom-2 right-2 z-20 flex flex-col items-center gap-2">
+                  <span className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1 select-none">Reorder</span>
+                  <button
+                    onClick={e => { e.preventDefault(); e.stopPropagation(); handleMoveUp(index); }}
+                    disabled={index === 0}
+                    className={`bg-gray-200 dark:bg-gray-700 rounded-full p-3 shadow transition-all duration-150 ${index === 0 ? 'opacity-40 cursor-not-allowed' : 'hover:bg-gray-300 dark:hover:bg-gray-600'} active:scale-95`}
+                    aria-label="Move up"
+                    style={{ minWidth: 44, minHeight: 44 }}
+                  >
+                    <ArrowUp className="h-7 w-7" />
+                  </button>
+                  <button
+                    onClick={e => { e.preventDefault(); e.stopPropagation(); handleMoveDown(index); }}
+                    disabled={index === workoutCategories.length - 1}
+                    className={`bg-gray-200 dark:bg-gray-700 rounded-full p-3 shadow transition-all duration-150 ${index === workoutCategories.length - 1 ? 'opacity-40 cursor-not-allowed' : 'hover:bg-gray-300 dark:hover:bg-gray-600'} active:scale-95`}
+                    aria-label="Move down"
+                    style={{ minWidth: 44, minHeight: 44 }}
+                  >
+                    <ArrowDown className="h-7 w-7" />
+                  </button>
+                </div>
+                {/* Only the card content is clickable */}
+                <Link
+                  to={
+                    category.id === 'community-workouts'
+                      ? '/modules/workout/community'
+                      : category.id === 'workout-generator'
+                      ? '/workout-generator'
+                      : `/modules/workout/${category.id}`
+                  }
+                  className={`block h-full ${category.comingSoon ? 'pointer-events-none' : ''}`}
+                >
+                  <WorkoutCategoryCard category={category} />
+                </Link>
+              </div>
             ))}
           </div>
-        </div>
-
-        {/* Benefits Section */}
-        <div className="bg-gradient-to-r from-orange-500 to-red-500 rounded-2xl p-8 text-white mb-12">
-          <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold mb-4">Why Choose Our Workout System?</h2>
-            <p className="text-lg opacity-90 max-w-2xl mx-auto">
-              Built by fitness experts and designed for real results
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="text-center">
-              <div className="bg-white/20 rounded-full p-4 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                <Flame className="h-8 w-8" />
-              </div>
-              <h3 className="font-semibold mb-2">Expert Designed</h3>
-              <p className="text-sm opacity-90">
-                Created by certified trainers and fitness professionals
-              </p>
-            </div>
-            <div className="text-center">
-              <div className="bg-white/20 rounded-full p-4 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                <Target className="h-8 w-8" />
-              </div>
-              <h3 className="font-semibold mb-2">Goal Oriented</h3>
-              <p className="text-sm opacity-90">
-                Workouts tailored to your specific fitness objectives
-              </p>
-            </div>
-            <div className="text-center">
-              <div className="bg-white/20 rounded-full p-4 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                <TrendingUp className="h-8 w-8" />
-              </div>
-              <h3 className="font-semibold mb-2">Progressive</h3>
-              <p className="text-sm opacity-90">
-                Structured progression to ensure continuous improvement
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Call to Action */}
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-            Ready to Start Your Workout Journey?
-          </h2>
-          <p className="text-gray-600 dark:text-gray-300 mb-6 max-w-2xl mx-auto">
-            Begin with our exercise library to learn proper form, or jump into a complete workout
-            routine. The choice is yours!
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              to="/modules/workout/exercise-library"
-              className="inline-flex items-center gap-2 bg-orange-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-orange-700 transition-colors duration-200"
-            >
-              <Library className="h-5 w-5" />
-              Explore Exercises
-            </Link>
-            <Link
-              to="/modules/workout/workout-library"
-              className="inline-flex items-center gap-2 bg-gray-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-gray-700 transition-colors duration-200"
-            >
-              <BookOpen className="h-5 w-5" />
-              Browse Workouts
-            </Link>
-          </div>
-          {/* Help Section Button */}
-          <div className="flex justify-center mt-6">
-            <button
-              onClick={() => setShowHelp(true)}
-              className="inline-flex items-center gap-2 bg-orange-500 text-white px-8 py-3 rounded-lg font-semibold hover:bg-orange-600 transition-colors duration-200 shadow-lg"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M8 10h.01M12 14v.01M12 10a4 4 0 11-8 0 4 4 0 018 0zm0 0v4m0 4h.01"
-                />
-              </svg>
-              Help & How To Use
-            </button>
-          </div>
-          {/* Help Modal */}
-          {showHelp && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-              <div className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl max-w-2xl w-full p-8 relative overflow-y-auto max-h-[90vh]">
-                <button
-                  onClick={() => setShowHelp(false)}
-                  className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-2xl font-bold"
-                  aria-label="Close Help"
-                >
-                  &times;
-                </button>
-                <h2 className="text-2xl font-bold mb-4 text-orange-600 text-center">
-                  How to Use the Workout Zone
-                </h2>
-                <p className="mb-4 text-gray-700 dark:text-gray-200 text-center">
-                  Welcome! Here’s how to navigate and get the most out of every module in the
-                  Workout Zone.
-                </p>
-                <section className="mb-4">
-                  <h3 className="text-xl font-semibold mb-2 text-orange-500">Navigation</h3>
-                  <ul className="list-disc ml-6 text-gray-700 dark:text-gray-200">
-                    <li>Use the navigation bar or sidebar to access different modules.</li>
-                    <li>
-                      The <b>Back</b> button at the top left returns you to the previous section or
-                      main modules page.
-                    </li>
-                    <li>Use the Help button (this one) anytime for guidance.</li>
-                  </ul>
-                </section>
-                <section className="mb-4">
-                  <h3 className="text-xl font-semibold mb-2 text-orange-500">Modules Overview</h3>
-                  <ul className="list-disc ml-6 text-gray-700 dark:text-gray-200">
-                    <li>
-                      <b>Exercise Library:</b> Browse/search for exercises. Each includes
-                      instructions, muscle groups, equipment, and video demos.
-                    </li>
-                    <li>
-                      <b>Workout Library:</b> Explore pre-built routines for different goals and
-                      levels. Click any workout to see details and start tracking.
-                    </li>
-                    <li>
-                      <b>Workout Creator:</b> Build your own custom routines by selecting exercises,
-                      setting reps/sets, and saving for future use.
-                    </li>
-                    <li>
-                      <b>Community Workouts:</b> Join and follow workouts created by other users.
-                      See public routines, track your progress, and connect with the community.
-                    </li>
-                  </ul>
-                </section>
-                <section className="mb-4">
-                  <h3 className="text-xl font-semibold mb-2 text-orange-500">
-                    How to Use Each Module
-                  </h3>
-                  <ul className="list-disc ml-6 text-gray-700 dark:text-gray-200">
-                    <li>
-                      <b>Searching:</b> Use the search bars in each module to quickly find exercises
-                      or workouts.
-                    </li>
-                    <li>
-                      <b>Filters:</b> Apply filters (muscle group, equipment, difficulty, etc.) to
-                      narrow down results.
-                    </li>
-                    <li>
-                      <b>Tracking:</b> Mark workouts as complete, track your stats, and view your
-                      progress over time.
-                    </li>
-                    <li>
-                      <b>Creating Workouts:</b> In the Workout Creator, drag and drop exercises, set
-                      reps/sets, and save your custom routine.
-                    </li>
-                    <li>
-                      <b>Community:</b> Like, comment, and follow other users’ workouts. Share your
-                      own routines with the community.
-                    </li>
-                  </ul>
-                </section>
-                <section className="mb-4">
-                  <h3 className="text-xl font-semibold mb-2 text-orange-500">
-                    Tips & Best Practices
-                  </h3>
-                  <ul className="list-disc ml-6 text-gray-700 dark:text-gray-200">
-                    <li>
-                      Start with the Exercise Library to learn proper form before attempting new
-                      workouts.
-                    </li>
-                    <li>
-                      Use the Workout Library for inspiration or when you want a ready-made routine.
-                    </li>
-                    <li>Track your progress regularly to stay motivated and see improvements.</li>
-                    <li>Engage with the community for support, ideas, and accountability.</li>
-                    <li>Visit this Help section anytime for guidance!</li>
-                  </ul>
-                </section>
-                <div className="text-center mt-6">
-                  <span className="text-gray-500 dark:text-gray-400">
-                    Still have questions? Contact support or check our FAQ for more info.
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>

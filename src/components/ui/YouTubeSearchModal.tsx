@@ -28,69 +28,59 @@ export const YouTubeSearchModal: React.FC<YouTubeSearchModalProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [videos, setVideos] = useState<YouTubeVideo[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen && exerciseName) {
       setSearchQuery(`${exerciseName} exercise tutorial`);
+      setSelectedVideoId(null);
     }
   }, [isOpen, exerciseName]);
 
-  // Mock YouTube search results for demonstration
-  // In a real app, you'd use the YouTube Data API
-  const mockYouTubeResults: YouTubeVideo[] = [
-    {
-      id: 'IODxDxX7oi4',
-      title: `How to Do ${exerciseName} - Perfect Form Tutorial`,
-      thumbnail: `https://img.youtube.com/vi/IODxDxX7oi4/mqdefault.jpg`,
-      channelTitle: 'Fitness Blender',
-      duration: '3:24',
-      viewCount: '2.1M views',
-    },
-    {
-      id: '4Y2ZdHCOXok',
-      title: `${exerciseName} Exercise - Complete Guide`,
-      thumbnail: `https://img.youtube.com/vi/4Y2ZdHCOXok/mqdefault.jpg`,
-      channelTitle: 'Athlean-X',
-      duration: '5:12',
-      viewCount: '1.5M views',
-    },
-    {
-      id: 'eGo4IYlbE5g',
-      title: `${exerciseName} for Beginners - Step by Step`,
-      thumbnail: `https://img.youtube.com/vi/eGo4IYlbE5g/mqdefault.jpg`,
-      channelTitle: 'Calisthenic Movement',
-      duration: '4:30',
-      viewCount: '890K views',
-    },
-    {
-      id: 'ytGaGIn3SjE',
-      title: `Advanced ${exerciseName} Techniques`,
-      thumbnail: `https://img.youtube.com/vi/ytGaGIn3SjE/mqdefault.jpg`,
-      channelTitle: 'Jeff Nippard',
-      duration: '8:15',
-      viewCount: '1.2M views',
-    },
-  ];
+  // Your YouTube Data API key (keep private in production)
+  const YOUTUBE_API_KEY = "AIzaSyCbUSh6WV_4u0qgx8GavqIRgTTIsXCeX8Q";
 
-  const handleSearch = () => {
+  const handleSearch = async () => {
     setIsLoading(true);
-    // Simulate API call delay
-
-    setTimeout(() => {
-      setVideos(mockYouTubeResults);
-      setIsLoading(false);
-    }, 500);
+    try {
+      const response = await fetch(
+        `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=5&q=${encodeURIComponent(
+          searchQuery
+        )}&key=${YOUTUBE_API_KEY}`
+      );
+      const data = await response.json();
+      if (data.items) {
+        const results = data.items.map((item: any) => ({
+          id: item.id.videoId,
+          title: item.snippet.title,
+          thumbnail: item.snippet.thumbnails.medium.url,
+          channelTitle: item.snippet.channelTitle,
+          duration: '', // To fetch duration, use videos.list API
+          viewCount: '', // To fetch view count, use videos.list API
+        }));
+        setVideos(results);
+      } else {
+        setVideos([]);
+      }
+    } catch (err) {
+      setVideos([]);
+    }
+    setIsLoading(false);
   };
 
   const openYouTubeVideo = (videoId: string) => {
-    window.open(`https://www.youtube.com/watch?v=${videoId}`, '_blank');
+    setSelectedVideoId(videoId);
+  };
+
+  const closeVideoModal = () => {
+    setSelectedVideoId(null);
   };
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden relative">
         {/* Hero Image */}
         {exercise && (
           <div className="w-full h-48 sm:h-64 md:h-72 bg-black bg-opacity-10 flex items-center justify-center overflow-hidden">
@@ -108,59 +98,55 @@ export const YouTubeSearchModal: React.FC<YouTubeSearchModalProps> = ({
               YouTube Videos voor {exerciseName}
             </h2>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              Klik op een video om deze op YouTube te bekijken
+              Klik op een video om deze in de app te bekijken
             </p>
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+            className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            aria-label="Sluit"
           >
-            <X className="w-5 h-5" />
+            <X className="w-6 h-6 text-gray-500 dark:text-gray-400" />
           </button>
         </div>
-
-        {/* Search Section */}
-        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Zoek naar YouTube videos..."
-              className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 dark:bg-gray-700 dark:text-white"
-              onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-            />
-          </div>
+        {/* Search Bar */}
+        <div className="flex items-center gap-2 p-4 border-b border-gray-200 dark:border-gray-700">
+          <input
+            type="text"
+            className="flex-1 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+            placeholder="Zoek YouTube videos..."
+          />
+          <button
+            onClick={handleSearch}
+            className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-medium"
+            disabled={isLoading}
+          >
+            {isLoading ? 'Zoeken...' : 'Videos Zoeken'}
+          </button>
         </div>
-
         {/* Results */}
-        <div className="p-4 overflow-y-auto max-h-[60vh]">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
-              <span className="ml-3 text-gray-600 dark:text-gray-400">Videos zoeken...</span>
-            </div>
-          ) : videos.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="p-4 overflow-y-auto" style={{ maxHeight: '50vh' }}>
+          {videos.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {videos.map((video) => (
                 <div
                   key={video.id}
+                  className="bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden cursor-pointer hover:shadow-lg transition-shadow"
                   onClick={() => openYouTubeVideo(video.id)}
-                  className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors border border-gray-200 dark:border-gray-600"
                 >
-                  <div className="relative mb-3">
+                  <div className="relative aspect-video">
                     <img
                       src={video.thumbnail}
                       alt={video.title}
-                      className="w-full h-32 object-cover rounded-lg"
+                      className="w-full h-full object-cover"
                     />
-                    <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity bg-black bg-opacity-40">
                       <div className="bg-black bg-opacity-60 rounded-full p-3">
                         <Play className="w-6 h-6 text-white fill-current" />
                       </div>
-                    </div>
-                    <div className="absolute bottom-2 right-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
-                      {video.duration}
                     </div>
                   </div>
                   <h3 className="font-medium text-gray-900 dark:text-white mb-2 line-clamp-2">
@@ -179,22 +165,35 @@ export const YouTubeSearchModal: React.FC<YouTubeSearchModalProps> = ({
                 Klik op &quot;Zoeken&quot; om YouTube videos te vinden voor &quot;{exerciseName}
                 &quot;
               </p>
-              <button
-                onClick={handleSearch}
-                className="px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
-              >
-                Videos Zoeken
-              </button>
             </div>
           )}
         </div>
-
-        {/* Footer */}
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-750">
-          <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
-            Videos worden geopend op YouTube.com in een nieuw tabblad
-          </p>
-        </div>
+        {/* Floating YouTube Player Modal */}
+        {selectedVideoId && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70">
+            <div className="bg-white dark:bg-gray-900 rounded-lg shadow-2xl p-4 relative w-full max-w-2xl">
+              <button
+                onClick={closeVideoModal}
+                className="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                aria-label="Sluit video"
+              >
+                <X className="w-6 h-6 text-gray-500 dark:text-gray-300" />
+              </button>
+              <div className="aspect-video w-full">
+                <iframe
+                  width="100%"
+                  height="100%"
+                  src={`https://www.youtube.com/embed/${selectedVideoId}?autoplay=1`}
+                  title="YouTube video player"
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  className="rounded-lg w-full h-full"
+                ></iframe>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

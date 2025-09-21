@@ -66,7 +66,7 @@ export default defineConfig({
   server: {
     allowedHosts: [
       'localhost',
-      'ff5219e0bcf4.ngrok-free.app', // <— voeg jouw ngrok domein hier toe
+      '.ngrok.app',
     ],
   },
 })

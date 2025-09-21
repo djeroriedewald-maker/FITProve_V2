@@ -66,47 +66,50 @@ export interface ExerciseDB {
   slug: string;
   description?: string;
   instructions: string[];
-  
+
   // Media
   image_url?: string;
   gif_url?: string;
   video_url?: string;
   youtube_id?: string;
-  
+
   // Classification
   primary_muscles: string[];
   secondary_muscles: string[];
   equipment: string[];
   difficulty: DifficultyLevel;
   category_id?: string;
-  
+
+  // Environment
+  environment?: string[];
+
   // Exercise Details
   force_type?: ForceType;
   mechanics?: MechanicsType;
-  
+
   // Additional Info
   tips: string[];
   common_mistakes: string[];
   variations: string[];
   contraindications: string[];
-  
+
   // Workout Metadata
   calories_per_minute?: number;
   recommended_sets?: number;
   recommended_reps?: string;
   recommended_rest_seconds?: number;
-  
+
   // Search and Organization
   tags: string[];
   is_active: boolean;
   is_featured: boolean;
   popularity_score: number;
-  
+
   // Admin
   created_by?: string;
   approved_by?: string;
   approval_status: ApprovalStatus;
-  
+
   // Timestamps
   created_at: string;
   updated_at: string;
@@ -119,40 +122,43 @@ export interface Exercise {
   slug: string;
   description: string;
   instructions: string[];
-  
+
   // Visual Media
   image_url?: string;
   gif_url?: string;
   video_url?: string;
   youtube_id?: string;
-  
+
   // Exercise Classification
   primary_muscles: MuscleGroup[];
   secondary_muscles: MuscleGroup[];
   equipment: EquipmentType[];
   difficulty: DifficultyLevel;
   category?: ExerciseCategory;
-  
+
+  // Environment
+  environment?: string[];
+
   // Exercise Details
   force_type?: ForceType;
   mechanics?: MechanicsType;
-  
+
   // Additional Info
   tips?: string[];
   common_mistakes?: string[];
   variations?: string[];
   contraindications?: string[];
-  
+
   // Meta Information
   created_at: string;
   updated_at: string;
-  
+
   // Workout metadata
   calories_per_minute?: number;
   recommended_sets?: number;
   recommended_reps?: string;
   rest_time?: number;
-  
+
   // Search optimization
   tags: string[];
   popularity_score: number;

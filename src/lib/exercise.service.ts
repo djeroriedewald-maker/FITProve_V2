@@ -41,40 +41,43 @@ function transformExercise(exerciseDB: ExerciseDB): Exercise {
     slug: exerciseDB.slug,
     description: exerciseDB.description || '',
     instructions: exerciseDB.instructions,
-    
+
     // Media
     image_url: exerciseDB.image_url,
     gif_url: exerciseDB.gif_url,
     video_url: exerciseDB.video_url,
     youtube_id: youtube_id,
-    
+
     // Classification - convert string arrays to typed arrays
     primary_muscles: exerciseDB.primary_muscles as MuscleGroup[],
     secondary_muscles: exerciseDB.secondary_muscles as MuscleGroup[],
     equipment: exerciseDB.equipment as EquipmentType[],
     difficulty: exerciseDB.difficulty,
     category: exerciseDB.category_id as ExerciseCategory,
-    
+
+    // Environment
+    environment: exerciseDB.environment || [],
+
     // Exercise details
     force_type: exerciseDB.force_type,
     mechanics: exerciseDB.mechanics,
-    
+
     // Additional info
     tips: exerciseDB.tips,
     common_mistakes: exerciseDB.common_mistakes,
     variations: exerciseDB.variations,
     contraindications: exerciseDB.contraindications,
-    
+
     // Timestamps
     created_at: exerciseDB.created_at,
     updated_at: exerciseDB.updated_at,
-    
+
     // Workout metadata
     calories_per_minute: exerciseDB.calories_per_minute,
     recommended_sets: exerciseDB.recommended_sets,
     recommended_reps: exerciseDB.recommended_reps,
     rest_time: exerciseDB.recommended_rest_seconds,
-    
+
     // Search optimization
     tags: exerciseDB.tags,
     popularity_score: exerciseDB.popularity_score,
@@ -119,6 +122,13 @@ export class ExerciseService {
       }
 
       const { data: exercisesDB, error, count } = await query;
+
+      // Direct test: fetch all exercises with environment = ['Outdoor']
+      const { data: outdoorData, error: outdoorError } = await supabase
+        .from('exercises')
+        .select('*')
+        .contains('environment', ['Outdoor']);
+      console.log('Direct fetch with contains(environment, ["Outdoor"]):', outdoorData, outdoorError);
 
       if (error) {
         console.error('Error fetching exercises:', error);

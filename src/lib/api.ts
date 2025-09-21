@@ -1,3 +1,14 @@
+import { supabase } from './supabase';
+import { UserProfile } from '../types/profile.types';
+import {
+  Post,
+  CreatePostData,
+  CreateCommentData,
+  ToggleLikeData,
+  Comment,
+} from '../types/social.types';
+import type { Database } from '../types/database.types';
+import { SupabaseClient } from '@supabase/supabase-js';
 
 // Search for public/followable user profiles by name or username
 export interface PublicUserProfile {
@@ -128,20 +139,21 @@ export async function unfollowUser(targetUserId: string): Promise<boolean> {
   }
   return true;
 }
-import { supabase } from './supabase';
-import { UserProfile } from '../types/profile.types';
-import { Post, CreatePostData, CreateCommentData, ToggleLikeData, Comment } from '../types/social.types';
-import type { Database } from '../types/database.types';
-import { SupabaseClient } from '@supabase/supabase-js';
 
-function updateProfile(client: SupabaseClient<Database>, userId: string, update: Partial<Database['public']['Tables']['profiles']['Update']>) {
-  return client
-    .from('profiles')
-    // @ts-ignore - Supabase types issue with the update method
-    .update(update)
-    .eq('id', userId)
-    .select()
-    .single();
+function updateProfile(
+  client: SupabaseClient<Database>,
+  userId: string,
+  update: Partial<Database['public']['Tables']['profiles']['Update']>
+) {
+  return (
+    client
+      .from('profiles')
+      // @ts-ignore - Supabase types issue with the update method
+      .update(update)
+      .eq('id', userId)
+      .select()
+      .single()
+  );
 }
 
 interface UpdateProfileParams {
@@ -151,9 +163,11 @@ interface UpdateProfileParams {
   bio: string | null;
   avatarUrl: string;
   fitnessGoals: string[];
+  gender: 'male' | 'female' | 'other';
   avatarFile?: File | null;
   isPublic?: boolean;
   allowFollow: boolean;
+  allowDirectMessages?: boolean;
 }
 
 // --- PROFILE UPDATE ---
@@ -164,6 +178,7 @@ export async function updateUserProfile({
   bio,
   avatarUrl,
   fitnessGoals,
+  gender,
   avatarFile,
   isPublic,
   allowFollow,
@@ -179,7 +194,6 @@ export async function updateUserProfile({
       .maybeSingle();
 
     if (checkError) {
-      // maybeSingle should not error on zero rows; only propagate real errors (e.g., RLS, network)
       console.error('Username availability check error:', checkError);
       throw new Error('Failed to check username availability');
     }
@@ -224,10 +238,8 @@ export async function updateUserProfile({
           if (listErr) {
             console.warn('Avatar list warning:', listErr.message);
           } else if (oldFiles?.length) {
-            const paths = oldFiles.map(f => `${userId}/${f.name}`);
-            const { error: removeErr } = await supabase.storage
-              .from('avatars')
-              .remove(paths);
+            const paths = oldFiles.map((f) => `${userId}/${f.name}`);
+            const { error: removeErr } = await supabase.storage.from('avatars').remove(paths);
             if (removeErr) {
               console.warn('Avatar remove warning:', removeErr.message);
             }
@@ -249,15 +261,17 @@ export async function updateUserProfile({
           console.error('Avatar upload error:', uploadError);
           // Provide clearer guidance if the bucket is missing or policies deny access
           if (/resource was not found|bucket/i.test(uploadError.message)) {
-            throw new Error("Avatar upload failed: storage bucket 'avatars' not found or not accessible. Please create the bucket and policies.");
+            throw new Error(
+              "Avatar upload failed: storage bucket 'avatars' not found or not accessible. Please create the bucket and policies."
+            );
           }
           throw new Error(`Avatar upload failed: ${uploadError.message}`);
         }
 
         // Get the public URL with cache busting
-        const { data: { publicUrl } } = supabase.storage
-          .from('avatars')
-          .getPublicUrl(filePath);
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from('avatars').getPublicUrl(filePath);
 
         // Add timestamp to prevent browser caching
         finalAvatarUrl = `${publicUrl}?t=${timestamp}`;
@@ -267,23 +281,26 @@ export async function updateUserProfile({
       }
     }
 
-          // @ts-ignore - Supabase types issue with the update method
     const { data: profileData, error: updateError } = await updateProfile(supabase, userId, {
       display_name: displayName,
       username,
       bio,
       avatar_url: finalAvatarUrl,
       fitness_goals: fitnessGoals,
-          ...(typeof isPublic === 'boolean' ? { is_public: isPublic } : {}),
-          ...(typeof allowFollow === 'boolean' ? { allow_follow: allowFollow } : {}),
-          ...(typeof allowDirectMessages === 'boolean' ? { allow_direct_messages: allowDirectMessages } : {}),
+      gender,
+      ...(typeof isPublic === 'boolean' ? { is_public: isPublic } : {}),
+      ...(typeof allowFollow === 'boolean' ? { allow_follow: allowFollow } : {}),
+      ...(typeof allowDirectMessages === 'boolean'
+        ? { allow_direct_messages: allowDirectMessages }
+        : {}),
     });
 
     if (updateError) {
       throw updateError;
     }
 
-    const updatedProfile: Database['public']['Tables']['profiles']['Row'] = profileData as Database['public']['Tables']['profiles']['Row'];
+    const updatedProfile: Database['public']['Tables']['profiles']['Row'] =
+      profileData as Database['public']['Tables']['profiles']['Row'];
 
     if (!updatedProfile) {
       throw new Error('Failed to update profile');
@@ -307,7 +324,7 @@ export async function updateUserProfile({
       console.warn('Could not award Starter badge:', badgeErr);
     }
 
-    return { 
+    return {
       data: {
         id: updatedProfile.id,
         displayName: updatedProfile.display_name || '',
@@ -315,6 +332,7 @@ export async function updateUserProfile({
         bio: updatedProfile.bio || '',
         avatarUrl: updatedProfile.avatar_url || '',
         fitnessGoals: updatedProfile.fitness_goals,
+        gender: updatedProfile.gender || 'other',
         memberSince: new Date(updatedProfile.created_at),
         level: updatedProfile.level,
         stats: updatedProfile.stats || {
@@ -323,38 +341,46 @@ export async function updateUserProfile({
           streakDays: 0,
           achievementsCount: 0,
           followersCount: 0,
-          followingCount: 0
+          followingCount: 0,
         },
-        achievements: updatedProfile.achievements?.map((achievement: { 
-          id: string;
-          title: string;
-          description: string;
-          icon: string;
-          unlockedAt: string | null;
-          progress?: { current: number; target: number; }
-        }) => ({
-          ...achievement,
-          unlockedAt: achievement.unlockedAt ? new Date(achievement.unlockedAt) : null
-        })) || [],
-        recentWorkouts: updatedProfile.recent_workouts?.map((workout: {
-          id: string;
-          type: string;
-          title: string;
-          duration: number;
-          caloriesBurned: number;
-          completedAt: string;
-        }) => ({
-          ...workout,
-          completedAt: new Date(workout.completedAt)
-        })) || [],
+        achievements:
+          updatedProfile.achievements?.map(
+            (achievement: {
+              id: string;
+              title: string;
+              description: string;
+              icon: string;
+              unlockedAt: string | null;
+              progress?: { current: number; target: number };
+            }) => ({
+              ...achievement,
+              unlockedAt: achievement.unlockedAt ? new Date(achievement.unlockedAt) : null,
+            })
+          ) || [],
+        recentWorkouts:
+          updatedProfile.recent_workouts?.map(
+            (workout: {
+              id: string;
+              type: string;
+              title: string;
+              duration: number;
+              caloriesBurned: number;
+              completedAt: string;
+            }) => ({
+              ...workout,
+              completedAt: new Date(workout.completedAt),
+            })
+          ) || [],
+        allowDirectMessages: updatedProfile.allow_direct_messages,
+        allowFollow: updatedProfile.allow_follow,
+        isPublic: updatedProfile.is_public,
       },
-      error: null 
+      error: null,
     };
   } catch (error) {
-    console.error('Error updating profile:', error);
     return {
       data: null,
-      error: error instanceof Error ? error : new Error('Failed to update profile')
+      error: error instanceof Error ? error : new Error('Failed to update profile'),
     };
   }
 }
@@ -372,30 +398,32 @@ export async function fetchPosts(): Promise<Post[]> {
     if (error) throw error;
 
     // Get all user profiles for the posts
-    const userIds = posts?.map(p => p.user_id) || [];
+    const userIds = posts?.map((p) => p.user_id) || [];
     const { data: profiles } = await supabase
       .from('profiles')
       .select('id, display_name, username, avatar_url')
       .in('id', userIds);
 
     // Get current user to check their reactions on each post
-    const { data: { user } } = await supabase.auth.getUser();
-    
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
     let userReactions: Map<string, string> = new Map();
     if (user) {
       const { data: likes } = await supabase
         .from('likes')
         .select('post_id, reaction_type')
         .eq('user_id', user.id)
-        .in('post_id', posts?.map(p => p.id) || []);
-      
+        .in('post_id', posts?.map((p) => p.id) || []);
+
       userReactions = new Map(
-        likes?.filter(l => l.post_id).map(l => [l.post_id!, l.reaction_type]) || []
+        likes?.filter((l) => l.post_id).map((l) => [l.post_id!, l.reaction_type]) || []
       );
     }
 
     // Get reaction counts for all posts
-    const postIds = posts?.map(p => p.id) || [];
+    const postIds = posts?.map((p) => p.id) || [];
     const { data: allReactions } = await supabase
       .from('likes')
       .select('post_id, reaction_type')
@@ -403,15 +431,15 @@ export async function fetchPosts(): Promise<Post[]> {
 
     // Build reaction counts map
     const reactionCountsMap = new Map<string, Record<string, number>>();
-    allReactions?.forEach(reaction => {
+    allReactions?.forEach((reaction) => {
       if (!reaction.post_id) return; // Skip reactions without post_id
-      
+
       if (!reactionCountsMap.has(reaction.post_id)) {
         reactionCountsMap.set(reaction.post_id, {
           like: 0,
           love: 0,
           fire: 0,
-          strong: 0
+          strong: 0,
         });
       }
       const counts = reactionCountsMap.get(reaction.post_id)!;
@@ -419,31 +447,33 @@ export async function fetchPosts(): Promise<Post[]> {
     });
 
     // Create a map of profiles for easy lookup
-    const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+    const profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
 
-    return posts?.map(post => {
-      const profile = profileMap.get(post.user_id);
-      const userReaction = userReactions.get(post.id) || null;
-      const reactionCounts = reactionCountsMap.get(post.id) || {
-        like: 0,
-        love: 0,
-        fire: 0,
-        strong: 0
-      };
+    return (
+      posts?.map((post) => {
+        const profile = profileMap.get(post.user_id);
+        const userReaction = userReactions.get(post.id) || null;
+        const reactionCounts = reactionCountsMap.get(post.id) || {
+          like: 0,
+          love: 0,
+          fire: 0,
+          strong: 0,
+        };
 
-      return {
-        ...post,
-        author: {
-          id: profile?.id || post.user_id,
-          displayName: profile?.display_name || 'Unknown User',
-          username: profile?.username || 'unknown',
-          avatarUrl: profile?.avatar_url || null
-        },
-        isLiked: userReaction !== null,
-        userReaction: userReaction as any,
-        reactionCounts: reactionCounts as any
-      };
-    }) || [];
+        return {
+          ...post,
+          author: {
+            id: profile?.id || post.user_id,
+            displayName: profile?.display_name || 'Unknown User',
+            username: profile?.username || 'unknown',
+            avatarUrl: profile?.avatar_url || null,
+          },
+          isLiked: userReaction !== null,
+          userReaction: userReaction as any,
+          reactionCounts: reactionCounts as any,
+        };
+      }) || []
+    );
   } catch (error) {
     console.error('Error fetching posts:', error);
     throw new Error('Failed to fetch posts');
@@ -452,7 +482,9 @@ export async function fetchPosts(): Promise<Post[]> {
 
 export async function createPost(postData: CreatePostData): Promise<Post> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
     // Prepare post data with only the fields that exist in the database
@@ -460,7 +492,7 @@ export async function createPost(postData: CreatePostData): Promise<Post> {
       user_id: user.id,
       content: postData.content,
       media_url: postData.mediaUrls,
-      type: postData.type
+      type: postData.type,
     };
 
     // Only add workout_id and achievement_id if they're provided and not null
@@ -492,9 +524,9 @@ export async function createPost(postData: CreatePostData): Promise<Post> {
         id: profile?.id || user.id,
         displayName: profile?.display_name || 'Unknown User',
         username: profile?.username || 'unknown',
-        avatarUrl: profile?.avatar_url || null
+        avatarUrl: profile?.avatar_url || null,
       },
-      isLiked: false
+      isLiked: false,
     };
   } catch (error) {
     console.error('Error creating post:', error);
@@ -504,7 +536,9 @@ export async function createPost(postData: CreatePostData): Promise<Post> {
 
 export async function toggleLike(data: ToggleLikeData): Promise<void> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
     if (data.postId) {
@@ -519,10 +553,7 @@ export async function toggleLike(data: ToggleLikeData): Promise<void> {
       if (existingReaction) {
         if (existingReaction.reaction_type === data.reactionType) {
           // Same reaction - remove it (toggle off)
-          const { error } = await supabase
-            .from('likes')
-            .delete()
-            .eq('id', existingReaction.id);
+          const { error } = await supabase.from('likes').delete().eq('id', existingReaction.id);
           if (error) throw error;
         } else {
           // Different reaction - update to new reaction type
@@ -534,13 +565,11 @@ export async function toggleLike(data: ToggleLikeData): Promise<void> {
         }
       } else {
         // No existing reaction - create new one
-        const { error } = await supabase
-          .from('likes')
-          .insert({
-            user_id: user.id,
-            post_id: data.postId,
-            reaction_type: data.reactionType
-          });
+        const { error } = await supabase.from('likes').insert({
+          user_id: user.id,
+          post_id: data.postId,
+          reaction_type: data.reactionType,
+        });
         if (error) throw error;
       }
     }
@@ -557,10 +586,7 @@ export async function toggleLike(data: ToggleLikeData): Promise<void> {
       if (existingReaction) {
         if (existingReaction.reaction_type === data.reactionType) {
           // Same reaction - remove it (toggle off)
-          const { error } = await supabase
-            .from('likes')
-            .delete()
-            .eq('id', existingReaction.id);
+          const { error } = await supabase.from('likes').delete().eq('id', existingReaction.id);
           if (error) throw error;
         } else {
           // Different reaction - update to new reaction type
@@ -572,13 +598,11 @@ export async function toggleLike(data: ToggleLikeData): Promise<void> {
         }
       } else {
         // No existing reaction - create new one
-        const { error } = await supabase
-          .from('likes')
-          .insert({
-            user_id: user.id,
-            comment_id: data.commentId,
-            reaction_type: data.reactionType
-          });
+        const { error } = await supabase.from('likes').insert({
+          user_id: user.id,
+          comment_id: data.commentId,
+          reaction_type: data.reactionType,
+        });
         if (error) throw error;
       }
     }
@@ -590,17 +614,17 @@ export async function toggleLike(data: ToggleLikeData): Promise<void> {
 
 export async function createComment(commentData: CreateCommentData): Promise<void> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
-    const { error } = await supabase
-      .from('comments')
-      .insert({
-        user_id: user.id,
-        post_id: commentData.postId,
-        content: commentData.content,
-        parent_id: commentData.parentId
-      });
+    const { error } = await supabase.from('comments').insert({
+      user_id: user.id,
+      post_id: commentData.postId,
+      content: commentData.content,
+      parent_id: commentData.parentId,
+    });
 
     if (error) throw error;
   } catch (error) {
@@ -622,8 +646,8 @@ export async function getComments(postId: string): Promise<Comment[]> {
     if (!comments || comments.length === 0) return [];
 
     // Get unique user IDs
-    const userIds = [...new Set(comments.map(c => c.user_id))];
-    
+    const userIds = [...new Set(comments.map((c) => c.user_id))];
+
     // Get user profiles
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
@@ -633,14 +657,14 @@ export async function getComments(postId: string): Promise<Comment[]> {
     if (profilesError) throw profilesError;
 
     // Create profile lookup map
-    const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+    const profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
 
     // Build a nested structure for replies
     const commentsMap = new Map<string, Comment>();
     const rootComments: Comment[] = [];
 
     // First pass: create all comment objects
-    comments.forEach(comment => {
+    comments.forEach((comment) => {
       const profile = profileMap.get(comment.user_id);
       const commentObj: Comment = {
         ...comment,
@@ -648,17 +672,17 @@ export async function getComments(postId: string): Promise<Comment[]> {
           id: comment.user_id,
           displayName: profile?.name || 'Anonymous',
           username: profile?.name || 'anonymous',
-          avatarUrl: profile?.avatar_url || null
+          avatarUrl: profile?.avatar_url || null,
         },
-        replies: []
+        replies: [],
       };
       commentsMap.set(comment.id, commentObj);
     });
 
     // Second pass: nest replies under parent comments
-    comments.forEach(comment => {
+    comments.forEach((comment) => {
       const commentObj = commentsMap.get(comment.id)!;
-      
+
       if (comment.parent_id) {
         // This is a reply
         const parentComment = commentsMap.get(comment.parent_id);
@@ -681,14 +705,16 @@ export async function getComments(postId: string): Promise<Comment[]> {
 
 export async function updatePost(postId: string, content: string): Promise<Post> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
     const { data: post, error } = await supabase
       .from('posts')
-      .update({ 
+      .update({
         content,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
       .eq('id', postId)
       .eq('user_id', user.id) // Ensure user can only edit their own posts
@@ -710,9 +736,9 @@ export async function updatePost(postId: string, content: string): Promise<Post>
         id: profile?.id || user.id,
         displayName: profile?.display_name || 'Unknown User',
         username: profile?.username || 'unknown',
-        avatarUrl: profile?.avatar_url || null
+        avatarUrl: profile?.avatar_url || null,
       },
-      isLiked: false // Will be updated by the component
+      isLiked: false, // Will be updated by the component
     };
   } catch (error) {
     console.error('Error updating post:', error);
@@ -722,14 +748,12 @@ export async function updatePost(postId: string, content: string): Promise<Post>
 
 export async function deletePost(postId: string): Promise<void> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
-    const { error } = await supabase
-      .from('posts')
-      .delete()
-      .eq('id', postId)
-      .eq('user_id', user.id); // Ensure user can only delete their own posts
+    const { error } = await supabase.from('posts').delete().eq('id', postId).eq('user_id', user.id); // Ensure user can only delete their own posts
 
     if (error) throw error;
   } catch (error) {

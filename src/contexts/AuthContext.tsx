@@ -125,7 +125,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select('id, display_name, name, username, bio, avatar_url, created_at, fitness_goals, level, stats, is_public, allow_follow, allow_direct_messages')
+        .select('id, display_name, name, username, bio, avatar_url, created_at, fitness_goals, level, stats, is_public, allow_follow, allow_direct_messages, gender')
         .eq('id', userId)
         .maybeSingle();
 
@@ -197,6 +197,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 followersCount: 0,
                 followingCount: 0
               },
+              gender: p.gender || 'other',
               achievements: [],
               recentWorkouts: [],
               isPublic: p.is_public,

@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, Clock, Calendar, Dumbbell } from 'lucide-react';
 import { WorkoutCreatorService } from '../lib/workout-creator.service';
@@ -73,7 +72,15 @@ export function WorkoutsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div
+        className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-12"
+        style={{
+          width: '100%',
+          maxWidth: '100vw',
+          boxSizing: 'border-box',
+          overflowX: 'hidden',
+        }}
+      >
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-4xl font-bold text-gray-900 dark:text-white">
             My Workouts
@@ -121,15 +128,43 @@ export function WorkoutsPage() {
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+            style={{
+              width: '100%',
+              maxWidth: '100%',
+              margin: 0,
+              padding: 0,
+              overflowX: 'visible',
+            }}
+          >
             {workouts.map((workout) => (
               <div
                 key={workout.id}
                 className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden hover:shadow-lg transition-shadow"
+                style={{
+                  minWidth: 0,
+                  width: '100%',
+                  maxWidth: '100%',
+                  boxSizing: 'border-box',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  height: '100%',
+                  overflow: 'visible',
+                  wordBreak: 'break-word',
+                }}
               >
-                <div className="p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                <div
+                  className="p-4 sm:p-6"
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    height: '100%',
+                    minWidth: 0,
+                  }}
+                >
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-2">
+                    <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white break-words max-w-full">
                       {workout.name || 'Untitled Workout'}
                     </h3>
                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -144,12 +179,12 @@ export function WorkoutsPage() {
                   </div>
 
                   {workout.description && (
-                    <p className="text-gray-600 dark:text-gray-400 text-sm mb-4 line-clamp-2">
+                    <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm mb-4 line-clamp-2 break-words max-w-full">
                       {workout.description}
                     </p>
                   )}
 
-                  <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400 mb-4">
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-4">
                     {typeof workout.estimated_duration === 'number' && (
                       <div className="flex items-center gap-1">
                         <Clock className="w-4 h-4" />
@@ -165,7 +200,7 @@ export function WorkoutsPage() {
                   </div>
 
                   {workout.tags && workout.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mb-4">
+                    <div className="flex flex-wrap gap-1 sm:gap-2 mb-4">
                       {workout.tags.slice(0, 3).map((tag, index) => (
                         <span
                           key={index}
@@ -182,11 +217,11 @@ export function WorkoutsPage() {
                     </div>
                   )}
 
-                  <div className="flex gap-2">
-                    <button className="flex-1 bg-orange-600 text-white py-2 px-4 rounded-lg hover:bg-orange-700 transition-colors font-medium">
+                  <div className="flex flex-col sm:flex-row gap-2 w-full mt-auto">
+                    <button className="w-full sm:w-auto flex-1 bg-orange-600 text-white py-2 px-4 rounded-lg hover:bg-orange-700 transition-colors font-medium text-sm sm:text-base">
                       Start Workout
                     </button>
-                    <button className="flex-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 py-2 px-4 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors font-medium">
+                    <button className="w-full sm:w-auto flex-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 py-2 px-4 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors font-medium text-sm sm:text-base">
                       Edit
                     </button>
                   </div>

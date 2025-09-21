@@ -1,0 +1,19 @@
+{
+  "version": "v20250921",
+  "environment": "Outdoor",
+  "count": 250,
+  "files": [
+    {
+      "path": "exercises_Outdoor_bodyweight_250.json",
+      "type": "exercises",
+      "difficulty": "advanced"
+    }
+  ],
+  "generated_at": "2025-09-21T12:00:00Z",
+  "equipment_allowed": [
+    "Bodyweight",
+    "Dumbbells",
+    "Barbell",
+    "Bench"
+  ]
+}

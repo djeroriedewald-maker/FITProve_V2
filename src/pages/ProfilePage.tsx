@@ -1,7 +1,6 @@
-
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabaseClient';
+import { supabase } from '../lib/supabase';
 import { Badge } from '../components/profile/BadgesGrid';
 import { UserProfile } from '../components/profile/UserProfile';
 
@@ -37,9 +36,12 @@ export default function ProfilePage() {
     <div className="min-h-screen pb-20 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* @ts-ignore: badges props are injected for display */}
-        <UserProfile profile={{ ...(profile as any), badges: userBadges, badgesCount: userBadges.length }} isOwnProfile={true} onProfileUpdated={handleProfileUpdated} />
+        <UserProfile
+          profile={{ ...(profile as any), badges: userBadges, badgesCount: userBadges.length }}
+          isOwnProfile={true}
+          onProfileUpdated={handleProfileUpdated}
+        />
       </div>
     </div>
   );
 }
-
