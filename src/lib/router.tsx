@@ -21,42 +21,48 @@ import { RootLayout } from '../components/RootLayout';
 import { ResetPasswordPage } from '../pages/ResetPasswordPage';
 import SettingsPage from '../pages/SettingsPage';
 import FriendsPage from '../pages/FriendsPage';
+import { StatsPage } from '../pages/StatsPage';
+import { WorkoutsPage } from '../pages/WorkoutsPage';
 
 export const router = createBrowserRouter(
   [
     {
       path: '/',
-      element: <RootLayout />, 
+      element: <RootLayout />,
       children: [
         { index: true, element: <HomePage /> },
         { path: 'profile', element: <ProfilePage /> },
         { path: 'coach', element: <div className="p-4">Coach Page (Coming Soon)</div> },
-        { path: 'stats', element: <div className="p-4">Stats Page (Coming Soon)</div> },
+        { path: 'stats', element: <StatsPage /> },
         { path: 'news', element: <div className="p-4">News Page (Coming Soon)</div> },
         { path: 'modules', element: <ModulesPage /> },
         { path: 'modules/workout', element: <WorkoutPage /> },
-  { path: 'modules/workout/exercise-library', element: <ExerciseLibraryPage /> },
-  { path: 'exercise/:id', element: <ExerciseDetailPage /> },
+        { path: 'modules/workout/exercise-library', element: <ExerciseLibraryPage /> },
+        { path: 'exercise/:id', element: <ExerciseDetailPage /> },
         { path: 'modules/workout/workout-creator', element: <WorkoutCreatorPage /> },
-        { path: 'modules/workout/workout-creator/select-exercises', element: <ExerciseSelectionPage /> },
+        {
+          path: 'modules/workout/workout-creator/select-exercises',
+          element: <ExerciseSelectionPage />,
+        },
         { path: 'modules/workout/execute/:workoutId', element: <WorkoutExecutePage /> },
-  { path: 'modules/workout/my-workouts', element: <MyWorkoutsPage /> },
-  { path: 'modules/workout/planner', element: <PlannerPage /> },
-    { path: 'modules/workout/workout-library', element: <WorkoutLibraryPage /> },
-    { path: 'modules/workout/community', element: <CommunityWorkoutsPage /> },
-  { path: 'workout-generator', element: <WorkoutGenerator onComplete={() => {}} /> },
-    { path: 'community', element: <CommunityPage /> },
-    { path: 'friends', element: <FriendsPage /> },
-    { path: 'signin', element: <SignInForm /> },
-    { path: 'reset-password', element: <ResetPasswordPage /> },
-    { path: 'settings', element: <SettingsPage /> },
-    { path: 'following', element: <FollowingList /> }
-      ]
-    }
+        { path: 'modules/workout/my-workouts', element: <MyWorkoutsPage /> },
+        { path: 'modules/workout/planner', element: <PlannerPage /> },
+        { path: 'modules/workout/workout-library', element: <WorkoutLibraryPage /> },
+        { path: 'modules/workout/community', element: <CommunityWorkoutsPage /> },
+        { path: 'workout-generator', element: <WorkoutGenerator onComplete={() => {}} /> },
+        { path: 'workouts', element: <WorkoutsPage /> },
+        { path: 'community', element: <CommunityPage /> },
+        { path: 'friends', element: <FriendsPage /> },
+        { path: 'signin', element: <SignInForm /> },
+        { path: 'reset-password', element: <ResetPasswordPage /> },
+        { path: 'settings', element: <SettingsPage /> },
+        { path: 'following', element: <FollowingList /> },
+      ],
+    },
   ],
   {
     future: {
       v7_relativeSplatPath: true,
-    }
+    },
   }
 );

@@ -1,14 +1,19 @@
 // src/pages/ExerciseLibraryPage.tsx
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Grid, List, Clock, Target, Dumbbell } from "lucide-react";
+import { Search, Grid, List, Clock, Target, Dumbbell, Filter, ArrowLeft, Zap, Trophy, Activity } from "lucide-react";
+import { motion } from "framer-motion";
 
 import { useScrollToTop } from "../hooks/useScroll";
 import { Exercise, MuscleGroup, EquipmentType, DifficultyLevel } from "../types/exercise.types";
 import { supabase } from "../lib/supabase";
 import { ExerciseDetailModal } from "../components/ui/ExerciseDetailModal";
 import { ExerciseImage } from "../components/ui/ProgressiveImage";
-import { hyroxEventExercises } from '../data/events/hyroxEventExercises';
+
+import { GlassCard, GlassButton } from "../components/ui/GlassCard";
+import { GlassInput } from "../components/ui/GlassInput";
+import { FloatingElements, Glass3DCard, GlowEffect } from "../components/ui/Advanced3D";
+import { BiometricRing } from "../components/ui/BiometricComponents";
 
 /** --- Options (label/value pairs kept in sync with type unions) --- */
 const muscleGroupOptions: { value: MuscleGroup; label: string }[] = [
@@ -53,8 +58,13 @@ interface ExerciseCardProps {
 }
 
 function ExerciseCard({ exercise, viewMode, onExerciseClick }: ExerciseCardProps) {
-  const difficultyColor =
-    difficultyOptions.find((d) => d.value === exercise.difficulty)?.color || "text-gray-600";
+  const difficultyConfig = {
+    beginner: { color: "text-green-400", glow: "green", bg: "from-green-500/20" },
+    intermediate: { color: "text-yellow-400", glow: "orange", bg: "from-yellow-500/20" },
+    advanced: { color: "text-red-400", glow: "pink", bg: "from-red-500/20" },
+  };
+
+  const config = difficultyConfig[exercise.difficulty] || difficultyConfig.beginner;
 
   const primaryMuscles = useMemo(
     () => (Array.isArray(exercise.primary_muscles) ? exercise.primary_muscles.join(", ") : ""),
@@ -66,32 +76,64 @@ function ExerciseCard({ exercise, viewMode, onExerciseClick }: ExerciseCardProps
   );
 
   const isHyrox = Array.isArray(exercise.tags) && exercise.tags.includes('hyrox');
-  const hyroxBorder = isHyrox ? 'border-4 border-yellow-400' : 'border border-gray-200 dark:border-gray-700';
-  const hyroxMeta = isHyrox ? exercise.event_metadata : null;
+  const hyroxMeta = isHyrox ? (exercise as any).event_metadata : null;
 
   function HyroxMetaSection({ meta }: { meta: any }) {
     if (!meta) return null;
     const station = meta.station;
     return (
-      <div className="mt-2 border-t-4 border-yellow-400 bg-yellow-50 dark:bg-yellow-900/10 rounded-b-lg p-3">
-        <h4 className="text-lg font-bold text-yellow-600 mb-1">HYROX Event Details</h4>
-        {station?.name && <div className="font-semibold text-yellow-700">Station: {station.name}</div>}
-        {station?.description && <div className="text-sm text-yellow-800 mb-2">{station.description}</div>}
-        {station?.runDistanceBefore && <div className="text-xs text-yellow-700">Run Before: {station.runDistanceBefore}</div>}
-        {station?.stationWork && <div className="text-xs text-yellow-700">Work: {station.stationWork}</div>}
-        {station?.primaryFocus && <div className="text-xs text-yellow-700">Focus: {station.primaryFocus.join(', ')}</div>}
+      <div className="space-y-2">
+        {station?.name && (
+          <div className="flex items-center gap-2">
+            <Zap className="w-4 h-4 text-yellow-400" />
+            <span className="font-semibold text-yellow-300">Station: {station.name}</span>
+          </div>
+        )}
+        {station?.description && (
+          <p className="text-yellow-200/80 text-sm">{station.description}</p>
+        )}
+        <div className="grid grid-cols-1 gap-2 text-xs">
+          {station?.runDistanceBefore && (
+            <div className="flex items-center gap-2">
+              <Activity className="w-3 h-3 text-yellow-400" />
+              <span className="text-yellow-200">Run Before: {station.runDistanceBefore}</span>
+            </div>
+          )}
+          {station?.stationWork && (
+            <div className="flex items-center gap-2">
+              <Dumbbell className="w-3 h-3 text-yellow-400" />
+              <span className="text-yellow-200">Work: {station.stationWork}</span>
+            </div>
+          )}
+          {station?.primaryFocus && (
+            <div className="flex items-center gap-2">
+              <Target className="w-3 h-3 text-yellow-400" />
+              <span className="text-yellow-200">Focus: {station.primaryFocus.join(', ')}</span>
+            </div>
+          )}
+        </div>
         {station?.officialResources && Array.isArray(station.officialResources) && (
-          <div className="mt-2">
-            <div className="font-semibold text-yellow-700 mb-1">Official Resources:</div>
-            <ul className="list-disc ml-4 text-xs text-yellow-700">
+          <div className="mt-3">
+            <div className="font-medium text-yellow-300 mb-2 text-xs">Official Resources:</div>
+            <div className="space-y-1">
               {station.officialResources.map((r: any) => (
-                <li key={r.url}><a href={r.url} target="_blank" rel="noopener noreferrer" className="underline text-yellow-700">{r.label}</a></li>
+                <a 
+                  key={r.url} 
+                  href={r.url} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="block text-yellow-200 hover:text-yellow-100 underline text-xs transition-colors"
+                >
+                  {r.label}
+                </a>
               ))}
-            </ul>
+            </div>
           </div>
         )}
         {station?.transitionNotes && Array.isArray(station.transitionNotes) && (
-          <div className="mt-2 text-xs text-yellow-700">Transition: {station.transitionNotes.join(' ')}</div>
+          <div className="text-yellow-200/70 text-xs">
+            <strong>Transition:</strong> {station.transitionNotes.join(' ')}
+          </div>
         )}
       </div>
     );
@@ -99,57 +141,170 @@ function ExerciseCard({ exercise, viewMode, onExerciseClick }: ExerciseCardProps
 
   if (viewMode === "list") {
     return (
-      <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 p-4 cursor-pointer ${hyroxBorder}`}
-        onClick={() => onExerciseClick(exercise)}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onExerciseClick(exercise)}>
-        <div className="flex gap-4">
-          <ExerciseImage exercise={exercise} className="flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden" priority={false} />
-          <div className="flex-grow">
-            <div className="flex items-start justify-between">
-              <div>
-                <h3 className="font-semibold text-gray-900 dark:text-white text-lg">{exercise.name}</h3>
-                {!!exercise.description && <p className="text-gray-600 dark:text-gray-300 text-sm mt-1 line-clamp-2">{exercise.description}</p>}
+      <motion.div
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        whileHover={{ x: 4 }}
+        className={`${isHyrox ? 'border-yellow-400/50 shadow-yellow-400/20' : 'border-white/20'}`}
+      >
+        <GlowEffect color={config.glow as any} intensity="medium">
+          <GlassCard 
+            variant="workout" 
+            className="cursor-pointer"
+            onClick={() => onExerciseClick(exercise)}
+            hover={true}
+          >
+            <div className="flex gap-4">
+              <div className="relative flex-shrink-0">
+                <ExerciseImage 
+                  exercise={exercise} 
+                  className="w-20 h-20 rounded-xl overflow-hidden" 
+                  priority={false} 
+                />
+                {isHyrox && (
+                  <div className="absolute -top-2 -right-2 w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center">
+                    <Trophy className="w-3 h-3 text-white" />
+                  </div>
+                )}
+              </div>
+              <div className="flex-grow">
+                <div className="flex items-start justify-between mb-2">
+                  <h3 className="font-bold text-white text-lg">{exercise.name}</h3>
+                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${config.color} bg-gradient-to-r ${config.bg} to-transparent border border-current/20`}>
+                    {exercise.difficulty}
+                  </span>
+                </div>
+                {!!exercise.description && (
+                  <p className="text-white/70 text-sm mb-3 line-clamp-2">{exercise.description}</p>
+                )}
+                <div className="flex flex-wrap items-center gap-3">
+                  {!!primaryMuscles && (
+                    <div className="flex items-center gap-1 text-sm">
+                      <Target className="w-4 h-4 text-cyan-400" />
+                      <span className="text-white/80">{primaryMuscles}</span>
+                    </div>
+                  )}
+                  {!!equipment && (
+                    <div className="flex items-center gap-1 text-sm">
+                      <Dumbbell className="w-4 h-4 text-purple-400" />
+                      <span className="text-white/80">{equipment}</span>
+                    </div>
+                  )}
+                  {!!exercise.recommended_reps && (
+                    <div className="flex items-center gap-1 text-sm">
+                      <Clock className="w-4 h-4 text-orange-400" />
+                      <span className="text-white/80">{exercise.recommended_reps}</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-            <div className="flex flex-wrap items-center gap-2 mt-2">
-              <span className={`px-2 py-1 rounded-full text-xs font-medium bg-white/90 ${difficultyColor}`}>{exercise.difficulty}</span>
-              {!!primaryMuscles && <span className="text-xs text-gray-500 dark:text-gray-400">{primaryMuscles}</span>}
-              {!!equipment && <span className="text-xs text-gray-500 dark:text-gray-400">{equipment}</span>}
-              {!!exercise.recommended_reps && <span className="text-xs text-gray-500 dark:text-gray-400">{exercise.recommended_reps}</span>}
-            </div>
-          </div>
-        </div>
-  {/* Hyrox details only in detail view, not overview */}
-      </div>
+            {isHyrox && hyroxMeta && (
+              <div className="mt-4 p-3 rounded-xl bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-400/30">
+                <div className="flex items-center gap-2 mb-2">
+                  <Trophy className="w-4 h-4 text-yellow-400" />
+                  <span className="text-yellow-400 font-bold text-sm">HYROX EVENT</span>
+                </div>
+                <HyroxMetaSection meta={hyroxMeta} />
+              </div>
+            )}
+          </GlassCard>
+        </GlowEffect>
+      </motion.div>
     );
   }
 
   // Grid view
   return (
-    <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden group cursor-pointer ${hyroxBorder}`}
-      onClick={() => onExerciseClick(exercise)}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onExerciseClick(exercise)}>
-      <div className="relative h-48 overflow-hidden">
-        <ExerciseImage exercise={exercise} className="w-full h-full group-hover:scale-105 transition-transform duration-200" priority={false} />
-        <div className="absolute top-2 left-2">
-          <span className={`px-2 py-1 rounded-full text-xs font-medium bg-white/90 ${difficultyColor}`}>{exercise.difficulty}</span>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -8, scale: 1.02 }}
+      transition={{ duration: 0.3 }}
+    >
+      <GlowEffect color={config.glow as any} intensity="medium">
+        <div 
+          className={`cursor-pointer overflow-hidden ${isHyrox ? 'border-yellow-400/50' : ''}`}
+          onClick={() => onExerciseClick(exercise)}
+        >
+          <Glass3DCard 
+            intensity="high" 
+            depth={12}
+          >
+          <div className="relative h-48 overflow-hidden rounded-t-xl">
+            <ExerciseImage 
+              exercise={exercise} 
+              className="w-full h-full object-cover transition-transform duration-500 hover:scale-110" 
+              priority={false} 
+            />
+            {/* Difficulty Badge */}
+            <div className="absolute top-3 left-3">
+              <div className={`px-3 py-1 rounded-full text-xs font-bold ${config.color} bg-gradient-to-r ${config.bg} to-black/40 backdrop-blur-sm border border-current/30`}>
+                {exercise.difficulty}
+              </div>
+            </div>
+            {/* Hyrox Badge */}
+            {isHyrox && (
+              <div className="absolute top-3 right-3">
+                <div className="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center shadow-neon-orange">
+                  <Trophy className="w-4 h-4 text-white" />
+                </div>
+              </div>
+            )}
+            {/* Gradient Overlay */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+          </div>
+          
+          {/* Content Section */}
+          <div className="p-6">
+            <h3 className="font-bold text-white text-lg mb-2">{exercise.name}</h3>
+            {!!exercise.description && (
+              <p className="text-white/70 text-sm mb-4 line-clamp-2">{exercise.description}</p>
+            )}
+            
+            {/* Exercise Details */}
+            <div className="space-y-3 mb-4">
+              {!!primaryMuscles && (
+                <div className="flex items-center gap-2 text-sm">
+                  <div className="w-8 h-8 bg-cyan-500/20 rounded-lg flex items-center justify-center">
+                    <Target className="w-4 h-4 text-cyan-400" />
+                  </div>
+                  <span className="text-white/80 font-medium">{primaryMuscles}</span>
+                </div>
+              )}
+              {!!equipment && (
+                <div className="flex items-center gap-2 text-sm">
+                  <div className="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center">
+                    <Dumbbell className="w-4 h-4 text-purple-400" />
+                  </div>
+                  <span className="text-white/80 font-medium">{equipment}</span>
+                </div>
+              )}
+              {!!exercise.recommended_reps && (
+                <div className="flex items-center gap-2 text-sm">
+                  <div className="w-8 h-8 bg-orange-500/20 rounded-lg flex items-center justify-center">
+                    <Clock className="w-4 h-4 text-orange-400" />
+                  </div>
+                  <span className="text-white/80 font-medium">{exercise.recommended_reps}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Hyrox Special Section */}
+            {isHyrox && hyroxMeta && (
+              <div className="mt-4 p-4 rounded-xl bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-400/30 backdrop-blur-sm">
+                <div className="flex items-center gap-2 mb-2">
+                  <Trophy className="w-5 h-5 text-yellow-400" />
+                  <span className="text-yellow-400 font-bold text-sm">HYROX EVENT</span>
+                </div>
+                <HyroxMetaSection meta={hyroxMeta} />
+              </div>
+            )}
+          </div>
+          </Glass3DCard>
         </div>
-      </div>
-      <div className="p-4">
-        <h3 className="font-semibold text-gray-900 dark:text-white text-lg mb-2">{exercise.name}</h3>
-        {!!exercise.description && <p className="text-gray-600 dark:text-gray-300 text-sm mb-3 line-clamp-2">{exercise.description}</p>}
-        <div className="space-y-2 mb-4">
-          {!!primaryMuscles && <div className="flex items-center gap-1 text-sm"><Target className="w-4 h-4 text-gray-500" /><span className="text-gray-600 dark:text-gray-400">{primaryMuscles}</span></div>}
-          {!!equipment && <div className="flex items-center gap-1 text-sm"><Dumbbell className="w-4 h-4 text-gray-500" /><span className="text-gray-600 dark:text-gray-400">{equipment}</span></div>}
-          {!!exercise.recommended_reps && <div className="flex items-center gap-1 text-sm"><Clock className="w-4 h-4 text-gray-500" /><span className="text-gray-600 dark:text-gray-400">{exercise.recommended_reps}</span></div>}
-        </div>
-      </div>
-  {/* Hyrox details only in detail view, not overview */}
-    </div>
+      </GlowEffect>
+    </motion.div>
   );
 }
 
@@ -176,7 +331,7 @@ export function ExerciseLibraryPage() {
   const [showModal, setShowModal] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+
 
   // Pagination (client-side)
   const [page, setPage] = useState(1);
@@ -184,6 +339,16 @@ export function ExerciseLibraryPage() {
 
   // --- YouTube Modal State ---
   const [isYouTubeModalOpen, setIsYouTubeModalOpen] = useState(false);
+
+  // Reset filters function
+  const resetFilters = useCallback(() => {
+    setSelectedEnvironment("");
+    setSelectedMuscle("");
+    setSelectedEquipment("");
+    setSelectedDifficulty("");
+    setSearch("");
+    setPage(1);
+  }, []);
 
   /** Fetch all exercises using batched approach to get around Supabase limits */
   const fetchAllExercises = useCallback(async () => {
@@ -223,7 +388,7 @@ export function ExerciseLibraryPage() {
           slug: exercise.slug,
           description: exercise.description,
           image_url: exercise.image_url,
-          youtube_url: exercise.youtube_url,
+
           instructions: exercise.instructions || [],
           primary_muscles: exercise.primary_muscles || [],
           secondary_muscles: exercise.secondary_muscles || [],
@@ -278,12 +443,12 @@ export function ExerciseLibraryPage() {
       const counts = calculateEnvironmentCounts(dedupedResults);
       setEnvironmentCounts(counts);
       
-      setError(null);
+
     } catch (err) {
       console.error("Error loading exercises:", err);
       setAllExercises([]);
       setTotalCount(0);
-      setError("Failed to load exercises. Please try again.");
+      console.error("Failed to load exercises:", err);
     } finally {
       setLoading(false);
     }
@@ -299,7 +464,7 @@ export function ExerciseLibraryPage() {
     };
 
     exerciseList.forEach((ex) => {
-      const tags = Array.isArray((ex as any).tags) ? (ex as any).tags.map(t => t.toLowerCase()) : [];
+      const tags = Array.isArray((ex as any).tags) ? (ex as any).tags.map((t: any) => t.toLowerCase()) : [];
       const equipment = Array.isArray(ex.equipment) ? ex.equipment.map(eq => eq.toLowerCase()) : [];
       
       // Hyrox check
@@ -307,20 +472,20 @@ export function ExerciseLibraryPage() {
         counts.hyrox++;
       }
       // Outdoor check  
-      else if (tags.some(tag => ['outdoor', 'running', 'cycling', 'hiking', 'trail'].includes(tag)) ||
+      else if (tags.some((tag: any) => ['outdoor', 'running', 'cycling', 'hiking', 'trail'].includes(tag)) ||
                ex.name?.toLowerCase().includes('outdoor') ||
                ex.name?.toLowerCase().includes('running')) {
         counts.outdoor++;
       }
       // Indoor/Home check
       else if (tags.includes('bodyweight') || equipment.includes('bodyweight') ||
-               tags.some(tag => ['home', 'indoor', 'bodyweight'].includes(tag)) ||
+               tags.some((tag: any) => ['home', 'indoor', 'bodyweight'].includes(tag)) ||
                (equipment.length === 1 && equipment[0] === 'bodyweight')) {
         counts.indoor++;
       }
       // Gym check (default for equipment-based exercises)
       else if (equipment.some(eq => ['barbell', 'dumbbell', 'cable', 'machine', 'bench'].includes(eq)) ||
-               tags.some(tag => ['barbell', 'dumbbell', 'cable', 'machine', 'bench', 'weights', 'gym'].includes(tag)) ||
+               tags.some((tag: any) => ['barbell', 'dumbbell', 'cable', 'machine', 'bench', 'weights', 'gym'].includes(tag)) ||
                (equipment.length > 0 && !equipment.every(eq => eq === 'bodyweight'))) {
         counts.gym++;
       }
@@ -376,18 +541,18 @@ export function ExerciseLibraryPage() {
                  ex.name?.toLowerCase().includes('hyrox') ||
                  ex.description?.toLowerCase().includes('hyrox');
         } else if (env === 'outdoor') {
-          return tags.some(tag => ['outdoor', 'running', 'cycling', 'hiking', 'trail'].includes(tag)) ||
+          return tags.some((tag: any) => ['outdoor', 'running', 'cycling', 'hiking', 'trail'].includes(tag)) ||
                  ex.name?.toLowerCase().includes('outdoor') ||
                  ex.name?.toLowerCase().includes('running');
         } else if (env === 'indoor' || env === 'home') {
           return tags.includes('bodyweight') || 
                  equipment.includes('bodyweight') ||
-                 tags.some(tag => ['home', 'indoor', 'bodyweight'].includes(tag)) ||
+                 tags.some((tag: any) => ['home', 'indoor', 'bodyweight'].includes(tag)) ||
                  (equipment.length === 1 && equipment[0] === 'bodyweight');
         } else if (env === 'gym') {
           // Gym exercises: equipment-based exercises (not bodyweight-only) or gym-related tags
           return equipment.some(eq => ['barbell', 'dumbbell', 'cable', 'machine', 'bench'].includes(eq)) ||
-                 tags.some(tag => ['barbell', 'dumbbell', 'cable', 'machine', 'bench', 'weights', 'gym'].includes(tag)) ||
+                 tags.some((tag: any) => ['barbell', 'dumbbell', 'cable', 'machine', 'bench', 'weights', 'gym'].includes(tag)) ||
                  (equipment.length > 0 && !equipment.every(eq => eq === 'bodyweight'));
         }
         
@@ -467,212 +632,388 @@ export function ExerciseLibraryPage() {
     setIsYouTubeModalOpen(true);
   }
 
-  const totalPages = Math.max(1, Math.ceil(filteredCount / pageSize));
+
 
   return (
-    <div className="p-2 sm:p-4 max-w-5xl mx-auto w-full overflow-x-hidden">
-      {/* Back Button */}
-      <button
-        onClick={() => navigate(-1)}
-        className="mb-4 flex items-center gap-2 px-4 py-2 rounded-lg border bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-        aria-label="Go back"
-      >
-        <span className="text-xl">←</span> Back
-      </button>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 relative overflow-hidden">
+      {/* Advanced Background Effects */}
+      <FloatingElements />
+      
+      {/* Main Content */}
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-20">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+          className="mb-8"
+        >
+          <GlassButton
+            variant="ghost"
+            onClick={() => navigate(-1)}
+            className="mb-6 flex items-center gap-2"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back
+          </GlassButton>
+          
+          <GlassCard variant="hero" className="text-center">
+            <div className="flex items-center justify-center mb-6">
+              <div className="relative">
+                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center shadow-neon-cyan">
+                  <Dumbbell className="w-10 h-10 text-white" />
+                </div>
+                <BiometricRing
+                  progress={Math.round((filteredCount / totalCount) * 100) || 0}
+                  size={100}
+                  color="#06b6d4"
+                  strokeWidth={4}
+                />
+              </div>
+            </div>
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold bg-gradient-to-r from-white via-cyan-200 to-purple-200 bg-clip-text text-transparent mb-4">
+              Exercise Library
+            </h1>
+            <div className="flex items-center justify-center gap-6 text-white/70">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-cyan-400">{totalCount}</div>
+                <div className="text-sm">Total Exercises</div>
+              </div>
+              <div className="w-px h-12 bg-white/20"></div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-purple-400">{filteredCount}</div>
+                <div className="text-sm">Filtered Results</div>
+              </div>
+              <div className="w-px h-12 bg-white/20"></div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-orange-400">{Object.keys(environmentCounts).length}</div>
+                <div className="text-sm">Categories</div>
+              </div>
+            </div>
+          </GlassCard>
+        </motion.div>
 
-      {/* Hero */}
-      <div className="relative left-1/2 right-1/2 -translate-x-1/2 w-screen h-48 sm:h-64 md:h-80 overflow-hidden mb-6">
-        <img
-          src="/images/exercise_library_1.webp"
-          alt="Exercise Library Hero"
-          className="absolute inset-0 w-full h-full object-cover"
-          style={{ objectPosition: "top" }}
-          loading="eager"
+        {/* Search & Filter Controls */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.2 }}
+          className="mb-8"
+        >
+          <GlassCard>
+            <div className="flex flex-col lg:flex-row gap-6">
+              {/* Search */}
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-4">
+                  <Search className="w-5 h-5 text-cyan-400" />
+                  <span className="text-white font-semibold">Search Exercises</span>
+                </div>
+                <GlassInput
+                  type="text"
+                  placeholder="Search by name, muscle group, or equipment..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+
+              {/* View Mode Toggle */}
+              <div className="flex flex-col">
+                <div className="flex items-center gap-3 mb-4">
+                  <Grid className="w-5 h-5 text-purple-400" />
+                  <span className="text-white font-semibold">View Mode</span>
+                </div>
+                <div className="flex rounded-xl border border-white/20 bg-white/5 p-1">
+                  <GlassButton
+                    variant={viewMode === "grid" ? "primary" : "ghost"}
+                    size="sm"
+                    onClick={() => setViewMode("grid")}
+                    className="flex-1"
+                  >
+                    <Grid className="w-4 h-4 mr-2" />
+                    Grid
+                  </GlassButton>
+                  <GlassButton
+                    variant={viewMode === "list" ? "primary" : "ghost"}
+                    size="sm"
+                    onClick={() => setViewMode("list")}
+                    className="flex-1"
+                  >
+                    <List className="w-4 h-4 mr-2" />
+                    List
+                  </GlassButton>
+                </div>
+              </div>
+            </div>
+
+            {/* Filters Row */}
+            <div className="flex items-center gap-3 mt-6 mb-4">
+              <Filter className="w-5 h-5 text-orange-400" />
+              <span className="text-white font-semibold">Filters</span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Environment Filter */}
+              <div>
+                <label className="block text-white/70 text-sm mb-2">Environment</label>
+                <select
+                  className="w-full px-4 py-2 rounded-xl bg-white/10 border border-white/20 text-white backdrop-blur-xl focus:border-cyan-400 focus:outline-none transition-colors"
+                  value={selectedEnvironment}
+                  onChange={(e) => setSelectedEnvironment(e.target.value)}
+                >
+                  <option value="" className="bg-gray-800 text-white">All Environments ({totalCount})</option>
+                  <option value="Gym" className="bg-gray-800 text-white">🏋️ Gym ({environmentCounts.gym || 0})</option>
+                  <option value="Indoor" className="bg-gray-800 text-white">🏠 Indoor ({environmentCounts.indoor || 0})</option>
+                  <option value="Outdoor" className="bg-gray-800 text-white">🌲 Outdoor ({environmentCounts.outdoor || 0})</option>
+                  <option value="Hyrox" className="bg-gray-800 text-white">🏃 Hyrox ({environmentCounts.hyrox || 0})</option>
+                </select>
+              </div>
+
+              {/* Muscle Group Filter */}
+              <div>
+                <label className="block text-white/70 text-sm mb-2">Muscle Group</label>
+                <select
+                  className="w-full px-4 py-2 rounded-xl bg-white/10 border border-white/20 text-white backdrop-blur-xl focus:border-purple-400 focus:outline-none transition-colors"
+                  value={selectedMuscle}
+                  onChange={(e) => setSelectedMuscle(e.target.value)}
+                >
+                  <option value="" className="bg-gray-800 text-white">All Muscles</option>
+                  {muscleGroupOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value} className="bg-gray-800 text-white">
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {/* Equipment Filter */}
+              <div>
+                <label className="block text-white/70 text-sm mb-2">Equipment</label>
+                <select
+                  className="w-full px-4 py-2 rounded-xl bg-white/10 border border-white/20 text-white backdrop-blur-xl focus:border-orange-400 focus:outline-none transition-colors"
+                  value={selectedEquipment}
+                  onChange={(e) => setSelectedEquipment(e.target.value)}
+                >
+                  <option value="" className="bg-gray-800 text-white">All Equipment</option>
+                  {equipmentOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value} className="bg-gray-800 text-white">
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Difficulty Filter */}
+              <div>
+                <label className="block text-white/70 text-sm mb-2">Difficulty</label>
+                <select
+                  className="w-full px-4 py-2 rounded-xl bg-white/10 border border-white/20 text-white backdrop-blur-xl focus:border-pink-400 focus:outline-none transition-colors"
+                  value={selectedDifficulty}
+                  onChange={(e) => setSelectedDifficulty(e.target.value)}
+                >
+                  <option value="" className="bg-gray-800 text-white">All Levels</option>
+                  {difficultyOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value} className="bg-gray-800 text-white">
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Reset Button */}
+              <div className="flex items-end">
+                <GlassButton
+                  variant="secondary"
+                  onClick={resetFilters}
+                  className="w-full"
+                >
+                  <Filter className="w-4 h-4 mr-2" />
+                  Reset All
+                </GlassButton>
+              </div>
+            </div>
+          </GlassCard>
+        </motion.div>
+
+        {/* Exercise Statistics */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.6, delay: 0.3 }}
+          className="mb-6"
+        >
+          <GlassCard className="text-center">
+            <div className="flex items-center justify-center gap-3 mb-4">
+              <Activity className="w-6 h-6 text-cyan-400" />
+              <span className="text-xl font-bold bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+                Exercise Library Stats
+              </span>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="flex flex-col items-center">
+                <BiometricRing 
+                  progress={totalCount > 0 ? (exercises.length / totalCount) * 100 : 0} 
+                  color="#06b6d4" 
+                  size={60} 
+                />
+                <div className="mt-3">
+                  <div className="text-2xl font-bold text-cyan-400">{exercises.length}</div>
+                  <div className="text-white/70">Showing</div>
+                </div>
+              </div>
+              
+              <div className="flex flex-col items-center">
+                <BiometricRing 
+                  progress={totalCount > 0 ? (filteredCount / totalCount) * 100 : 0} 
+                  color="#a855f7" 
+                  size={60} 
+                />
+                <div className="mt-3">
+                  <div className="text-2xl font-bold text-purple-400">{filteredCount}</div>
+                  <div className="text-white/70">Filtered</div>
+                </div>
+              </div>
+              
+              <div className="flex flex-col items-center">
+                <BiometricRing 
+                  progress={100} 
+                  color="#f97316" 
+                  size={60} 
+                />
+                <div className="mt-3">
+                  <div className="text-2xl font-bold text-orange-400">{totalCount}</div>
+                  <div className="text-white/70">Total</div>
+                </div>
+              </div>
+            </div>
+            
+            {filteredCount !== totalCount && (
+              <div className="mt-4 px-4 py-2 bg-orange-500/20 border border-orange-400/30 rounded-lg">
+                <span className="text-orange-400 text-sm">
+                  Filters applied - showing {((filteredCount / totalCount) * 100).toFixed(1)}% of total exercises
+                </span>
+              </div>
+            )}
+          </GlassCard>
+        </motion.div>
+
+        {/* Exercise Grid/List Display */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.4 }}
+        >
+          {loading ? (
+            <GlassCard className="text-center py-16">
+              <div className="flex flex-col items-center gap-4">
+                <div className="w-12 h-12 border-4 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin"></div>
+                <span className="text-white/80">Loading amazing exercises...</span>
+              </div>
+            </GlassCard>
+          ) : exercises.length === 0 ? (
+            <GlassCard className="text-center py-16">
+              <div className="flex flex-col items-center gap-4">
+                <Target className="w-16 h-16 text-white/40" />
+                <div>
+                  <h3 className="text-xl font-semibold text-white mb-2">No exercises found</h3>
+                  <p className="text-white/70">Try adjusting your filters to see more results</p>
+                </div>
+                <GlassButton onClick={resetFilters} variant="secondary">
+                  Reset Filters
+                </GlassButton>
+              </div>
+            </GlassCard>
+          ) : (
+            <>
+              <div
+                className={`grid ${
+                  viewMode === "grid"
+                    ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+                    : "grid-cols-1 gap-4"
+                } w-full`}
+              >
+                {exercises.map((exercise, index) => (
+                  <motion.div
+                    key={exercise.id ?? exercise.slug ?? exercise.name}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: index * 0.1 }}
+                  >
+                    <ExerciseCard
+                      exercise={exercise}
+                      viewMode={viewMode}
+                      onExerciseClick={handleExerciseClick}
+                    />
+                  </motion.div>
+                ))}
+              </div>
+
+              {/* Enhanced Pagination */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.6, delay: 0.5 }}
+                className="mt-12"
+              >
+                <GlassCard className="flex justify-center">
+                  <div className="flex items-center gap-4">
+                    <GlassButton
+                      variant="secondary"
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      disabled={page === 1}
+                      size="sm"
+                    >
+                      <ArrowLeft className="w-4 h-4 mr-2" />
+                      Previous
+                    </GlassButton>
+                    
+                    <div className="flex items-center gap-2 px-4 py-2 bg-white/10 rounded-xl border border-white/20">
+                      <span className="text-white font-semibold">{page}</span>
+                      <span className="text-white/60">of</span>
+                      <span className="text-white font-semibold">{Math.max(1, Math.ceil(totalCount / pageSize))}</span>
+                    </div>
+                    
+                    <GlassButton
+                      variant="secondary"
+                      onClick={() => setPage((p) => p + 1)}
+                      disabled={page >= Math.ceil(totalCount / pageSize)}
+                      size="sm"
+                    >
+                      Next
+                      <Zap className="w-4 h-4 ml-2" />
+                    </GlassButton>
+                  </div>
+                </GlassCard>
+              </motion.div>
+            </>
+          )}
+        </motion.div>
+
+        {/* Detail Modal */}
+        <ExerciseDetailModal
+          exercise={selectedExercise}
+          isOpen={showModal}
+          onClose={handleCloseModal}
+          onWatchVideo={handleWatchVideo}
+          isYouTubeModalOpen={isYouTubeModalOpen}
+          setIsYouTubeModalOpen={setIsYouTubeModalOpen}
         />
-        <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white text-center drop-shadow-lg">
-            Exercise Library
-          </h1>
-        </div>
-      </div>
 
-      {/* Controls */}
-      <div className="flex flex-col md:flex-row md:items-end gap-2 md:gap-4 mb-6 w-full">
-        <div className="flex flex-col xs:flex-row flex-1 gap-2 w-full">
-          <div className="relative w-full">
-            <input
-              type="text"
-              className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
-              placeholder="Search exercises..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              aria-label="Search exercises"
-            />
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
-          </div>
-          <div className="flex gap-2 w-full justify-end">
-            <button
-              className={`p-2 rounded-lg border ${
-                viewMode === "grid"
-                  ? "bg-orange-100 border-orange-400 text-orange-600"
-                  : "bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 text-gray-500"
-              }`}
-              onClick={() => setViewMode("grid")}
-              title="Grid view"
-              aria-pressed={viewMode === "grid"}
-            >
-              <Grid className="w-5 h-5" />
-            </button>
-            <button
-              className={`p-2 rounded-lg border ${
-                viewMode === "list"
-                  ? "bg-orange-100 border-orange-400 text-orange-600"
-                  : "bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 text-gray-500"
-              }`}
-              onClick={() => setViewMode("list")}
-              title="List view"
-              aria-pressed={viewMode === "list"}
-            >
-              <List className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-
-        <div className="flex flex-col xs:flex-row gap-2 w-full md:w-auto">
-          <select
-            className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white w-full md:w-auto"
-            value={selectedEnvironment}
-            onChange={(e) => setSelectedEnvironment(e.target.value)}
-            aria-label="Filter by environment"
+        {/* Enhanced Back to Top */}
+        {showBackToTop && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0 }}
+            onClick={handleBackToTop}
+            className="fixed bottom-28 right-4 sm:right-8 z-50 p-4 rounded-full bg-gradient-to-br from-cyan-500/80 to-purple-600/80 backdrop-blur-xl border border-white/20 text-white shadow-2xl hover:shadow-cyan-500/25 transition-all duration-300 group"
+            aria-label="Back to top"
           >
-            <option value="">All Environments ({totalCount})</option>
-            <option value="Gym">🏋️ Gym ({environmentCounts.gym || 0})</option>
-            <option value="Indoor">🏠 Indoor ({environmentCounts.indoor || 0})</option>
-            <option value="Outdoor">🌲 Outdoor ({environmentCounts.outdoor || 0})</option>
-            <option value="Hyrox">🏃 Hyrox ({environmentCounts.hyrox || 0})</option>
-          </select>
-          <select
-            className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white w-full md:w-auto"
-            value={selectedMuscle}
-            onChange={(e) => setSelectedMuscle(e.target.value)}
-            aria-label="Filter by muscle group"
-          >
-            <option value="">All Muscles</option>
-            {muscleGroupOptions.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-          <select
-            className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white w-full md:w-auto"
-            value={selectedEquipment}
-            onChange={(e) => setSelectedEquipment(e.target.value)}
-            aria-label="Filter by equipment"
-          >
-            <option value="">All Equipment</option>
-            {equipmentOptions.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-          <select
-            className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white w-full md:w-auto"
-            value={selectedDifficulty}
-            onChange={(e) => setSelectedDifficulty(e.target.value)}
-            aria-label="Filter by difficulty"
-          >
-            <option value="">All Levels</option>
-            {difficultyOptions.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* Summary */}
-      <div className="text-sm text-gray-900 dark:text-white mb-2 text-center">
-        Showing{" "}
-        <span className="font-semibold text-orange-600 dark:text-orange-400">{exercises.length}</span>{" "}
-        exercises out of{" "}
-        <span className="font-semibold text-orange-600 dark:text-orange-400">{filteredCount}</span>
-        {filteredCount !== totalCount && (
-          <span className="text-gray-500 text-xs ml-1">
-            (filtered from {totalCount} total)
-          </span>
+            <ArrowLeft className="w-5 h-5 rotate-90 group-hover:-translate-y-1 transition-transform" />
+          </motion.button>
         )}
       </div>
 
-      {/* Grid/List */}
-      {loading ? (
-        <div className="text-center py-12 text-gray-700 dark:text-gray-300">Loading...</div>
-      ) : exercises.length === 0 ? (
-        <div className="text-gray-700 dark:text-gray-300 text-center py-12">No exercises found.</div>
-      ) : (
-        <>
-          <div
-            className={`grid ${
-              viewMode === "grid"
-                ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6"
-                : "grid-cols-1 gap-2 md:gap-4"
-            } w-full`}
-          >
-            {exercises.map((exercise) => (
-              <ExerciseCard
-                key={exercise.id ?? exercise.slug ?? exercise.name}
-                exercise={exercise}
-                viewMode={viewMode}
-                onExerciseClick={handleExerciseClick}
-              />
-            ))}
-          </div>
-
-          {/* Pagination */}
-          <div className="flex justify-center items-center gap-4 mt-8">
-            <button
-              className="px-4 py-2 rounded-lg border bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 disabled:opacity-50"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-            >
-              Previous
-            </button>
-            <span className="text-sm text-gray-600 dark:text-gray-300">
-              Page {page} of {Math.max(1, Math.ceil(totalCount / pageSize))}
-            </span>
-            <button
-              className="px-4 py-2 rounded-lg border bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 disabled:opacity-50"
-              onClick={() => setPage((p) => p + 1)}
-              disabled={page >= Math.ceil(totalCount / pageSize)}
-            >
-              Next
-            </button>
-          </div>
-        </>
-      )}
-
-      {/* Detail Modal */}
-      <ExerciseDetailModal
-        exercise={selectedExercise}
-        isOpen={showModal}
-        onClose={handleCloseModal}
-        onWatchVideo={handleWatchVideo}
-        isYouTubeModalOpen={isYouTubeModalOpen}
-        setIsYouTubeModalOpen={setIsYouTubeModalOpen}
-      />
-
-      {/* Back to top */}
-      {showBackToTop && (
-        <button
-          onClick={handleBackToTop}
-          className="fixed bottom-28 right-4 sm:right-8 z-50 p-3 rounded-full bg-orange-600 text-white shadow-lg hover:bg-orange-700 transition-colors"
-          aria-label="Back to top"
-        >
-          ↑
-        </button>
-      )}
+      {/* Background Elements */}
+      <FloatingElements />
     </div>
   );
 }
