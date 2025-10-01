@@ -11,7 +11,7 @@ export function CommunityPage() {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, []);
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-black dark:bg-black">
       {/* Hero Header */}
       <div className="w-full relative">
         <img
@@ -35,3 +35,4 @@ export function CommunityPage() {
     </div>
   );
 }
+

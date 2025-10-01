@@ -5,12 +5,12 @@ const WorkoutModuleHero: React.FC = () => {
     <section className="w-full relative flex flex-col items-center justify-center py-0">
       <div className="relative w-full h-64 sm:h-80 md:h-96 rounded-xl overflow-hidden flex items-center justify-center">
         <img
-          src="/images/workout_duo.webp"
+          src="/images/workout_hero1.webp"
           alt="Workout Module Hero"
           className="absolute inset-0 w-full h-full object-cover rounded-xl"
           loading="eager"
         />
-        <div className="absolute inset-0 bg-black bg-opacity-60" />
+        <div className="absolute inset-0 bg-black bg-opacity-50" />
         <h1 className="relative z-10 text-4xl md:text-5xl font-extrabold text-white text-center drop-shadow-lg">
           Workout Module
         </h1>

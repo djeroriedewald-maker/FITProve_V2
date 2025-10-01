@@ -7,45 +7,47 @@ import {
 } from '../../lib/generator-workout.service';
 import { WorkoutCreatorService } from '../../lib/workout-creator.service';
 import type { CustomWorkout } from '../../types/workout-creator.types';
+import { TRAINING_TYPES } from '../../constants/trainingTypes';
 
 // Grid component for 2-column layout and see more logic
-function WorkoutsGrid({ workouts, renderCard }: { workouts: any[]; renderCard: (w: any) => React.ReactNode }) {
-  const [showAll, setShowAll] = useState(false);
-  const visible = showAll ? workouts : workouts.slice(0, 4);
+function WorkoutsGrid({
+  workouts,
+  renderCard,
+}: {
+  workouts: any[];
+  renderCard: (w: any) => React.ReactNode;
+}) {
+  const containerStyle: React.CSSProperties & {
+    WebkitOverflowScrolling?: string;
+    scrollbarWidth?: string;
+  } = {
+    display: 'flex',
+    gap: 16,
+    marginBottom: 24,
+    overflowX: 'auto',
+    paddingBottom: 12,
+    // Non-standard props typed above to avoid TS errors
+    scrollbarWidth: 'thin',
+    WebkitOverflowScrolling: 'touch',
+  };
+
+  const itemStyle: React.CSSProperties = {
+    flex: '0 0 280px',
+    maxWidth: '80vw',
+    minWidth: 0,
+  };
+
   return (
-    <>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(2, 1fr)',
-          gap: 20,
-          marginBottom: 24,
-        }}
-      >
-        {visible.map(renderCard)}
-      </div>
-      {workouts.length > 4 && (
-        <div style={{ textAlign: 'center', marginBottom: 40 }}>
-          <button
-            onClick={() => setShowAll((v) => !v)}
-            style={{
-              padding: '10px 32px',
-              borderRadius: 8,
-              border: 'none',
-              background: '#e0e7ef',
-              color: '#333',
-              fontWeight: 700,
-              fontSize: 16,
-              cursor: 'pointer',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-              transition: 'background 0.2s',
-            }}
-          >
-            {showAll ? 'Show less' : `See more (${workouts.length - 4})`}
-          </button>
-        </div>
-      )}
-    </>
+    <div style={containerStyle}>
+      {workouts.map((workout, index) => {
+        const key = workout?.id ?? workout?.slug ?? workout?.name ?? index;
+        return (
+          <div key={key} style={itemStyle}>
+            {renderCard(workout)}
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -54,15 +56,15 @@ const cardStyle: React.CSSProperties = {
   position: 'relative',
   borderRadius: 18,
   overflow: 'hidden',
-  minHeight: 340,
-  height: 340,
+  minHeight: 320,
+  height: '100%',
   display: 'flex',
   flexDirection: 'column',
   backgroundClip: 'padding-box',
   cursor: 'pointer',
   width: '100%',
-  maxWidth: 500,
-  margin: '0 auto',
+  maxWidth: '100%',
+  margin: 0,
   boxShadow: '0 4px 24px 0 rgba(0,0,0,0.18)',
   backgroundColor: 'rgba(0,0,0,0.10)',
 };
@@ -88,18 +90,63 @@ function WorkoutCardModern({
         background: `url('${hero}') center/cover no-repeat`,
       }}
     >
-  {/* Brighten overlay */}
-  <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.18)', zIndex: 1 }} />
-  {/* Dark overlay */}
-  <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 2 }} />
-  <div style={{ padding: 20, flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, position: 'relative', zIndex: 3, justifyContent: 'flex-end' }}>
-        <div style={{ fontWeight: 700, fontSize: 20, marginBottom: 6, wordBreak: 'break-word', color: '#fff', textShadow: '0 2px 8px #000, 0 0 2px #222' }}>{workout.name}</div>
-        <div style={{ color: '#fff', fontSize: 13, marginBottom: 10, textShadow: '0 1px 4px #000, 0 0 2px #222' }}>{new Date(workout.created_at).toLocaleDateString()}</div>
-        <div style={{ color: '#fff', fontSize: 15, marginBottom: 8, wordBreak: 'break-word', textShadow: '0 1px 4px #000, 0 0 2px #222' }}>{workout.description}</div>
-        <div style={{ color: '#fff', fontSize: 14, textShadow: '0 1px 4px #000, 0 0 2px #222' }}>{workout.total_exercises} exercises &middot; {workout.difficulty}</div>
-        <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
+      {/* Brighten overlay */}
+      <div
+        style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.18)', zIndex: 1 }}
+      />
+      {/* Dark overlay */}
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 2 }} />
+      <div
+        style={{
+          padding: 20,
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          minWidth: 0,
+          position: 'relative',
+          zIndex: 3,
+          justifyContent: 'flex-end',
+        }}
+      >
+        <div
+          style={{
+            fontWeight: 700,
+            fontSize: 20,
+            marginBottom: 6,
+            wordBreak: 'break-word',
+            color: '#fff',
+            textShadow: '0 2px 8px #000, 0 0 2px #222',
+          }}
+        >
+          {workout?.name ?? 'Untitled workout'}
+        </div>
+        <div
+          style={{
+            color: '#fff',
+            fontSize: 13,
+            marginBottom: 10,
+            textShadow: '0 1px 4px #000, 0 0 2px #222',
+          }}
+        >
+          {workout?.created_at ? new Date(workout.created_at).toLocaleDateString() : ''}
+        </div>
+        <div
+          style={{
+            color: '#fff',
+            fontSize: 15,
+            marginBottom: 8,
+            wordBreak: 'break-word',
+            textShadow: '0 1px 4px #000, 0 0 2px #222',
+          }}
+        >
+          {workout?.description}
+        </div>
+        <div style={{ color: '#fff', fontSize: 14, textShadow: '0 1px 4px #000, 0 0 2px #222' }}>
+          {workout?.total_exercises ?? 0} exercises &middot; {workout?.difficulty ?? '—'}
+        </div>
+        <div style={{ display: 'flex', gap: 12, marginTop: 16, flexWrap: 'wrap', rowGap: 10 }}>
           <a
-            href={`/modules/workout/community?start=${workout.id}&type=generator`}
+            href={`/modules/workout/community?start=${workout?.id}&type=generator`}
             style={{
               padding: '6px 16px',
               borderRadius: 8,
@@ -117,7 +164,10 @@ function WorkoutCardModern({
             Start
           </a>
           <button
-            onClick={e => { stopPropagation(e); onShare(); }}
+            onClick={(e) => {
+              stopPropagation(e);
+              onShare();
+            }}
             style={{
               padding: '6px 16px',
               borderRadius: 8,
@@ -132,7 +182,10 @@ function WorkoutCardModern({
             Share
           </button>
           <button
-            onClick={e => { stopPropagation(e); onDelete(); }}
+            onClick={(e) => {
+              stopPropagation(e);
+              onDelete();
+            }}
             disabled={deleting}
             style={{
               padding: '6px 16px',
@@ -166,7 +219,7 @@ function CreatorWorkoutCard({
   onShare: () => void;
   deleting: boolean;
 }) {
-  const hero = '/images/community_workout.webp';
+  const hero = workout.hero_image_url || '/images/community_workout.webp';
   const workoutUrl = `/workout/${workout.id}?type=creator`;
   const stopPropagation = useCallback((e: React.MouseEvent) => e.stopPropagation(), []);
   return (
@@ -176,6 +229,7 @@ function CreatorWorkoutCard({
         textDecoration: 'none',
         color: 'inherit',
         display: 'block',
+        height: '100%',
       }}
       target="_blank"
       rel="noopener noreferrer"
@@ -186,20 +240,103 @@ function CreatorWorkoutCard({
           background: `url('${hero}') center/cover no-repeat`,
         }}
       >
-  {/* Brighten overlay */}
-  <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.18)', zIndex: 1 }} />
-  {/* Dark overlay */}
-  <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 2 }} />
-  <div style={{ padding: 20, flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', zIndex: 3, minHeight: 0, justifyContent: 'flex-end' }}>
-          <div style={{ fontWeight: 700, fontSize: 20, marginBottom: 6, color: '#fff', textShadow: '0 2px 8px #000, 0 0 2px #222' }}>{workout.name}</div>
-          <div style={{ color: '#fff', fontSize: 13, marginBottom: 10, textShadow: '0 1px 4px #000, 0 0 2px #222' }}>
-            {new Date(workout.created_at).toLocaleDateString()}
+        {/* Brighten overlay */}
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'rgba(255,255,255,0.18)',
+            zIndex: 1,
+          }}
+        />
+        {/* Dark overlay */}
+        <div
+          style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 2 }}
+        />
+        <div
+          style={{
+            padding: 20,
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            position: 'relative',
+            zIndex: 3,
+            minHeight: 0,
+            justifyContent: 'flex-end',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+            <span
+              style={{
+                fontWeight: 700,
+                fontSize: 20,
+                color: '#fff',
+                textShadow: '0 2px 8px #000, 0 0 2px #222',
+              }}
+            >
+              {workout.name}
+            </span>
+            <span
+              style={{
+                padding: '2px 10px',
+                borderRadius: 8,
+                fontSize: 13,
+                fontWeight: 600,
+                background: workout.is_public ? 'rgba(76,175,80,0.18)' : 'rgba(255,82,82,0.18)',
+                color: workout.is_public ? '#4caf50' : '#ff5252',
+                textShadow: '0 1px 4px #000, 0 0 2px #222',
+                border: workout.is_public ? '1px solid #4caf50' : '1px solid #ff5252',
+                marginLeft: 4,
+              }}
+            >
+              {workout.is_public ? 'Public' : 'Private'}
+            </span>
           </div>
-          <div style={{ color: '#fff', fontSize: 15, marginBottom: 8, textShadow: '0 1px 4px #000, 0 0 2px #222' }}>{workout.description}</div>
+          <div
+            style={{
+              color: '#fff',
+              fontSize: 13,
+              marginBottom: 10,
+              textShadow: '0 1px 4px #000, 0 0 2px #222',
+            }}
+          >
+            {workout?.created_at ? new Date(workout.created_at).toLocaleDateString() : ''}
+          </div>
+          <div
+            style={{
+              color: '#fff',
+              fontSize: 15,
+              marginBottom: 8,
+              textShadow: '0 1px 4px #000, 0 0 2px #222',
+            }}
+          >
+            {workout.description}
+          </div>
+          {workout.trainingType && (
+            <div
+              style={{
+                background: 'rgba(255,140,0,0.13)',
+                borderLeft: '4px solid #ff9800',
+                color: '#fff',
+                padding: '10px 16px',
+                borderRadius: 8,
+                marginBottom: 8,
+                fontSize: 14,
+                textShadow: '0 1px 4px #000, 0 0 2px #222',
+              }}
+            >
+              <b>Trainingsvorm:</b>{' '}
+              {TRAINING_TYPES.find((t) => t.value === workout.trainingType)?.label}
+              <br />
+              <span style={{ color: '#ffd699', fontWeight: 400, fontSize: 13 }}>
+                {TRAINING_TYPES.find((t) => t.value === workout.trainingType)?.description}
+              </span>
+            </div>
+          )}
           <div style={{ color: '#fff', fontSize: 14, textShadow: '0 1px 4px #000, 0 0 2px #222' }}>
             {workout.total_exercises} exercises &middot; {workout.difficulty}
           </div>
-          <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
+          <div style={{ display: 'flex', gap: 12, marginTop: 16, flexWrap: 'wrap', rowGap: 10 }}>
             <a
               href={`/modules/workout/community?start=${workout.id}&type=creator`}
               style={{
@@ -218,8 +355,29 @@ function CreatorWorkoutCard({
             >
               Start
             </a>
+            <a
+              href={`/modules/workout/workout-creator?edit=${workout.id}`}
+              style={{
+                padding: '6px 16px',
+                borderRadius: 8,
+                border: 'none',
+                background: '#ffa726',
+                color: '#fff',
+                fontWeight: 700,
+                cursor: 'pointer',
+                textDecoration: 'none',
+                boxShadow: '0 1px 4px #0002',
+                display: 'inline-block',
+              }}
+              onClick={stopPropagation}
+            >
+              Edit
+            </a>
             <button
-              onClick={e => { stopPropagation(e); onShare(); }}
+              onClick={(e) => {
+                stopPropagation(e);
+                onShare();
+              }}
               style={{
                 padding: '6px 16px',
                 borderRadius: 8,
@@ -234,7 +392,10 @@ function CreatorWorkoutCard({
               Share
             </button>
             <button
-              onClick={e => { stopPropagation(e); onDelete(); }}
+              onClick={(e) => {
+                stopPropagation(e);
+                onDelete();
+              }}
               disabled={deleting}
               style={{
                 padding: '6px 16px',
@@ -267,12 +428,12 @@ const MyWorkoutsPage: React.FC = () => {
     async function migrateAndFetch(userId: string) {
       await migrateLocalGeneratorWorkoutsToSupabase(userId);
       const generator = await getMyGeneratorWorkouts(userId);
-      setGeneratorWorkouts(generator);
+      setGeneratorWorkouts(generator ?? []);
       const creator = await WorkoutCreatorService.getUserWorkouts();
-      setCreatorWorkouts(creator);
+      setCreatorWorkouts(creator ?? []);
     }
     if (!isLoading && user?.id) {
-      migrateAndFetch(user.id);
+      void migrateAndFetch(user.id);
     } else if (!isLoading && !user?.id) {
       setGeneratorWorkouts([]);
       setCreatorWorkouts([]);
@@ -282,7 +443,9 @@ const MyWorkoutsPage: React.FC = () => {
   // Delete generator workout
   async function handleDeleteGenerator(id: string) {
     if (!user?.id) return;
-    const confirmed = window.confirm('Are you sure you want to delete this workout? This action cannot be undone.');
+    const confirmed = window.confirm(
+      'Are you sure you want to delete this workout? This action cannot be undone.'
+    );
     if (!confirmed) return;
     setDeletingId(id);
     try {
@@ -295,7 +458,9 @@ const MyWorkoutsPage: React.FC = () => {
 
   // Delete creator workout
   async function handleDeleteCreator(id: string) {
-    const confirmed = window.confirm('Are you sure you want to delete this workout? This action cannot be undone.');
+    const confirmed = window.confirm(
+      'Are you sure you want to delete this workout? This action cannot be undone.'
+    );
     if (!confirmed) return;
     setDeletingId(id);
     try {
@@ -308,15 +473,30 @@ const MyWorkoutsPage: React.FC = () => {
 
   // Share handler (copies link to clipboard)
   function handleShare(id: string, type: 'generator' | 'creator') {
-    const url = `${window.location.origin}/workout/${id}?type=${type}`;
-    navigator.clipboard.writeText(url);
-    alert('Shareable link copied to clipboard!');
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const url = `${origin}/workout/${id}?type=${type}`;
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(url).then(
+        () => alert('Shareable link copied to clipboard!'),
+        () => alert(`Share link: ${url}`)
+      );
+    } else {
+      alert(`Share link: ${url}`);
+    }
   }
 
   return (
     <>
       {/* Header Banner */}
-      <div style={{ position: 'relative', width: '100%', height: '220px', overflow: 'hidden', marginBottom: 32 }}>
+      <div
+        style={{
+          position: 'relative',
+          width: '100%',
+          height: '220px',
+          overflow: 'hidden',
+          marginBottom: 32,
+        }}
+      >
         <img
           src="/images/gym_banner.webp"
           alt="Gym Banner"
@@ -334,7 +514,7 @@ const MyWorkoutsPage: React.FC = () => {
             letterSpacing: '0.04em',
             margin: 0,
             zIndex: 2,
-            textShadow: '0 2px 12px rgba(0,0,0,0.10)'
+            textShadow: '0 2px 12px rgba(0,0,0,0.10)',
           }}
         >
           My Workouts
@@ -343,7 +523,17 @@ const MyWorkoutsPage: React.FC = () => {
 
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: 32 }}>
         {/* Generator Workouts Section */}
-        <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: 16 }}>Saved from Generator</h2>
+        <h2
+          style={{
+            fontSize: '1.5rem',
+            fontWeight: 700,
+            marginBottom: 16,
+            letterSpacing: '0.04em',
+            textTransform: 'uppercase',
+          }}
+        >
+          SAVED FROM GENERATOR
+        </h2>
         {generatorWorkouts.length === 0 ? (
           <div style={{ color: '#888', marginBottom: 40 }}>No generator workouts saved yet.</div>
         ) : (
@@ -351,7 +541,6 @@ const MyWorkoutsPage: React.FC = () => {
             workouts={generatorWorkouts}
             renderCard={(w: any) => (
               <WorkoutCardModern
-                key={w.id}
                 workout={w}
                 onDelete={() => handleDeleteGenerator(w.id)}
                 onShare={() => handleShare(w.id, 'generator')}
@@ -362,7 +551,17 @@ const MyWorkoutsPage: React.FC = () => {
         )}
 
         {/* Creator/Public Workouts Section */}
-        <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: 16 }}>Created Workouts (Public)</h2>
+        <h2
+          style={{
+            fontSize: '1.5rem',
+            fontWeight: 700,
+            marginBottom: 16,
+            letterSpacing: '0.04em',
+            textTransform: 'uppercase',
+          }}
+        >
+          Saved from Creator
+        </h2>
         {creatorWorkouts.length === 0 ? (
           <div style={{ color: '#888' }}>No creator workouts yet.</div>
         ) : (
@@ -370,7 +569,6 @@ const MyWorkoutsPage: React.FC = () => {
             workouts={creatorWorkouts}
             renderCard={(w: any) => (
               <CreatorWorkoutCard
-                key={w.id}
                 workout={w}
                 onDelete={() => handleDeleteCreator(w.id)}
                 onShare={() => handleShare(w.id, 'creator')}

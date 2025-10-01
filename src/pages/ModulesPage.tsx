@@ -1,6 +1,16 @@
+// ModulesPage.tsx
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Dumbbell, Utensils, Heart, Brain, ArrowRight, Star, Clock, Users } from 'lucide-react';
+import {
+  Dumbbell,
+  Utensils,
+  Heart,
+  Brain,
+  ArrowRight,
+  Star,
+  Clock,
+  Users,
+} from 'lucide-react';
 import { ExerciseService } from '../lib/exercise.service';
 
 interface ModuleCategory {
@@ -40,7 +50,8 @@ const baseModuleCategories: ModuleCategory[] = [
   {
     id: 'nutrition',
     title: 'Nutrition',
-    description: 'Healthy recipes, meal plans, and nutrition guidance to fuel your body optimally.',
+    description:
+      'Healthy recipes, meal plans, and nutrition guidance to fuel your body optimally.',
     image: '/images/food.webp',
     icon: Utensils,
     color: 'text-green-600',
@@ -86,8 +97,22 @@ const baseModuleCategories: ModuleCategory[] = [
 function ModuleCard({ module }: { module: ModuleCategory }) {
   const Icon = module.icon;
 
+  // Map color class to border color
+  const borderColor =
+    module.color === 'text-orange-600'
+      ? 'border-orange-600'
+      : module.color === 'text-green-600'
+      ? 'border-green-600'
+      : module.color === 'text-blue-600'
+      ? 'border-blue-600'
+      : module.color === 'text-purple-600'
+      ? 'border-purple-600'
+      : 'border-white';
+
   return (
-    <div className="group relative overflow-hidden rounded-2xl bg-white dark:bg-gray-800 shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
+    <div
+      className={`group relative overflow-hidden rounded-2xl bg-[#1b1d21]/95 border-2 ${borderColor} shadow-[0_18px_45px_rgba(0,0,0,0.45)] hover:shadow-[0_28px_75px_rgba(0,0,0,0.6)] transition-all duration-300 transform hover:-translate-y-2`}
+    >
       {/* Background Image */}
       <div className="relative h-48 overflow-hidden">
         <img
@@ -95,7 +120,9 @@ function ModuleCard({ module }: { module: ModuleCategory }) {
           alt={module.title}
           className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
         />
-        <div className={`absolute inset-0 bg-gradient-to-t ${module.gradient} to-transparent`} />
+        <div
+          className={`absolute inset-0 bg-gradient-to-t ${module.gradient} to-transparent`}
+        />
 
         {/* Coming Soon Badge */}
         {module.comingSoon && (
@@ -115,35 +142,37 @@ function ModuleCard({ module }: { module: ModuleCategory }) {
       {/* Content */}
       <div className="p-6">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-xl font-bold text-gray-900 dark:text-white">{module.title}</h3>
-          <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors duration-200" />
+          <h3 className="text-xl font-bold text-white">
+            {module.title}
+          </h3>
+          <ArrowRight className="h-5 w-5 text-gray-300 transition-colors duration-200 group-hover:text-white" />
         </div>
 
-        <p className="text-gray-600 dark:text-gray-300 text-sm mb-4 line-clamp-3">
+        <p className="text-gray-300 text-sm mb-4 line-clamp-3">
           {module.description}
         </p>
 
         {/* Stats */}
-        <div className="flex flex-wrap gap-4 text-xs text-gray-500 dark:text-gray-400">
-          {module.stats.exercises && (
+        <div className="flex flex-wrap gap-4 text-xs text-gray-400">
+          {typeof module.stats.exercises === 'number' && (
             <div className="flex items-center gap-1">
               <Dumbbell className="h-3 w-3" />
               <span>{module.stats.exercises} exercises</span>
             </div>
           )}
-          {module.stats.workouts && (
+          {typeof module.stats.workouts === 'number' && (
             <div className="flex items-center gap-1">
               <Star className="h-3 w-3" />
               <span>{module.stats.workouts} workouts</span>
             </div>
           )}
-          {module.stats.recipes && (
+          {typeof module.stats.recipes === 'number' && (
             <div className="flex items-center gap-1">
               <Utensils className="h-3 w-3" />
               <span>{module.stats.recipes} recipes</span>
             </div>
           )}
-          {module.stats.sessions && (
+          {typeof module.stats.sessions === 'number' && (
             <div className="flex items-center gap-1">
               <Users className="h-3 w-3" />
               <span>{module.stats.sessions} sessions</span>
@@ -159,14 +188,15 @@ function ModuleCard({ module }: { module: ModuleCategory }) {
       </div>
 
       {/* Hover Effect */}
-      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-300 pointer-events-none" />
+      <div className="absolute inset-0 bg-white/0 group-hover:bg-white/10 transition-colors duration-300 pointer-events-none" />
     </div>
   );
 }
 
 export function ModulesPage() {
   const [exerciseCount, setExerciseCount] = useState<number | null>(null);
-  const [moduleCategories, setModuleCategories] = useState<ModuleCategory[]>(baseModuleCategories);
+  const [moduleCategories, setModuleCategories] =
+    useState<ModuleCategory[]>(baseModuleCategories);
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
@@ -185,62 +215,75 @@ export function ModulesPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Hero Section */}
-        {/* Hero Section - edge-to-edge */}
-        <div
-          className="relative w-screen left-1/2 right-1/2 -mx-[50vw] mb-0"
-          style={{
-            position: 'relative',
-            left: '50%',
-            right: '50%',
-            marginLeft: '-50vw',
-            marginRight: '-50vw',
-          }}
-        >
-          <div className="relative w-full h-[320px] md:h-[420px] lg:h-[480px] overflow-hidden">
-            <img
-              src="/images/training_modules.webp"
-              alt="Training Modules Hero"
-              className="absolute inset-0 w-full h-full object-cover object-center"
-              draggable="false"
-            />
-            {/* Brighter Overlay */}
-            <div className="absolute inset-0 bg-black/30 dark:bg-black/50 transition-colors duration-300" />
-            {/* Centered Text */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-4">
-              <h1 className="text-4xl md:text-5xl font-bold text-white drop-shadow-lg transition-colors duration-300">
-                Training Modules
-              </h1>
-              <p className="mt-4 text-lg md:text-2xl font-medium text-gray-200 dark:text-gray-300 max-w-2xl mx-auto drop-shadow">
-                Discover comprehensive training programs designed to transform your fitness journey.{' '}
-                <br className="hidden md:block" />
-                From strength building to mindful wellness, find the perfect module for your goals.
-              </p>
-            </div>
+  <div className="min-h-screen bg-black">
+      {/* Hero Section - edge-to-edge, now at very top */}
+      <div
+        className="relative w-screen left-1/2 right-1/2 -mx-[50vw]"
+        style={{
+          position: 'relative',
+          left: '50%',
+          right: '50%',
+          marginLeft: '-50vw',
+          marginRight: '-50vw',
+        }}
+      >
+        <div className="relative w-full h-[320px] md:h-[420px] lg:h-[480px] overflow-hidden">
+          <img
+            src="/images/training_modules.webp"
+            alt="Training Modules Hero"
+            className="absolute inset-0 w-full h-full object-cover object-center scale-105 brightness-95"
+            draggable="false"
+          />
+          {/* Slight dark overlay for readability */}
+          <div className="absolute inset-0 bg-black/35 dark:bg-black/50 transition-colors duration-300" />
+          {/* Centered Text */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-4">
+            <h1 className="text-4xl md:text-5xl font-bold text-white drop-shadow-lg transition-colors duration-300">
+              Training Modules
+            </h1>
+            <p className="mt-4 text-lg md:text-2xl font-medium text-gray-200 dark:text-gray-300 max-w-2xl mx-auto drop-shadow">
+              Discover comprehensive training programs designed to transform your fitness
+              journey.{' '}
+              <br className="hidden md:block" />
+              From strength building to mindful wellness, find the perfect module for your
+              goals.
+            </p>
           </div>
         </div>
+      </div>
+      <div className="max-w-7xl mx-auto px-4 py-8">
 
         {/* Module Stats Overview - below hero, not overlaid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-2xl mx-auto mt-8 mb-12">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
-            <div className="text-2xl font-bold text-orange-600">
-              {exerciseCount !== null ? `${exerciseCount}` : '...'}
+          <div className="bg-[#1b1d21]/95 rounded-2xl p-5 shadow-[0_12px_32px_rgba(0,0,0,0.45)] flex items-center gap-3 border border-orange-500/80">
+            <Dumbbell className="h-7 w-7 text-orange-600" />
+            <div>
+              <div className="text-2xl font-bold text-orange-600">
+                {exerciseCount !== null ? `${exerciseCount}` : '...'}
+              </div>
+              <div className="text-sm text-gray-300">Exercises</div>
             </div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">Exercises</div>
           </div>
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
-            <div className="text-2xl font-bold text-green-600">200+</div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">Recipes</div>
+          <div className="bg-[#1b1d21]/95 rounded-2xl p-5 shadow-[0_12px_32px_rgba(0,0,0,0.45)] flex items-center gap-3 border border-green-500/80">
+            <Utensils className="h-7 w-7 text-green-600" />
+            <div>
+              <div className="text-2xl font-bold text-green-600">200+</div>
+              <div className="text-sm text-gray-300">Recipes</div>
+            </div>
           </div>
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
-            <div className="text-2xl font-bold text-blue-600">80+</div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">Recovery Sessions</div>
+          <div className="bg-[#1b1d21]/95 rounded-2xl p-5 shadow-[0_12px_32px_rgba(0,0,0,0.45)] flex items-center gap-3 border border-blue-500/80">
+            <Heart className="h-7 w-7 text-blue-600" />
+            <div>
+              <div className="text-2xl font-bold text-blue-600">80+</div>
+              <div className="text-sm text-gray-300">Recovery Sessions</div>
+            </div>
           </div>
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
-            <div className="text-2xl font-bold text-purple-600">60+</div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">Zen Sessions</div>
+          <div className="bg-[#1b1d21]/95 rounded-2xl p-5 shadow-[0_12px_32px_rgba(0,0,0,0.45)] flex items-center gap-3 border border-purple-500/80">
+            <Brain className="h-7 w-7 text-purple-600" />
+            <div>
+              <div className="text-2xl font-bold text-purple-600">60+</div>
+              <div className="text-sm text-gray-300">Zen Sessions</div>
+            </div>
           </div>
         </div>
 
@@ -279,3 +322,4 @@ export function ModulesPage() {
     </div>
   );
 }
+

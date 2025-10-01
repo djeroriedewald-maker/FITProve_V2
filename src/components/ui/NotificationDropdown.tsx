@@ -43,10 +43,10 @@ const NotificationItem: React.FC<{
   return (
     <div
       onClick={handleClick}
-      className={`p-3 hover:bg-gray-50 cursor-pointer border-l-4 transition-colors ${
+      className={`p-3 hover:bg-gradient-to-r hover:from-[#B400FF]/10 hover:to-black/10 cursor-pointer border-l-4 transition-colors ${
         notification.read 
           ? 'border-transparent bg-white' 
-          : 'border-blue-500 bg-blue-50'
+          : 'border-[color:transparent] bg-gradient-to-r from-[#B400FF]/10 to-black/10'
       }`}
     >
       <div className="flex items-start space-x-3">
@@ -72,7 +72,7 @@ const NotificationItem: React.FC<{
               {notification.title}
             </h4>
             {!notification.read && (
-              <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></div>
+              <div className="w-2 h-2 bg-gradient-to-r from-[#B400FF] to-black rounded-full flex-shrink-0"></div>
             )}
           </div>
           
@@ -152,11 +152,11 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
     <div className={`relative ${className}`} ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+  className="relative p-2 bg-gradient-to-r from-[#B400FF] to-black bg-clip-text text-transparent hover:bg-gradient-to-r hover:from-[#B400FF]/10 hover:to-black/10 rounded-lg transition-colors"
       >
-        <Bell className="w-5 h-5" />
+  <Bell className="w-5 h-5" />
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
+          <span className="absolute -top-1 -right-1 bg-gradient-to-r from-[#B400FF] to-black text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}
@@ -180,21 +180,21 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
               exit={{ opacity: 0, scale: 0.95, y: -40 }}
               className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-24"
             >
-              <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-md flex flex-col max-h-[80vh]">
-                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Notificaties</h3>
+              <div className="bg-white dark:bg-black rounded-xl shadow-xl w-full max-w-md flex flex-col max-h-[80vh] border border-[color:transparent]">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-[color:transparent]">
+                  <h3 className="text-lg font-semibold bg-gradient-to-r from-[#B400FF] to-black bg-clip-text text-transparent">Notificaties</h3>
                   <div className="flex items-center space-x-2">
                     {unreadCount > 0 && (
                       <button
                         onClick={handleMarkAllAsRead}
-                        className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                        className="text-sm bg-gradient-to-r from-[#B400FF] to-black bg-clip-text text-transparent font-medium"
                       >
                         Alles markeren als gelezen
                       </button>
                     )}
                     <button
                       onClick={() => setIsOpen(false)}
-                      className="text-gray-400 hover:text-gray-600"
+                      className="bg-gradient-to-r from-[#B400FF] to-black bg-clip-text text-transparent"
                     >
                       <X className="w-5 h-5" />
                     </button>
@@ -203,16 +203,16 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
                 <div className="flex-1 overflow-y-auto px-2 py-2">
                   {loading ? (
                     <div className="p-6 text-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
-                      <p className="text-gray-500 mt-2">Notificaties laden...</p>
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#B400FF] mx-auto"></div>
+                      <p className="bg-gradient-to-r from-[#B400FF] to-black bg-clip-text text-transparent mt-2">Notificaties laden...</p>
                     </div>
                   ) : notifications.length === 0 ? (
-                    <div className="p-6 text-center text-gray-500">
-                      <Bell className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                    <div className="p-6 text-center bg-gradient-to-r from-[#B400FF] to-black bg-clip-text text-transparent">
+                      <Bell className="w-8 h-8 mx-auto mb-2 opacity-50" style={{background: 'linear-gradient(to right, #B400FF, black)', WebkitBackgroundClip: 'text', color: 'transparent'}} />
                       <p>Geen notificaties</p>
                     </div>
                   ) : (
-                    <div className="divide-y divide-gray-100">
+                    <div className="divide-y divide-[color:transparent]">
                       {notifications.map((notification) => (
                         <NotificationItem
                           key={notification.id}
@@ -224,8 +224,8 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
                   )}
                 </div>
                 {notifications.length > 0 && (
-                  <div className="p-3 border-t border-gray-200 text-center">
-                    <button className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                  <div className="p-3 border-t border-[color:transparent] text-center">
+                    <button className="text-sm bg-gradient-to-r from-[#B400FF] to-black bg-clip-text text-transparent font-medium">
                       Alle notificaties bekijken
                     </button>
                   </div>

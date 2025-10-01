@@ -3,7 +3,7 @@ import WorkoutModuleHero from './WorkoutModuleHero';
 
 const WorkoutLibraryPage: React.FC = () => {
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-black dark:bg-black">
       <WorkoutModuleHero />
       {/* Add more Workout Module content here */}
     </div>
@@ -11,3 +11,4 @@ const WorkoutLibraryPage: React.FC = () => {
 };
 
 export default WorkoutLibraryPage;
+

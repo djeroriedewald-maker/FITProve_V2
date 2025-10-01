@@ -16,6 +16,7 @@ interface ExerciseFilters {
   equipment: string[];
   difficulty: string[];
   category: string[];
+  environment: string[];
 }
 
 const MUSCLE_GROUPS = [
@@ -45,6 +46,7 @@ export function ExerciseSelector({
     equipment: [],
     difficulty: [],
     category: [],
+    environment: [],
   });
   const [showFilters, setShowFilters] = useState(false);
   const [page, setPage] = useState(1);
@@ -81,14 +83,29 @@ export function ExerciseSelector({
         page: pageNum,
         pageSize,
       };
-      if (filterObj.muscleGroups.length) apiFilters.muscle_groups = filterObj.muscleGroups;
-      if (filterObj.equipment.length) apiFilters.equipment = filterObj.equipment;
-      if (filterObj.difficulty.length) apiFilters.difficulty = filterObj.difficulty;
-      if (filterObj.category.length) apiFilters.category = filterObj.category;
-      if (filterObj.searchQuery) apiFilters.search_query = filterObj.searchQuery;
+  if (filterObj.muscleGroups.length) apiFilters.muscle_groups = filterObj.muscleGroups;
+  if (filterObj.equipment.length) apiFilters.equipment = filterObj.equipment;
+  if (filterObj.difficulty.length) apiFilters.difficulty = filterObj.difficulty;
+  if (filterObj.category.length) apiFilters.category = filterObj.category;
+  if (filterObj.environment.length) apiFilters.environment = filterObj.environment;
+  if (filterObj.searchQuery) apiFilters.search_query = filterObj.searchQuery;
       const exerciseData = await ExerciseService.getExercises(apiFilters);
-      setExercises(exerciseData.exercises);
-      setTotalCount(exerciseData.total_count || 0);
+      let filteredExercises = exerciseData.exercises;
+      // Ultra-fix: If only 'Event' is selected, filter client-side for environment 'Event' (case-insensitive)
+      if (
+        filterObj.environment.length === 1 &&
+        filterObj.environment[0].toLowerCase() === 'event'
+      ) {
+        filteredExercises = filteredExercises.filter(
+          (ex) => Array.isArray(ex.environment) && ex.environment.some((env) => typeof env === 'string' && env.toLowerCase() === 'event')
+        );
+        // If more than 8, limit to 8 (Hyrox event exercises)
+        if (filteredExercises.length > 8) {
+          filteredExercises = filteredExercises.slice(0, 8);
+        }
+      }
+      setExercises(filteredExercises);
+      setTotalCount(filteredExercises.length);
     } catch (error) {
       console.error('Error loading exercises:', error);
       setExercises([]);
@@ -107,7 +124,7 @@ export function ExerciseSelector({
   };
 
   const toggleFilter = (
-    filterType: 'muscleGroups' | 'equipment' | 'difficulty' | 'category',
+  filterType: 'muscleGroups' | 'equipment' | 'difficulty' | 'category' | 'environment',
     value: string
   ) => {
     setFilters((prev) => ({
@@ -126,6 +143,7 @@ export function ExerciseSelector({
       equipment: [],
       difficulty: [],
       category: [],
+      environment: [],
     });
     setPage(1);
   };
@@ -133,10 +151,9 @@ export function ExerciseSelector({
   const isExerciseSelected = (exerciseId: string) => selectedExercises.includes(exerciseId);
 
   if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-xl max-w-6xl w-full mx-4 max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto h-screen">
+      <div className="bg-white dark:bg-gray-800 rounded-xl w-full h-screen max-w-none max-h-screen flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Select Exercises</h2>
@@ -191,6 +208,25 @@ export function ExerciseSelector({
           {/* Filter Options */}
           {showFilters && (
             <div className="mt-4 space-y-4">
+              {/* Environment */}
+              <div>
+                <h4 className="font-medium text-gray-900 dark:text-white mb-2">Environment</h4>
+                <div className="flex flex-wrap gap-2">
+                  {['Gym', 'Indoor', 'Outdoor', 'Event'].map((env) => (
+                    <button
+                      key={env}
+                      onClick={() => toggleFilter('environment', env)}
+                      className={`px-3 py-1 rounded-full text-sm transition-colors ${
+                        filters.environment.includes(env)
+                          ? 'bg-orange-600 text-white'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                      }`}
+                    >
+                      {env}
+                    </button>
+                  ))}
+                </div>
+              </div>
               {/* Muscle Groups */}
               <div>
                 <h4 className="font-medium text-gray-900 dark:text-white mb-2">Muscle Groups</h4>
@@ -276,7 +312,7 @@ export function ExerciseSelector({
         </div>
 
         {/* Exercise Results */}
-        <div className="flex-1 overflow-y-auto p-6" data-exercise-list>
+  <div className="flex-1 p-6" data-exercise-list>
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
@@ -385,10 +421,10 @@ function ExerciseCard({ exercise, isSelected, onSelect }: ExerciseCardProps) {
   return (
     <div className="exercise-card-outer">
       <div
-        className={`exercise-card-inner bg-white/30 dark:bg-gray-800/40 rounded-xl border-2 transition-all duration-200 hover:shadow-lg backdrop-blur-md ${
+        className={`exercise-card-inner bg-gray-100 dark:bg-gray-800 rounded-xl border transition-all duration-200 hover:shadow-lg ${
           isSelected
-            ? 'border-orange-500 bg-orange-50/40 dark:bg-orange-900/30'
-            : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+            ? 'border-orange-500 bg-orange-100 dark:bg-orange-900/30'
+            : 'border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600'
         }`}
         style={{ position: 'relative', overflow: 'hidden' }}
       >
@@ -457,13 +493,12 @@ function ExerciseCard({ exercise, isSelected, onSelect }: ExerciseCardProps) {
                   : 'bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-500'
               }`}
             >
-              {isSelected ? 'Selected' : 'Add'}
+              {isSelected ? 'Added' : 'Add to Workout'}
             </button>
           </div>
         </div>
       </div>
-      {/* Animated Glow Border */}
-      <div className="exercise-card-glow-border" />
+  {/* Removed neon glow border */}
     </div>
   );
 }

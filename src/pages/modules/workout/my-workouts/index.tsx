@@ -73,7 +73,7 @@ const MyWorkoutsPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-black dark:bg-black">
       <div className="max-w-3xl mx-auto px-2 sm:px-4 py-8 w-full">
         {/* Undo Snackbar */}
         {undoData && (
@@ -177,3 +177,4 @@ const MyWorkoutsPage: React.FC = () => {
 };
 
 export default MyWorkoutsPage;
+

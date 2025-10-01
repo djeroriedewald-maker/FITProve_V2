@@ -2,14 +2,52 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --toast-bg: #ffffff;
-  --toast-color: #1f2937;
-  --toast-border: #e5e7eb;
+/* Light mode (default) */
+body {
+  background-color: #000000;
+  color: #000;
+  transition: background-color 0.3s ease, color 0.3s ease, opacity 0.3s ease, transform 0.3s ease;
 }
 
-.dark {
-  --toast-bg: #1f2937;
-  --toast-color: #ffffff;
-  --toast-border: #374151;
+/* Dark mode (manual class toggle) */
+.dark body {
+  background-color: #000000;
+  color: #fff;
+  transition: background-color 0.3s ease, color 0.3s ease, opacity 0.3s ease, transform 0.3s ease;
+}
+
+/* Automatic dark mode fallback for users with dark system preference */
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: #000000;
+    color: #fff;
+    transition: background-color 0.3s ease, color 0.3s ease, opacity 0.3s ease, transform 0.3s ease;
+  }
+}
+
+/* Smooth transitions for other theme-sensitive elements */
+button,
+.card,
+.navbar,
+.footer,
+input,
+textarea,
+select {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease,
+    box-shadow 0.3s ease, opacity 0.3s ease, transform 0.3s ease;
+}
+
+/* Subtle fade/scale animation for page when switching themes */
+html {
+  transition: background-color 0.3s ease;
+}
+
+body {
+  opacity: 1;
+  transform: scale(1);
+}
+
+html.theme-transition body {
+  opacity: 0;
+  transform: scale(0.98);
 }

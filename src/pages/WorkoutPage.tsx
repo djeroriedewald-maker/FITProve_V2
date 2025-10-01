@@ -1,14 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import {
-  Library,
-  Clock,
-  Flame,
-  BookOpen,
-  Wrench,
-  ArrowUp,
-  ArrowDown,
-} from 'lucide-react';
+import { Library, Clock, Flame, BookOpen, Wrench, ArrowUp, ArrowDown } from 'lucide-react';
 import { BackButton } from '../components/ui/BackButton';
 import { supabase } from '../lib/supabase';
 
@@ -25,14 +17,14 @@ interface WorkoutCategory {
     label: string;
   };
   comingSoon?: boolean;
+  link: string;
 }
 
 const defaultWorkoutCategories: WorkoutCategory[] = [
   {
     id: 'workout-generator',
     title: 'Workout Generator',
-    description:
-      'Let us build a workout for you! Answer a few quick questions and get a personalized plan with our smart onboarding flow.',
+    description: 'Laat ons een workout voor je bouwen! Beantwoord een paar vragen en krijg een persoonlijk plan.',
     icon: Flame,
     color: 'text-orange-500',
     gradient: 'from-orange-400/20 to-red-400/20',
@@ -49,14 +41,14 @@ const defaultWorkoutCategories: WorkoutCategory[] = [
       label: 'Generated Workouts',
     },
     comingSoon: false,
+    link: '/workout-generator',
   },
   {
     id: 'community-workouts',
     title: 'Community Workouts',
-    description:
-      'Browse and join workouts created by other users. Only public workouts are shown, including the creator name.',
+    description: 'Browse and join workouts created by other users. Only public workouts are shown, including the creator name.',
     icon: Library,
-    color: 'text-orange-600',
+    color: 'text-yellow-500',
     gradient: 'from-orange-500/20 to-yellow-500/20',
     features: [
       'User-created routines',
@@ -69,14 +61,14 @@ const defaultWorkoutCategories: WorkoutCategory[] = [
       label: 'Community Workouts',
     },
     comingSoon: false,
+    link: '/modules/workout/community',
   },
   {
     id: 'exercise-library',
     title: 'Exercise Library',
-    description:
-      'Comprehensive collection of exercises with detailed instructions, proper form guidance, and muscle targeting information.',
+    description: 'Comprehensive collection of exercises with detailed instructions, proper form guidance, and muscle targeting information.',
     icon: Library,
-    color: 'text-blue-600',
+    color: 'text-blue-500',
     gradient: 'from-blue-500/20 to-cyan-500/20',
     features: [
       'Detailed exercise instructions',
@@ -90,14 +82,14 @@ const defaultWorkoutCategories: WorkoutCategory[] = [
       count: 0,
       label: 'Exercises',
     },
+    link: '/modules/workout/exercise-library',
   },
   {
     id: 'workout-library',
     title: 'Workout Library',
-    description:
-      'Pre-designed complete workout routines created by fitness experts for different goals and fitness levels.',
+    description: 'Pre-designed complete workout routines created by fitness experts for different goals and fitness levels.',
     icon: BookOpen,
-    color: 'text-green-600',
+    color: 'text-green-500',
     gradient: 'from-green-500/20 to-emerald-500/20',
     features: [
       'Expert-designed routines',
@@ -111,14 +103,14 @@ const defaultWorkoutCategories: WorkoutCategory[] = [
       count: 0,
       label: 'Workouts',
     },
+    link: '/modules/workout/workout-library',
   },
   {
     id: 'workout-creator',
     title: 'Workout Creator',
-    description:
-      'Build custom workout routines by selecting exercises from our library. Perfect for creating personalized training sessions.',
+    description: 'Build custom workout routines by selecting exercises from our library. Perfect for creating personalized training sessions.',
     icon: Wrench,
-    color: 'text-purple-600',
+    color: 'text-purple-500',
     gradient: 'from-purple-500/20 to-indigo-500/20',
     features: [
       'Drag & drop interface',
@@ -133,20 +125,103 @@ const defaultWorkoutCategories: WorkoutCategory[] = [
       label: 'Custom Workouts',
     },
     comingSoon: false,
+    link: '/modules/workout/workout-creator',
   },
 ];
 
 interface WorkoutCategoryCardProps {
   category: WorkoutCategory;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  canMoveUp?: boolean;
+  canMoveDown?: boolean;
 }
 
-function WorkoutCategoryCard({ category }: WorkoutCategoryCardProps) {
+function WorkoutCategoryCard({
+  category,
+  onMoveUp,
+  onMoveDown,
+  canMoveUp,
+  canMoveDown,
+}: WorkoutCategoryCardProps) {
   const Icon = category.icon;
+  const isGenerator = category.id === 'workout-generator';
+  const isCommunity = category.id === 'community-workouts';
+  const isExerciseLibrary = category.id === 'exercise-library';
+  const isWorkoutLibrary = category.id === 'workout-library';
+  const isCreator = category.id === 'workout-creator';
+
+  // Neon kleuren per kaart
+  const neon = isGenerator
+    ? '#FF9100'
+    : isCreator
+    ? '#B620FF'
+    : isCommunity
+    ? '#FFD600'
+    : isExerciseLibrary
+    ? '#00E0FF'
+    : isWorkoutLibrary
+    ? '#00FF90'
+    : '#fff';
+
+  // Achtergrondafbeelding per kaart
+  const bgImage =
+    isGenerator
+      ? '/images/workout_generator.webp'
+      : isCreator
+      ? '/images/workout_creator1.webp'
+      : isCommunity
+      ? '/images/community_workout1.webp'
+      : isExerciseLibrary
+      ? '/images/exercise_library1.webp'
+      : isWorkoutLibrary
+      ? '/images/workout_library1.webp'
+      : undefined;
 
   return (
     <div className="group relative overflow-hidden rounded-2xl bg-white dark:bg-gray-800 shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 h-full">
-      {/* Background Pattern */}
+      {/* Achtergrondafbeelding + overlay */}
+      {bgImage && (
+        <>
+          <img
+            src={bgImage}
+            alt={`${category.title} Background`}
+            className="absolute inset-0 w-full h-full object-cover opacity-60 z-0"
+            style={{ pointerEvents: 'none' }}
+          />
+          <div className="absolute inset-0 bg-black/40 z-10 pointer-events-none" />
+        </>
+      )}
       <div className={`absolute inset-0 bg-gradient-to-br ${category.gradient} opacity-50`} />
+
+      {/* Re-order buttons rechtsonder */}
+      {(onMoveUp || onMoveDown) && (
+        <div className="absolute bottom-2 right-2 z-30 flex flex-col items-center gap-2">
+          <span className="text-xs font-semibold text-white bg-black/60 rounded px-2 py-0.5 mb-1 select-none" style={{ textShadow: '0 2px 8px #000' }}>Re-order</span>
+          <button
+            aria-label="Move up"
+            className="bg-black/70 hover:bg-black/90 text-white rounded-full p-3 shadow"
+            onClick={e => { e.stopPropagation(); e.preventDefault(); onMoveUp && onMoveUp(); }}
+            disabled={!canMoveUp}
+            style={{ opacity: canMoveUp ? 1 : 0.3 }}
+            tabIndex={-1}
+            type="button"
+          >
+            <ArrowUp className="w-7 h-7" />
+          </button>
+          <button
+            aria-label="Move down"
+            className="bg-black/70 hover:bg-black/90 text-white rounded-full p-3 shadow"
+            onClick={e => { e.stopPropagation(); e.preventDefault(); onMoveDown && onMoveDown(); }}
+            disabled={!canMoveDown}
+            style={{ opacity: canMoveDown ? 1 : 0.3 }}
+            tabIndex={-1}
+            type="button"
+          >
+            <ArrowDown className="w-7 h-7" />
+          </button>
+        </div>
+      )}
 
       {/* Coming Soon Badge */}
       {category.comingSoon && (
@@ -156,21 +231,58 @@ function WorkoutCategoryCard({ category }: WorkoutCategoryCardProps) {
       )}
 
       {/* Content */}
-      <div className="relative p-6">
+      <div
+        className="relative p-6 z-20"
+        style={{
+          color: '#fff',
+          textShadow: '0 2px 8px #000, 0 0 2px #000',
+          fontWeight: 700,
+        }}
+      >
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
-          <div className={`p-3 bg-white/90 dark:bg-gray-800/90 rounded-xl backdrop-blur-sm`}>
-            <Icon className={`h-8 w-8 ${category.color}`} />
+          <div className="p-3 rounded-xl backdrop-blur-sm bg-black/70">
+            <Icon
+              className="h-8 w-8"
+              style={{
+                color: neon,
+                filter: `drop-shadow(0 0 8px ${neon})`,
+              }}
+            />
           </div>
           <div className="text-right">
-            <div className={`text-2xl font-bold ${category.color}`}>{category.stats.count}+</div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">{category.stats.label}</div>
+            <div
+              style={{
+                color: neon,
+                textShadow: `0 0 8px ${neon}, 0 2px 8px #000`,
+              }}
+              className="text-2xl font-bold"
+            >
+              {category.stats.count}+
+            </div>
+            <div className="text-sm" style={{ color: '#fff' }}>
+              {category.stats.label}
+            </div>
           </div>
         </div>
 
         {/* Title and Description */}
-        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">{category.title}</h3>
-        <p className="text-gray-600 dark:text-gray-300 text-sm mb-4 line-clamp-3">
+        <h3
+          className="text-xl font-bold mb-3"
+          style={{
+            color: '#fff',
+            textShadow: '0 2px 8px #000, 0 0 2px #000',
+          }}
+        >
+          {category.title}
+        </h3>
+        <p
+          className="text-sm mb-4 line-clamp-3"
+          style={{
+            color: '#fff',
+            textShadow: '0 2px 8px #000',
+          }}
+        >
           {category.description}
         </p>
 
@@ -179,215 +291,176 @@ function WorkoutCategoryCard({ category }: WorkoutCategoryCardProps) {
           {category.features.slice(0, 3).map((feature, index) => (
             <div
               key={index}
-              className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400"
+              className="flex items-center gap-2 text-sm"
+              style={{
+                color: '#fff',
+                textShadow: '0 2px 8px #000',
+              }}
             >
               <div
-                className={`w-1.5 h-1.5 rounded-full bg-gradient-to-r ${category.gradient.replace('from-', 'from-').replace('to-', 'to-').replace('/20', '')}`}
+                className="w-1.5 h-1.5 rounded-full"
+                style={{
+                  background: `linear-gradient(90deg, ${neon} 0%, #fff 100%)`,
+                }}
               />
               <span>{feature}</span>
             </div>
           ))}
           {category.features.length > 3 && (
-            <div className="text-xs text-gray-500 dark:text-gray-500 ml-3">
+            <div
+              className="text-xs ml-3"
+              style={{
+                color: '#fff',
+                textShadow: '0 2px 8px #000',
+              }}
+            >
               +{category.features.length - 3} more features
             </div>
           )}
         </div>
 
-        {/* Action Button */}
+        {/* Action Button / Info */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-            <Clock className="h-4 w-4" />
+          <div
+            className="flex items-center gap-2 text-sm"
+            style={{
+              color: '#fff',
+              textShadow: '0 2px 8px #000',
+            }}
+          >
+            <Clock
+              className="h-4 w-4"
+              style={{
+                color: neon,
+                filter: `drop-shadow(0 0 8px ${neon})`,
+              }}
+            />
             <span>5-60 min</span>
           </div>
         </div>
       </div>
-
       {/* Hover Effect */}
       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-300 pointer-events-none" />
     </div>
   );
 }
 
-const STORAGE_KEY = 'workoutCategoryOrder';
-
 export function WorkoutPage() {
-  // Restore order from localStorage, fallback to default
-  const [workoutCategories, setWorkoutCategories] = React.useState<WorkoutCategory[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try {
-        const ids: string[] = JSON.parse(saved);
-        // Map saved order to actual objects, fallback to default if missing
-        const idToCat = Object.fromEntries(defaultWorkoutCategories.map(c => [c.id, c]));
-        return ids.map(id => idToCat[id]).filter(Boolean).concat(
-          defaultWorkoutCategories.filter(c => !ids.includes(c.id))
-        );
-      } catch {
-        return defaultWorkoutCategories;
+  const STORAGE_KEY = 'fitprove_card_order_v1';
+  const [categories, setCategories] = React.useState<WorkoutCategory[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const ids = JSON.parse(saved);
+        if (Array.isArray(ids)) {
+          const map = Object.fromEntries(defaultWorkoutCategories.map(c => [c.id, c]));
+          return ids.map((id: string) => map[id]).filter(Boolean).concat(
+            defaultWorkoutCategories.filter(c => !ids.includes(c.id))
+          );
+        }
       }
-    }
+    } catch {}
     return defaultWorkoutCategories;
   });
 
-  // Save order to localStorage on change
+  // Live statistieken state
+  const [stats, setStats] = React.useState({
+    exercises: 0,
+    workouts: 0,
+    customWorkouts: 0,
+    communityWorkouts: 0,
+    generatedWorkouts: 0,
+  });
+
   React.useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(workoutCategories.map(c => c.id)));
-  }, [workoutCategories]);
-
-  // Move up/down logic
-  const moveCategory = (from: number, to: number) => {
-    if (to < 0 || to >= workoutCategories.length) return;
-    const updated = [...workoutCategories];
-    const [moved] = updated.splice(from, 1);
-    updated.splice(to, 0, moved);
-    setWorkoutCategories(updated);
-  };
-
-  const handleMoveUp = (index: number) => moveCategory(index, index - 1);
-  const handleMoveDown = (index: number) => moveCategory(index, index + 1);
-
-  // Fetch stats
-  React.useEffect(() => {
-    async function fetchCounts() {
-      const { count: communityCount } = await supabase
-        .from('custom_workouts')
-        .select('*', { count: 'exact', head: true })
-        .eq('is_public', true);
-
-      const { count: exerciseCount } = await supabase
-        .from('exercises')
-        .select('*', { count: 'exact', head: true });
-
-      const { count: workoutLibCount } = await supabase
-        .from('workouts')
-        .select('*', { count: 'exact', head: true });
-
-      const { count: customCount } = await supabase
-        .from('custom_workouts')
-        .select('*', { count: 'exact', head: true });
-
-      setWorkoutCategories(prev =>
-        prev.map(cat => {
-          if (cat.id === 'community-workouts')
-            return { ...cat, stats: { ...cat.stats, count: communityCount ?? 0 } };
-          if (cat.id === 'exercise-library')
-            return { ...cat, stats: { ...cat.stats, count: exerciseCount ?? 0 } };
-          if (cat.id === 'workout-library')
-            return { ...cat, stats: { ...cat.stats, count: workoutLibCount ?? 0 } };
-          if (cat.id === 'workout-creator')
-            return { ...cat, stats: { ...cat.stats, count: customCount ?? 0 } };
-          return cat;
-        })
-      );
+    async function fetchStats() {
+      const [{ count: exercises }, { count: workouts }, { count: customWorkouts }] = await Promise.all([
+        supabase.from('exercises').select('id', { count: 'exact', head: true }),
+        supabase.from('workouts').select('id', { count: 'exact', head: true }),
+        supabase.from('custom_workouts').select('id', { count: 'exact', head: true }),
+      ]);
+      setStats({
+        exercises: exercises ?? 0,
+        workouts: workouts ?? 0,
+        customWorkouts: customWorkouts ?? 0,
+        communityWorkouts: customWorkouts ?? 0, // Pas aan als je een aparte tabel hebt
+        generatedWorkouts: workouts ?? 0, // Pas aan als je een aparte tabel hebt
+      });
     }
-    fetchCounts();
+    fetchStats();
   }, []);
 
+  React.useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(categories.map(c => c.id)));
+  }, [categories]);
+
+  const moveCard = (from: number, to: number) => {
+    if (to < 0 || to >= categories.length) return;
+    const updated = [...categories];
+    const [removed] = updated.splice(from, 1);
+    updated.splice(to, 0, removed);
+    setCategories(updated);
+  };
+
+  const getStatCount = (category: WorkoutCategory) => {
+    switch (category.id) {
+      case 'exercise-library':
+        return stats.exercises;
+      case 'workout-library':
+        return stats.workouts;
+      case 'workout-creator':
+        return stats.customWorkouts;
+      case 'community-workouts':
+        return stats.communityWorkouts;
+      case 'workout-generator':
+        return stats.generatedWorkouts;
+      default:
+        return 0;
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Back Button (consistent style) */}
-      <div className="mb-4 mt-4 ml-4">
-        <BackButton text="Back" to="/modules" />
+    <div className="min-h-screen bg-black dark:bg-black pb-8">
+      <div className="relative w-full h-48 sm:h-64 md:h-80 lg:h-96 flex items-center justify-center mb-8">
+        <img
+          src="/images/workout_1.webp"
+          alt="Workouts Hero"
+          className="absolute inset-0 w-full h-full object-cover object-center"
+          style={{ zIndex: 0 }}
+        />
+        <div className="absolute inset-0 bg-black/30" style={{ zIndex: 1 }} />
+        <h1 className="relative z-10 text-4xl sm:text-5xl md:text-6xl font-extrabold text-white text-center m-0 p-0" style={{ textShadow: 'none' }}>Workouts</h1>
       </div>
-
-      {/* Hero Section */}
-      <div className="relative h-80 overflow-hidden">
-        <img src="/images/workout_1.webp" alt="Workout" className="w-full h-full object-cover" />
-        {/* Brighter overlay */}
-        <div className="absolute inset-0 bg-black/40" />
-        {/* Centered Hero Content */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <h1 className="text-4xl md:text-5xl font-bold text-white text-center mb-4 drop-shadow-lg">
-            Workout Zone
-          </h1>
-        </div>
-      </div>
-
-      {/* Description below hero image */}
-      <div className="max-w-7xl mx-auto px-4 mt-8">
-        <p className="text-xl text-gray-800 dark:text-gray-100 text-center max-w-2xl mb-6 mx-auto">
-          Transform your fitness journey with our comprehensive workout system.
-          <br />
-          Individual exercises to complete routines and custom workout creation.
+      <div className="max-w-2xl mx-auto px-4 mb-8">
+        <p className="text-center text-base sm:text-lg text-gray-800 dark:text-gray-200">
+          Ontdek, genereer of bouw je eigen workouts. Sleep de kaarten om je favoriete modules bovenaan te zetten. Klik op een kaart om direct te starten!
         </p>
       </div>
-
-      <div className="max-w-7xl mx-auto px-4 py-12">
-        {/* Quick Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 text-center shadow-sm">
-            <div className="text-2xl font-bold text-orange-600 mb-1">
-              {workoutCategories.find((c) => c.id === 'exercise-library')?.stats.count ?? '...'}
+      <div className="max-w-5xl mx-auto px-4">
+        <BackButton />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+          {categories.map((category, idx) => (
+            <div key={category.id} className="relative h-full">
+              <Link to={category.link} className="h-full" style={{ textDecoration: 'none' }}>
+                <WorkoutCategoryCard
+                  category={{
+                    ...category,
+                    stats: {
+                      ...category.stats,
+                      count: getStatCount(category),
+                    },
+                  }}
+                  onMoveUp={() => moveCard(idx, idx - 1)}
+                  onMoveDown={() => moveCard(idx, idx + 1)}
+                  canMoveUp={idx > 0}
+                  canMoveDown={idx < categories.length - 1}
+                />
+              </Link>
             </div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">Exercises</div>
-          </div>
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 text-center shadow-sm">
-            <div className="text-2xl font-bold text-green-600 mb-1">
-              {workoutCategories.find((c) => c.id === 'workout-library')?.stats.count ?? '...'}
-            </div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">Workouts</div>
-          </div>
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 text-center shadow-sm">
-            <div className="text-2xl font-bold text-blue-600 mb-1">{workoutCategories.length}</div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">Categories</div>
-          </div>
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 text-center shadow-sm">
-            <div className="text-2xl font-bold text-purple-600 mb-1">
-              {workoutCategories.find((c) => c.id === 'workout-creator')?.stats.count ?? '...'}
-            </div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">Created workouts</div>
-          </div>
-        </div>
-
-        {/* Categories Grid with Up/Down Arrows */}
-        <div className="mb-12">
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-8 text-center">
-            Choose Your Workout Experience
-          </h2>
-          <div className="flex flex-wrap gap-8">
-            {workoutCategories.map((category, index) => (
-              <div key={category.id} className="relative w-full md:w-auto">
-                {/* Up/Down Arrows - absolutely positioned, bottom right, not inside Link */}
-                <div className="absolute bottom-2 right-2 z-20 flex flex-col items-center gap-2">
-                  <span className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1 select-none">Reorder</span>
-                  <button
-                    onClick={e => { e.preventDefault(); e.stopPropagation(); handleMoveUp(index); }}
-                    disabled={index === 0}
-                    className={`bg-gray-200 dark:bg-gray-700 rounded-full p-3 shadow transition-all duration-150 ${index === 0 ? 'opacity-40 cursor-not-allowed' : 'hover:bg-gray-300 dark:hover:bg-gray-600'} active:scale-95`}
-                    aria-label="Move up"
-                    style={{ minWidth: 44, minHeight: 44 }}
-                  >
-                    <ArrowUp className="h-7 w-7" />
-                  </button>
-                  <button
-                    onClick={e => { e.preventDefault(); e.stopPropagation(); handleMoveDown(index); }}
-                    disabled={index === workoutCategories.length - 1}
-                    className={`bg-gray-200 dark:bg-gray-700 rounded-full p-3 shadow transition-all duration-150 ${index === workoutCategories.length - 1 ? 'opacity-40 cursor-not-allowed' : 'hover:bg-gray-300 dark:hover:bg-gray-600'} active:scale-95`}
-                    aria-label="Move down"
-                    style={{ minWidth: 44, minHeight: 44 }}
-                  >
-                    <ArrowDown className="h-7 w-7" />
-                  </button>
-                </div>
-                {/* Only the card content is clickable */}
-                <Link
-                  to={
-                    category.id === 'community-workouts'
-                      ? '/modules/workout/community'
-                      : category.id === 'workout-generator'
-                      ? '/workout-generator'
-                      : `/modules/workout/${category.id}`
-                  }
-                  className={`block h-full ${category.comingSoon ? 'pointer-events-none' : ''}`}
-                >
-                  <WorkoutCategoryCard category={category} />
-                </Link>
-              </div>
-            ))}
-          </div>
+          ))}
         </div>
       </div>
     </div>
   );
 }
+

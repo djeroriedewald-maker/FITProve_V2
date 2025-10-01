@@ -12,6 +12,7 @@ interface StatCardProps {
   animate?: boolean;
   suffix?: string;
   prefix?: string;
+  bgImage?: string;
 }
 
 export const StatCard = ({
@@ -24,13 +25,24 @@ export const StatCard = ({
   iconClassName = "text-primary",
   animate = false,
   prefix = "",
-  suffix = ""
+  suffix = "",
+  bgImage
 }: StatCardProps) => {
   return (
-    <div className={`group p-6 rounded-xl bg-white/90 dark:bg-gray-800/90 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-100 dark:border-gray-700 ${className}`}>
-      <div className="flex items-center justify-between">
+    <div
+      className={`group p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border-2 border-transparent relative overflow-hidden ${className}`}
+      style={{
+        ...(bgImage ? { background: `url(${bgImage}) top/cover no-repeat` } : {}),
+        borderImage: 'linear-gradient(90deg, #00f0ff 0%, #b400ff 100%) 1',
+        boxShadow: '0 0 16px 2px #b400ff55, 0 0 32px 4px #00f0ff33',
+      }}
+    >
+      {bgImage && (
+        <div className="absolute inset-0 bg-black/40 dark:bg-black/60 pointer-events-none z-0" />
+      )}
+      <div className="flex items-center justify-between relative z-10">
         <div className="flex items-center space-x-4">
-          <div className="p-3 rounded-xl bg-gray-50 dark:bg-gray-700/50 shadow-inner group-hover:scale-110 transition-transform duration-300">
+          <div className="p-3 rounded-xl bg-white dark:bg-black shadow-inner group-hover:scale-110 transition-transform duration-300 bg-opacity-80 dark:bg-opacity-80">
             <Icon className={`w-6 h-6 ${iconClassName}`} />
           </div>
           <div>
@@ -55,7 +67,7 @@ export const StatCard = ({
         )}
       </div>
       {description && (
-        <p className="mt-3 text-sm text-gray-600 dark:text-gray-300 font-medium">{description}</p>
+        <p className="mt-3 text-sm text-gray-600 dark:text-gray-300 font-medium relative z-10">{description}</p>
       )}
     </div>
   );

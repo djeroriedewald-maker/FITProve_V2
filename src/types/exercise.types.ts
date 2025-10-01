@@ -31,6 +31,10 @@ export type EquipmentType =
   | 'stationary_bike' 
   | 'rowing_machine'
   | 'foam_roller'
+  | 'sled'
+  | 'ski_erg'
+  | 'sandbag'
+  | 'wall_ball'
   | 'none';
 
 export type DifficultyLevel = 'beginner' | 'intermediate' | 'advanced';
@@ -47,6 +51,41 @@ export type ExerciseCategory =
 
 export type ForceType = 'push' | 'pull' | 'static' | 'explosive';
 export type MechanicsType = 'compound' | 'isolation';
+
+export type HyroxDivision = 'solo' | 'pro' | 'doubles' | 'relay' | 'adaptive';
+
+export interface HyroxDivisionStandard {
+  work: string;
+  loadKg?: {
+    male?: number;
+    female?: number;
+    mixed?: number;
+  };
+  targetHeightMeters?: {
+    male?: number;
+    female?: number;
+  };
+  notes?: string[];
+}
+
+export interface HyroxStationMetadata {
+  order: number;
+  name: string;
+  description: string;
+  runDistanceBefore: string;
+  stationWork: string;
+  primaryFocus?: string[];
+  divisions: Record<HyroxDivision, HyroxDivisionStandard>;
+  officialResources?: { label: string; url: string }[];
+  transitionNotes?: string[];
+}
+
+export interface EventExerciseMetadata {
+  event: 'HYROX';
+  station_id: string;
+  station: HyroxStationMetadata;
+}
+
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
 
 // Supabase Database Types
@@ -82,6 +121,9 @@ export interface ExerciseDB {
 
   // Environment
   environment?: string[];
+
+  // Event metadata
+  event_metadata?: EventExerciseMetadata;
 
   // Exercise Details
   force_type?: ForceType;

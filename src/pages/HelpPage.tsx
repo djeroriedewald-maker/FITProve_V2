@@ -2,7 +2,7 @@ import React from 'react';
 
 export default function HelpPage() {
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12 px-4">
+    <div className="min-h-screen bg-black dark:bg-black py-12 px-4">
       <div className="max-w-3xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8">
         <h1 className="text-3xl font-bold mb-6 text-center text-orange-600">Help & Guide</h1>
         <p className="mb-6 text-lg text-gray-700 dark:text-gray-200 text-center">
@@ -52,3 +52,4 @@ export default function HelpPage() {
     </div>
   );
 }
+

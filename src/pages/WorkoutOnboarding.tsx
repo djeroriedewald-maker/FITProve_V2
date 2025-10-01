@@ -68,7 +68,7 @@ export default function WorkoutOnboarding() {
   const prevStep = () => setStepIdx(i => Math.max(i - 1, 0));
 
   return (
-    <div className="min-h-screen w-full flex flex-col bg-gradient-to-br from-gray-900 to-gray-800">
+    <div className="min-h-screen w-full flex flex-col bg-black">
       {/* Hero */}
       <div className="relative w-full h-48 sm:h-64 md:h-72 flex items-center justify-center">
         <img
@@ -319,3 +319,4 @@ export default function WorkoutOnboarding() {
     </div>
   );
 }
+

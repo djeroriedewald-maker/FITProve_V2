@@ -5,7 +5,7 @@ import { Header } from './Header';
 
 export function RootLayout() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
+    <div className="min-h-screen bg-black dark:bg-black">
       <Toaster
         position="top-right"
         toastOptions={{
@@ -18,10 +18,12 @@ export function RootLayout() {
         }}
       />
       <Header />
-      <div className="pt-20 pb-20">
+      {/* Add enough top and bottom padding so content never goes under header or nav */}
+      <main className="pt-16 pb-16">
         <Outlet />
-      </div>
+      </main>
       <Navigation />
     </div>
   );
 }
+

@@ -33,7 +33,7 @@ export default function ProfilePage() {
     fetchBadges();
   };
   return (
-    <div className="min-h-screen pb-20 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
+    <div className="min-h-screen pb-20 bg-black dark:bg-black">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* @ts-ignore: badges props are injected for display */}
         <UserProfile
@@ -45,3 +45,4 @@ export default function ProfilePage() {
     </div>
   );
 }
+

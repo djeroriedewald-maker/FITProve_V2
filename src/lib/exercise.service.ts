@@ -15,6 +15,9 @@ import type {
   DifficultyLevel,
   ExerciseCategory
 } from '../types/exercise.types';
+import { exerciseLibrary } from '../data/exerciseLibrary';
+import { applyExerciseEnhancements } from '../data/exerciseEnhancements';
+import { hyroxEventExercises } from '../data/events/hyroxEventExercises';
 
 // Temporary YouTube ID mappings for testing (until database is populated)
 const TEMP_YOUTUBE_IDS: Record<string, string> = {
@@ -30,6 +33,183 @@ const TEMP_YOUTUBE_IDS: Record<string, string> = {
   'lunges': 'QOVaHwm-Q6U'
 };
 
+const LOCAL_FALLBACK_EXERCISES = exerciseLibrary.map(applyExerciseEnhancements);
+const HYROX_FALLBACK_EXERCISES = hyroxEventExercises.map(applyExerciseEnhancements);
+
+type NormalizedFilters = {
+  muscleGroups?: MuscleGroup[];
+  equipment?: EquipmentType[];
+  difficulty?: DifficultyLevel[];
+  categories?: ExerciseCategory[];
+  searchQuery?: string;
+};
+
+const normalizeArray = <T extends string>(values?: (T | string)[] | null): T[] | undefined => {
+  if (!values || values.length === 0) {
+    return undefined;
+  }
+  const filtered = values.filter((value): value is T => Boolean(value));
+  return filtered.length ? (filtered as T[]) : undefined;
+};
+
+function normalizeFilters(input?: {
+  muscle_groups?: (MuscleGroup | string)[];
+  equipment?: (EquipmentType | string)[];
+  equipment_types?: (EquipmentType | string)[];
+  difficulty?: (DifficultyLevel | string)[];
+  difficulty_levels?: (DifficultyLevel | string)[];
+  category?: (ExerciseCategory | string)[];
+  category_ids?: (ExerciseCategory | string)[];
+  search_query?: string | null;
+}): NormalizedFilters {
+  if (!input) {
+    return {};
+  }
+
+  const equipment = input.equipment ?? input.equipment_types;
+  const difficulty = input.difficulty ?? input.difficulty_levels;
+  const categories = input.category ?? input.category_ids;
+  const normalizedSearch = input.search_query?.trim();
+
+  return {
+    muscleGroups: normalizeArray<MuscleGroup>(input.muscle_groups),
+    equipment: normalizeArray<EquipmentType>(equipment),
+    difficulty: normalizeArray<DifficultyLevel>(difficulty),
+    categories: normalizeArray<ExerciseCategory>(categories),
+    searchQuery: normalizedSearch && normalizedSearch.length ? normalizedSearch.toLowerCase() : undefined,
+  };
+}
+
+function matchesFilters(exercise: Exercise, filters: NormalizedFilters): boolean {
+  if (
+    (!filters.muscleGroups || filters.muscleGroups.length === 0) &&
+    (!filters.equipment || filters.equipment.length === 0) &&
+    (!filters.difficulty || filters.difficulty.length === 0) &&
+    (!filters.categories || filters.categories.length === 0) &&
+    !filters.searchQuery
+  ) {
+    return true;
+  }
+
+  if (filters.muscleGroups?.length) {
+    const muscleSet = new Set([
+      ...((exercise.primary_muscles as MuscleGroup[]) || []),
+      ...((exercise.secondary_muscles as MuscleGroup[]) || []),
+    ]);
+    const matchesMuscle = filters.muscleGroups.some((muscle) => muscleSet.has(muscle));
+    if (!matchesMuscle) {
+      return false;
+    }
+  }
+
+  if (filters.equipment?.length) {
+    const equipmentSet = new Set(exercise.equipment || []);
+    const matchesEquipment = filters.equipment.some((item) => equipmentSet.has(item));
+    if (!matchesEquipment) {
+      return false;
+    }
+  }
+
+  if (filters.difficulty?.length && !filters.difficulty.includes(exercise.difficulty)) {
+    return false;
+  }
+
+  if (filters.categories?.length) {
+    if (!exercise.category || !filters.categories.includes(exercise.category)) {
+      return false;
+    }
+  }
+
+  if (filters.searchQuery) {
+    const haystack = [
+      exercise.name,
+      exercise.description,
+      ...(exercise.instructions || []),
+      ...((exercise.tags || []) as string[]),
+    ];
+    const query = filters.searchQuery;
+    const matchesSearch = haystack.some(
+      (value) => typeof value === 'string' && value.toLowerCase().includes(query)
+    );
+    if (!matchesSearch) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function dedupeBySlugOrId(exercises: Exercise[]): Exercise[] {
+  const seen = new Set<string>();
+  return exercises.filter((exercise) => {
+    const key = (exercise.slug || exercise.id).toLowerCase();
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+}
+
+function mergeHyroxEventExercises(baseExercises: Exercise[], filters: NormalizedFilters): Exercise[] {
+  const seen = new Set<string>(
+    baseExercises.map((exercise) => (exercise.slug || exercise.id).toLowerCase())
+  );
+
+  const hyroxMatches = HYROX_FALLBACK_EXERCISES
+    .filter((exercise) => matchesFilters(exercise, filters))
+    .filter((exercise) => {
+      const key = (exercise.slug || exercise.id).toLowerCase();
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
+
+  if (!hyroxMatches.length) {
+    return baseExercises;
+  }
+
+  return [...baseExercises, ...hyroxMatches];
+}
+
+function buildFallbackExercises(filters: NormalizedFilters): Exercise[] {
+  const localMatches = LOCAL_FALLBACK_EXERCISES.filter((exercise) => matchesFilters(exercise, filters));
+  const dedupedLocal = dedupeBySlugOrId(localMatches);
+  return mergeHyroxEventExercises(dedupedLocal, filters);
+}
+
+function paginateExercises(exercises: Exercise[], page: number, pageSize: number): Exercise[] {
+  if (pageSize <= 0) {
+    return exercises;
+  }
+  const start = Math.max(0, (page - 1) * pageSize);
+  if (start >= exercises.length) {
+    return [];
+  }
+  return exercises.slice(start, start + pageSize);
+}
+
+function formatExerciseResult(exercises: Exercise[], page: number, pageSize: number): ExerciseSearchResult {
+  const total = exercises.length;
+  const paginated = paginateExercises(exercises, page, pageSize);
+  return {
+    exercises: paginated,
+    total_count: total,
+    filtered_count: paginated.length,
+  };
+}
+function findFallbackExercise(identifier: string): Exercise | null {
+  const key = identifier.toLowerCase();
+  const fallbackExercises = buildFallbackExercises({});
+  return (
+    fallbackExercises.find((exercise) => {
+      const slug = exercise.slug?.toLowerCase();
+      return exercise.id.toLowerCase() === key || slug === key;
+    }) || null
+  );
+}
 // Transform database exercise to frontend exercise
 function transformExercise(exerciseDB: ExerciseDB): Exercise {
   // Use database youtube_id if available, otherwise check temp mapping
@@ -88,9 +268,17 @@ function transformExercise(exerciseDB: ExerciseDB): Exercise {
 export class ExerciseService {
   // Get all exercises with optional filtering
   static async getExercises(filters?: ExerciseFilter & { page?: number; pageSize?: number }): Promise<ExerciseSearchResult> {
+    const page = filters?.page ?? 1;
+    const pageSize = filters?.pageSize ?? 50;
+    const normalizedFilters = normalizeFilters({
+      muscle_groups: filters?.muscle_groups,
+      equipment: filters?.equipment,
+      difficulty: filters?.difficulty,
+      category: filters?.category,
+      search_query: filters?.search_query,
+    });
+
     try {
-      const page = filters?.page || 1;
-      const pageSize = filters?.pageSize || 50;
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
 
@@ -100,7 +288,6 @@ export class ExerciseService {
         .order('popularity_score', { ascending: false })
         .range(from, to);
 
-      // Apply filters
       if (filters?.muscle_groups?.length) {
         query = query.overlaps('primary_muscles', filters.muscle_groups);
       }
@@ -118,93 +305,118 @@ export class ExerciseService {
       }
 
       if (filters?.search_query) {
-        query = query.ilike('name', `%${filters.search_query}%`);
+        query = query.ilike('name', '%' + filters.search_query + '%');
       }
 
       const { data: exercisesDB, error, count } = await query;
 
-      // Direct test: fetch all exercises with environment = ['Outdoor']
-      const { data: outdoorData, error: outdoorError } = await supabase
-        .from('exercises')
-        .select('*')
-        .contains('environment', ['Outdoor']);
-      console.log('Direct fetch with contains(environment, ["Outdoor"]):', outdoorData, outdoorError);
-
       if (error) {
         console.error('Error fetching exercises:', error);
-        throw error;
+        const fallbackExercises = buildFallbackExercises(normalizedFilters);
+        return formatExerciseResult(fallbackExercises, page, pageSize);
       }
 
-      const exercises = exercisesDB?.map(transformExercise) || [];
+      let baseExercises = (exercisesDB?.map(transformExercise) || []).map(applyExerciseEnhancements);
+
+      if (!baseExercises.length) {
+        const fallbackExercises = buildFallbackExercises(normalizedFilters);
+        return formatExerciseResult(fallbackExercises, page, pageSize);
+      }
+
+      const merged = mergeHyroxEventExercises(baseExercises, normalizedFilters);
+      const hyroxAdded = merged.length - baseExercises.length;
+      const paginated = paginateExercises(merged, page, pageSize);
 
       return {
-        exercises,
-        total_count: count || 0,
-        filtered_count: exercises.length
+        exercises: paginated,
+        total_count: typeof count === 'number' ? (count || 0) + hyroxAdded : merged.length,
+        filtered_count: paginated.length,
       };
     } catch (error) {
       console.error('Failed to fetch exercises:', error);
-      return {
-        exercises: [],
-        total_count: 0,
-        filtered_count: 0
-      };
+      const fallbackExercises = buildFallbackExercises(normalizedFilters);
+      return formatExerciseResult(fallbackExercises, page, pageSize);
     }
   }
-
+  // Advanced search with pagination and scoring
   // Advanced search with pagination and scoring
   static async searchExercises(params: ExerciseSearchParams): Promise<ExerciseSearchResult> {
-    try {
-      const { 
-        search_query,
-        muscle_groups,
-        equipment_types,
-        difficulty_levels,
-        category_ids,
-        limit_count = 50,
-        offset_count = 0
-      } = params;
+    const {
+      search_query,
+      muscle_groups,
+      equipment_types,
+      difficulty_levels,
+      category_ids,
+      limit_count = 50,
+      offset_count = 0,
+    } = params;
 
-      // Use the search function from database
+    const limit = limit_count > 0 ? limit_count : 50;
+    const offset = offset_count ?? 0;
+    const page = Math.floor(offset / limit) + 1;
+    const normalizedFilters = normalizeFilters({
+      muscle_groups,
+      equipment_types,
+      difficulty_levels,
+      category_ids,
+      search_query,
+    });
+
+    try {
       const { data, error } = await supabase.rpc('search_exercises', {
         search_query: search_query || '',
         muscle_groups: muscle_groups || [],
         equipment_types: equipment_types || [],
         difficulty_levels: difficulty_levels || [],
         category_ids: category_ids || [],
-        limit_count,
-        offset_count
+        limit_count: limit,
+        offset_count: offset,
       });
 
       if (error) {
         console.error('Error searching exercises:', error);
-        throw error;
+        const fallbackExercises = buildFallbackExercises(normalizedFilters);
+        return formatExerciseResult(fallbackExercises, page, limit);
       }
 
-      const exercises = data?.map(transformExercise) || [];
+      let baseExercises = (data?.map(transformExercise) || []).map(applyExerciseEnhancements);
 
-      // Get total count for pagination
-      const { count } = await supabase
-        .from('exercises')
-        .select('*', { count: 'exact', head: true })
-        .eq('is_active', true)
-        .eq('approval_status', 'approved');
+      if (!baseExercises.length) {
+        const fallbackExercises = buildFallbackExercises(normalizedFilters);
+        return formatExerciseResult(fallbackExercises, page, limit);
+      }
+
+      const merged = mergeHyroxEventExercises(baseExercises, normalizedFilters);
+      const hyroxAdded = merged.length - baseExercises.length;
+      let totalCount = merged.length;
+
+      try {
+        const { count, error: countError } = await supabase
+          .from('exercises')
+          .select('*', { count: 'exact', head: true })
+          .eq('is_active', true)
+          .eq('approval_status', 'approved');
+
+        if (!countError && typeof count === 'number') {
+          totalCount = (count || 0) + hyroxAdded;
+        }
+      } catch (countError) {
+        console.error('Error fetching exercise count for search:', countError);
+      }
+
+      const paginated = paginateExercises(merged, page, limit);
 
       return {
-        exercises,
-        total_count: count || 0,
-        filtered_count: exercises.length
+        exercises: paginated,
+        total_count: totalCount,
+        filtered_count: paginated.length,
       };
     } catch (error) {
       console.error('Failed to search exercises:', error);
-      return {
-        exercises: [],
-        total_count: 0,
-        filtered_count: 0
-      };
+      const fallbackExercises = buildFallbackExercises(normalizedFilters);
+      return formatExerciseResult(fallbackExercises, page, limit);
     }
   }
-
   // Get single exercise by ID or slug
   static async getExercise(identifier: string): Promise<Exercise | null> {
     try {
@@ -214,9 +426,8 @@ export class ExerciseService {
         .eq('is_active', true)
         .eq('approval_status', 'approved');
 
-      // Check if identifier is UUID (id) or slug
       const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier);
-      
+
       if (isUUID) {
         query.eq('id', identifier);
       } else {
@@ -227,19 +438,22 @@ export class ExerciseService {
 
       if (error) {
         if (error.code === 'PGRST116') {
-          return null; // No exercise found
+          return findFallbackExercise(identifier);
         }
         console.error('Error fetching exercise:', error);
         throw error;
       }
 
-      return data ? transformExercise(data) : null;
+      if (data) {
+        return applyExerciseEnhancements(transformExercise(data));
+      }
+
+      return findFallbackExercise(identifier);
     } catch (error) {
       console.error('Failed to fetch exercise:', error);
-      return null;
+      return findFallbackExercise(identifier);
     }
   }
-
   // Get featured exercises
   static async getFeaturedExercises(limit: number = 10): Promise<Exercise[]> {
     try {
@@ -257,7 +471,7 @@ export class ExerciseService {
         throw error;
       }
 
-      return exercisesDB?.map(transformExercise) || [];
+      return (exercisesDB?.map(transformExercise) || []).map(applyExerciseEnhancements);
     } catch (error) {
       console.error('Failed to fetch featured exercises:', error);
       return [];
@@ -281,7 +495,7 @@ export class ExerciseService {
         throw error;
       }
 
-      return exercisesDB?.map(transformExercise) || [];
+      return (exercisesDB?.map(transformExercise) || []).map(applyExerciseEnhancements);
     } catch (error) {
       console.error('Failed to fetch exercises by muscle group:', error);
       return [];

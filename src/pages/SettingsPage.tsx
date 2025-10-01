@@ -1,4 +1,13 @@
 import React, { useState } from 'react';
+// Utility for metric system persistence
+const METRIC_KEY = 'fitprove_metric_system';
+function getSavedMetricSystem() {
+  if (typeof window === 'undefined') return 'kg';
+  return localStorage.getItem(METRIC_KEY) || 'kg';
+}
+function saveMetricSystem(val: string) {
+  if (typeof window !== 'undefined') localStorage.setItem(METRIC_KEY, val);
+}
 import { ThemeToggle } from '../components/ui/ThemeToggle';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -26,6 +35,7 @@ export default function SettingsPage() {
   }, [profile]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [metricSystem, setMetricSystem] = useState<string>(getSavedMetricSystem());
 
   if (!profile) return <div className="p-8">Loading...</div>;
 
@@ -44,6 +54,7 @@ export default function SettingsPage() {
         allowFollow,
         allowDirectMessages,
       });
+      saveMetricSystem(metricSystem);
       await refreshProfile();
       setMessage('Settings saved!');
     } catch (e) {
@@ -54,7 +65,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col items-center justify-center relative">
+    <div className="min-h-screen bg-black dark:bg-black flex flex-col items-center justify-center relative">
       {/* Close button top right */}
       <button
         onClick={() => navigate(-1)}
@@ -67,6 +78,22 @@ export default function SettingsPage() {
       </button>
       <h1 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">Settings</h1>
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 w-full max-w-md space-y-6">
+        <div className="mb-2">
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">Units</h2>
+          <div className="flex items-center gap-3 w-full">
+            <label htmlFor="metric-system" className="text-sm text-gray-700 dark:text-gray-300">Preferred weight unit:</label>
+            <select
+              id="metric-system"
+              value={metricSystem}
+              onChange={e => setMetricSystem(e.target.value)}
+              className="rounded border-gray-300 dark:bg-gray-700 dark:text-gray-100 px-2 py-1 focus:ring-primary"
+              style={{ minWidth: 80 }}
+            >
+              <option value="kg">Kg (kilograms)</option>
+              <option value="lbs">Lbs (pounds)</option>
+            </select>
+          </div>
+        </div>
         <div className="mb-2">
           <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">Functionality</h2>
           <div className="flex items-center gap-3 w-full">
@@ -123,3 +150,4 @@ export default function SettingsPage() {
     </div>
   );
 }
+

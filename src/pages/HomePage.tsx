@@ -1,101 +1,115 @@
-import { Heart, Dumbbell, Flame, Trophy, ArrowRight } from 'lucide-react';
-import { motion } from 'framer-motion';
-import { FadeIn, ScaleIn } from '../components/ui/Animations';
-import { ProgressiveImage } from '../components/ui/ProgressiveImage';
-import { FloatingActionButton } from '../components/ui/FloatingActionButton';
-
-import { StatCard } from '../components/ui/StatCard';
-import { UpcomingEvents } from '../components/ui/UpcomingEvents';
-import { useAuth } from '../contexts/AuthContext';
-import { useEffect, useState } from 'react';
-import { WorkoutCreatorService } from '../lib/workout-creator.service';
+import { Heart, Dumbbell, Flame, Trophy, ArrowRight } from "lucide-react";
+import { motion } from "framer-motion";
+import { FadeIn, ScaleIn } from "../components/ui/Animations";
+import { ProgressiveImage } from "../components/ui/ProgressiveImage";
+import { FloatingActionButton } from "../components/ui/FloatingActionButton";
+import { StatCard } from "../components/ui/StatCard";
+import { FeaturedCommunityWorkoutsSlider } from "../components/community/FeaturedCommunityWorkoutsSlider";
+import { UpcomingEventsSlider } from "../components/ui/UpcomingEventsSlider";
+import { useAuth } from "../contexts/AuthContext";
+import { useEffect, useRef, useState } from "react";
+import { WorkoutCreatorService } from "../lib/workout-creator.service";
 
 export const HomePage = () => {
+  // Scroll to top on mount
   useEffect(() => {
-    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, []);
+
   const { user, profile } = useAuth();
   const [createdWorkouts, setCreatedWorkouts] = useState<number>(0);
   const [completedWorkouts, setCompletedWorkouts] = useState<number>(0);
   const [loading, setLoading] = useState(true);
 
+  // Unmounted guard to avoid setting state after unmount
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   // Badges/achievements from profile
-  const badgesEarned = profile?.achievements?.filter((a) => a.unlockedAt)?.length || 0;
+  const badgesEarned =
+    profile?.achievements?.filter((a: { unlockedAt?: string | Date | null }) => a?.unlockedAt)?.length || 0;
+
   // Personal records: placeholder (implement real logic if available)
   const personalRecords = 0;
 
   useEffect(() => {
     async function fetchStats() {
       setLoading(true);
-      // Created workouts
-      const workouts = await WorkoutCreatorService.getUserWorkouts();
-      setCreatedWorkouts(workouts.length);
-      // Completed workouts
-      const sessions = await WorkoutCreatorService.getUserWorkoutSessions();
-  setCompletedWorkouts(sessions.filter((s) => s.status === 'completed').length);
+      try {
+        // Created workouts
+        const workouts = (await WorkoutCreatorService.getUserWorkouts?.()) ?? [];
+        if (isMountedRef.current) setCreatedWorkouts(Array.isArray(workouts) ? workouts.length : 0);
+
+        // Completed workouts
+        const sessions = (await WorkoutCreatorService.getUserWorkoutSessions?.()) ?? [];
+        const completed = Array.isArray(sessions)
+          ? sessions.filter((s: { status?: string }) => s?.status === "completed").length
+          : 0;
+        if (isMountedRef.current) setCompletedWorkouts(completed);
+      } finally {
+        if (isMountedRef.current) setLoading(false);
+      }
+    }
+
+    if (user) {
+      fetchStats();
+    } else {
+      // Reset when user logs out
+      setCreatedWorkouts(0);
+      setCompletedWorkouts(0);
       setLoading(false);
     }
-    if (user) fetchStats();
   }, [user]);
 
-  const upcomingEvents = [
-    {
-      id: '1',
-      title: 'Morning HIIT Workout',
-      date: new Date('2025-09-14'),
-      type: 'workout' as const,
-    },
-    {
-      id: '2',
-      title: 'Weight Loss Goal Check',
-      date: new Date('2025-09-15'),
-      type: 'goal' as const,
-    },
-    {
-      id: '3',
-      title: '30-Day Challenge Complete',
-      date: new Date('2025-09-16'),
-      type: 'achievement' as const,
-    },
-  ];
-
   return (
-    <div className="min-h-screen pt-4 pb-16 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
+  <div className="min-h-screen bg-black pt-4 pb-16">
       {/* Hero Section */}
-      <section className="relative overflow-hidden py-16 sm:py-20 md:py-32">
-        <div className="absolute inset-0">
+      <section className="relative m-0 overflow-hidden p-0">
+        <div className="relative w-full">
           <ProgressiveImage
-            src="/images/hero.webp"
+            src="/images/hero_1.webp"
             alt="Hero background"
-            className="w-full h-full object-cover opacity-50 dark:opacity-40"
+            className="h-[40vh] w-full object-cover sm:h-[60vh]"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-primary/30 to-purple-500/30 mix-blend-overlay" />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/20 dark:from-black/20 dark:via-transparent dark:to-black/40" />
+          {/* Subtle dark overlay */}
+          <div className="pointer-events-none absolute inset-0 bg-black/30 dark:bg-black/50" />
         </div>
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="max-w-3xl mx-auto text-center">
+
+        <div className="pointer-events-none absolute left-0 top-0 flex h-full w-full flex-col items-center justify-center">
+          <div className="pointer-events-auto mx-auto max-w-3xl text-center">
             <FadeIn delay={0.2}>
-              <h2 className="text-4xl sm:text-5xl md:text-7xl font-extrabold mb-4 sm:mb-6 text-gray-900 dark:text-white leading-tight">
-                Your Progress,<br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-purple-600 dark:from-primary dark:to-purple-400">
+              <h2 className="mb-4 text-4xl font-extrabold leading-tight text-gray-900 dark:text-white sm:mb-6 sm:text-5xl md:text-7xl">
+                Your Progress,
+                <br />
+                <span className="bg-gradient-to-r from-[#B400FF] to-white bg-clip-text text-transparent dark:from-[#B400FF] dark:to-white">
                   Proven.
                 </span>
               </h2>
             </FadeIn>
+
             <FadeIn delay={0.4}>
-              <p className="text-lg sm:text-xl text-gray-700 dark:text-gray-200 mb-6 sm:mb-8 px-4">
+              <p className="mb-6 px-4 text-lg text-gray-700 dark:text-gray-200 sm:mb-8 sm:text-xl">
                 Track, analyze, and improve your workouts with intelligent insights
               </p>
             </FadeIn>
+
             <FadeIn delay={0.6}>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 px-4">
+              <div className="flex flex-col items-center justify-center gap-3 px-4 sm:flex-row sm:gap-4">
                 <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                   <a
                     href="/signin"
-                    className="w-full sm:w-auto px-6 sm:px-8 py-4 bg-gradient-to-r from-primary to-purple-600 text-white rounded-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300 group min-h-[44px] touch-manipulation flex items-center justify-center"
+                    className="group flex min-h-[44px] w-full items-center justify-center rounded-full bg-black px-6 py-4 font-medium text-white shadow-[0_0_32px_0_#B400FF55,0_0_16px_0_#00f0ff55]"
+                    style={{
+                      boxShadow: '0 0 32px 0 #B400FF55, 0 0 16px 0 #00f0ff55',
+                    }}
+                    aria-label="Get Started"
                   >
                     Get Started
-                    <ArrowRight className="inline ml-2 group-hover:translate-x-1 transition-transform" />
+                    <ArrowRight className="ml-2 inline transition-transform group-hover:translate-x-1" />
                   </a>
                 </motion.div>
               </div>
@@ -106,73 +120,71 @@ export const HomePage = () => {
 
       {/* Stats Section */}
       <section className="py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-12 relative z-10">
+        <div className="relative -mt-12 z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mb-8 text-center">
-            <h3 className="text-2xl sm:text-3xl font-semibold text-gray-900 dark:text-white">
+            <h3 className="text-2xl font-semibold text-gray-900 dark:text-white sm:text-3xl">
               Your Fitness Journey in Real Time
             </h3>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
             <ScaleIn delay={0.2}>
               <StatCard
                 icon={Dumbbell}
                 title="Workouts Completed"
-                value={loading ? '...' : completedWorkouts}
-                animate={true}
+                value={loading ? "..." : completedWorkouts}
+                animate
                 description="All time"
-                className="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20"
-                iconClassName="text-emerald-500"
+                iconClassName="text-neon-yellow"
+                bgImage="/images/workouts_completed.webp"
               />
             </ScaleIn>
+
             <ScaleIn delay={0.3}>
               <StatCard
                 icon={Flame}
                 title="Workouts Created"
-                value={loading ? '...' : createdWorkouts}
-                animate={true}
+                value={loading ? "..." : createdWorkouts}
+                animate
                 description="All time"
-                className="bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20"
-                iconClassName="text-orange-500"
+                iconClassName="text-neon-yellow"
+                bgImage="/images/workouts_created.webp"
               />
             </ScaleIn>
+
             <ScaleIn delay={0.4}>
               <StatCard
                 icon={Trophy}
                 title="Badges Earned"
-                value={loading ? '...' : badgesEarned}
-                animate={true}
+                value={loading ? "..." : badgesEarned}
+                animate
                 description="All time"
-                className="bg-gradient-to-br from-purple-50 to-violet-50 dark:from-purple-900/20 dark:to-violet-900/20"
-                iconClassName="text-purple-500"
+                iconClassName="text-neon-yellow"
+                bgImage="/images/badges_earned.webp"
               />
             </ScaleIn>
+
             <ScaleIn delay={0.5}>
               <StatCard
                 icon={Heart}
                 title="Personal Records"
-                value={loading ? '...' : personalRecords}
-                animate={true}
+                value={loading ? "..." : personalRecords}
+                animate
                 description="All time"
-                className="bg-gradient-to-br from-rose-50 to-pink-50 dark:from-rose-900/20 dark:to-pink-900/20"
-                iconClassName="text-rose-500"
+                iconClassName="text-neon-yellow"
+                bgImage="/images/personal_records.webp"
               />
             </ScaleIn>
           </div>
         </div>
       </section>
 
-      {/* Upcoming Events Section */}
-      <section className="py-20 bg-gradient-to-b from-transparent via-gray-50/50 to-gray-100/50 dark:from-transparent dark:via-gray-900/50 dark:to-gray-800/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Upcoming Events */}
-            <div className="lg:col-span-2">
-              <UpcomingEvents events={upcomingEvents} />
-            </div>
+      {/* Featured Community Workouts + Upcoming Events */}
+      <div className="mx-auto -mt-6 max-w-7xl px-4 sm:px-6 lg:px-8">
+        <FeaturedCommunityWorkoutsSlider />
+        <UpcomingEventsSlider />
+      </div>
 
-          </div>
-        </div>
-      </section>
       {/* Floating Action Button */}
       <FloatingActionButton />
     </div>

@@ -12,6 +12,11 @@ interface CommunityWorkout {
   creator_name?: string;
   creator_username?: string;
   tags?: string[];
+  exercises?: Array<{
+    name: string;
+    sets: number;
+    reps: number;
+  }>;
 }
 
 export function CommunityWorkoutsPage() {
@@ -28,34 +33,44 @@ export function CommunityWorkoutsPage() {
       setLoading(true);
       setError(null);
       try {
+        // 1. Haal alle public workouts op
         const { data, error } = await supabase
           .from('custom_workouts')
           .select(
             `id, name, description, hero_image_url, tags, is_public, user_id, profiles!custom_workouts_user_id_fkey(display_name, username)`
-          ) // join profiles for creator info
+          )
           .eq('is_public', true)
           .order('created_at', { ascending: false });
         if (error) throw error;
-        // Map creator info
-        const mapped = (data || []).map((w: unknown) => {
-          const workout = w as {
-            id: string;
-            name: string;
-            description: string;
-            hero_image_url?: string;
-            profiles?: { display_name?: string; username?: string };
-            tags?: string[];
-          };
-          return {
-            id: workout.id,
-            name: workout.name,
-            description: workout.description,
-            hero_image_url: workout.hero_image_url,
-            creator_name: workout.profiles?.display_name,
-            creator_username: workout.profiles?.username,
-            tags: workout.tags || [],
-          };
-        });
+        // 2. Voor elke workout: haal de blocks op (en join exercise info)
+        const mapped = await Promise.all(
+          (data || []).map(async (w: any) => {
+            // Haal blocks op
+            const { data: blocks } = await supabase
+              .from('workout_blocks')
+              .select('order, reps, exercise:target, exercises(name)')
+              .eq('workout_id', w.id)
+              .order('order', { ascending: true });
+            // Map naar exercises array
+            const exercises = (blocks || [])
+              .filter((b: any) => b.exercises && b.exercises.name)
+              .map((b: any) => ({
+                name: b.exercises.name,
+                sets: 1, // Optioneel: voeg sets toe als je die per block hebt
+                reps: b.reps || 0,
+              }));
+            return {
+              id: w.id,
+              name: w.name,
+              description: w.description,
+              hero_image_url: w.hero_image_url,
+              creator_name: w.profiles?.display_name,
+              creator_username: w.profiles?.username,
+              tags: w.tags || [],
+              exercises,
+            };
+          })
+        );
         setWorkouts(mapped);
       } catch (err: unknown) {
         setError('Failed to load community workouts.');

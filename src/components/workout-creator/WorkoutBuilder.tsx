@@ -178,37 +178,43 @@ export function WorkoutBuilder({
           {(provided) => (
             <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-4">
               {exercisesWithDetails.map((exerciseData, index) => (
-                <Draggable
-                  key={exerciseData.tempId}
-                  draggableId={exerciseData.tempId}
-                  index={index}
-                >
-                  {(provided, snapshot) => (
-                    <div
-                      ref={provided.innerRef}
-                      {...provided.draggableProps}
-                      className={`bg-white dark:bg-gray-800 rounded-xl border transition-all duration-200 ${
-                        snapshot.isDragging
-                          ? 'shadow-lg border-orange-500 transform rotate-1'
-                          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                      } ${exerciseData.superset_group ? 'border-l-4 border-l-purple-500' : ''}`}
-                    >
-                      <ExerciseItem
-                        exerciseData={exerciseData}
-                        index={index}
-                        isEditing={editingExercise === exerciseData.tempId}
-                        onEdit={() => setEditingExercise(exerciseData.tempId)}
-                        onStopEdit={() => setEditingExercise(null)}
-                        onUpdate={(updates) => updateExercise(index, updates)}
-                        onRemove={() => removeExercise(index)}
-                        onDuplicate={() => duplicateExercise(index)}
-                        onCreateSuperset={() => createSuperset(index, index + 1)}
-                        onRemoveFromSuperset={() => removeFromSuperset(index)}
-                        dragHandleProps={provided.dragHandleProps}
-                      />
-                    </div>
-                  )}
-                </Draggable>
+                exerciseData.exercise ? (
+                  <Draggable
+                    key={exerciseData.tempId}
+                    draggableId={exerciseData.tempId}
+                    index={index}
+                  >
+                    {(provided, snapshot) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.draggableProps}
+                        className={`bg-white dark:bg-gray-800 rounded-xl border transition-all duration-200 ${
+                          snapshot.isDragging
+                            ? 'shadow-lg border-orange-500 transform rotate-1'
+                            : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                        } ${exerciseData.superset_group ? 'border-l-4 border-l-purple-500' : ''}`}
+                      >
+                        <ExerciseItem
+                          exerciseData={exerciseData}
+                          index={index}
+                          isEditing={editingExercise === exerciseData.tempId}
+                          onEdit={() => setEditingExercise(exerciseData.tempId)}
+                          onStopEdit={() => setEditingExercise(null)}
+                          onUpdate={(updates) => updateExercise(index, updates)}
+                          onRemove={() => removeExercise(index)}
+                          onDuplicate={() => duplicateExercise(index)}
+                          onCreateSuperset={() => createSuperset(index, index + 1)}
+                          onRemoveFromSuperset={() => removeFromSuperset(index)}
+                          dragHandleProps={provided.dragHandleProps}
+                        />
+                      </div>
+                    )}
+                  </Draggable>
+                ) : (
+                  <div key={exerciseData.tempId} className="bg-red-100 dark:bg-red-900/30 border-l-4 border-red-400 text-red-800 dark:text-red-200 p-3 rounded">
+                    Exercise not found (ID: {exerciseData.exercise_id})
+                  </div>
+                )
               ))}
               {provided.placeholder}
             </div>
@@ -263,6 +269,19 @@ function ExerciseItem({
         {/* Drag Handle */}
         <div {...dragHandleProps} className="mt-1 cursor-grab active:cursor-grabbing">
           <Grip className="w-5 h-5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" />
+        </div>
+
+        {/* Exercise Image */}
+        <div className="w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-700 flex items-center justify-center mr-2">
+          {exercise.image_url ? (
+            <img
+              src={exercise.image_url}
+              alt={exercise.name}
+              className="object-cover w-full h-full"
+            />
+          ) : (
+            <Dumbbell className="w-8 h-8 text-gray-400" />
+          )}
         </div>
 
         {/* Exercise Info */}

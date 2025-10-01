@@ -35,7 +35,10 @@
     "vitest": "^0.33.0"
   },
   "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
     "@hello-pangea/dnd": "^18.0.1",
+    "@mui/material": "^7.3.2",
     "@supabase/auth-helpers-react": "^0.4.2",
     "@supabase/supabase-js": "^2.57.4",
     "@tanstack/react-query": "^4.32.0",
@@ -46,9 +49,11 @@
     "fastest-levenshtein": "^1.0.16",
     "framer-motion": "^10.13.1",
     "lucide-react": "^0.263.1",
+    "moment": "^2.30.1",
     "node-fetch": "^3.3.2",
     "react": "^18.2.0",
     "react-beautiful-dnd": "^13.1.1",
+    "react-big-calendar": "^1.19.4",
     "react-dom": "^18.2.0",
     "react-hot-toast": "^2.6.0",
     "react-icons": "^5.5.0",

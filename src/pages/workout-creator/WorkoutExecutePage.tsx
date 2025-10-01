@@ -193,7 +193,7 @@ export function WorkoutExecutePage() {
 
   if (!workout || !workout.exercises) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-black dark:bg-black flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto mb-4"></div>
           <p className="text-gray-600 dark:text-gray-400">Loading workout...</p>
@@ -210,7 +210,7 @@ export function WorkoutExecutePage() {
   const progress = ((currentExerciseIndex + 1) / workout.exercises.length) * 100;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-black dark:bg-black">
       {/* Header */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-40">
         <div className="max-w-4xl mx-auto px-4 py-4">
@@ -529,7 +529,7 @@ function WorkoutCompletedScreen({ workout, sessionStartTime }: WorkoutCompletedS
   const duration = Math.round((Date.now() - sessionStartTime.getTime()) / 60000);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+    <div className="min-h-screen bg-black dark:bg-black flex items-center justify-center">
       <div className="text-center max-w-md mx-auto px-4">
         <div className="bg-green-500 rounded-full w-24 h-24 mx-auto mb-6 flex items-center justify-center">
           <CheckCircle className="w-12 h-12 text-white" />
@@ -575,3 +575,4 @@ function WorkoutCompletedScreen({ workout, sessionStartTime }: WorkoutCompletedS
     </div>
   );
 }
+

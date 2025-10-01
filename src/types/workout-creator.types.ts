@@ -204,10 +204,24 @@ export interface WorkoutDetails extends CustomWorkout {
 /**
  * Workout creation/editing form data
  */
+export type TrainingType =
+  | 'EMOM'
+  | 'AMRAP'
+  | 'FOR_TIME'
+  | 'TABATA'
+  | 'LADDER_PYRAMIDE'
+  | 'CIRCUIT_TRAINING'
+  | 'CHIPPER'
+  | 'INTERVAL_HIIT'
+  | 'PARTNER_TEAM'
+  | 'COMPLEX_FLOW'
+  | 'HYBRID';
+
 export interface WorkoutFormData {
   name: string;
   description: string;
   difficulty: WorkoutDifficulty;
+  trainingType?: TrainingType;
   tags: string[];
   hero_image_url?: string;
   is_public: boolean;
