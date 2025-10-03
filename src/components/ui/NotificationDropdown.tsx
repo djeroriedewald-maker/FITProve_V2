@@ -2,10 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, X, Heart, MessageCircle, Trophy, User } from 'lucide-react';
 import { Notification } from '../../types/notification.types';
-import { 
-  markNotificationAsRead, 
-  markAllNotificationsAsRead
-} from '../../lib/notifications';
+import { markNotificationAsRead, markAllNotificationsAsRead } from '../../lib/notifications';
 import { useNotificationContext } from '../../contexts/NotificationContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
@@ -44,15 +41,13 @@ const NotificationItem: React.FC<{
     <div
       onClick={handleClick}
       className={`p-3 hover:bg-gradient-to-r hover:from-[#B400FF]/10 hover:to-black/10 cursor-pointer border-l-4 transition-colors ${
-        notification.read 
-          ? 'border-transparent bg-white' 
+        notification.read
+          ? 'border-transparent bg-white'
           : 'border-[color:transparent] bg-gradient-to-r from-[#B400FF]/10 to-black/10'
       }`}
     >
       <div className="flex items-start space-x-3">
-        <div className="flex-shrink-0 mt-1">
-          {getNotificationIcon(notification.type)}
-        </div>
+        <div className="flex-shrink-0 mt-1">{getNotificationIcon(notification.type)}</div>
 
         {notification.from_user && (
           <div className="flex-shrink-0">
@@ -66,26 +61,26 @@ const NotificationItem: React.FC<{
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between">
-            <h4 className={`text-sm font-medium ${
-              notification.read ? 'text-gray-700' : 'text-gray-900'
-            }`}>
+            <h4
+              className={`text-sm font-medium ${
+                notification.read ? 'text-gray-700' : 'text-gray-900'
+              }`}
+            >
               {notification.title}
             </h4>
             {!notification.read && (
               <div className="w-2 h-2 bg-gradient-to-r from-[#B400FF] to-black rounded-full flex-shrink-0"></div>
             )}
           </div>
-          
-          <p className={`text-sm mt-1 ${
-            notification.read ? 'text-gray-500' : 'text-gray-700'
-          }`}>
+
+          <p className={`text-sm mt-1 ${notification.read ? 'text-gray-500' : 'text-gray-700'}`}>
             {notification.message}
           </p>
-          
+
           <p className="text-xs text-gray-400 mt-1">
-            {formatDistanceToNow(new Date(notification.created_at), { 
-              addSuffix: true, 
-              locale: nl 
+            {formatDistanceToNow(new Date(notification.created_at), {
+              addSuffix: true,
+              locale: nl,
             })}
           </p>
         </div>
@@ -94,11 +89,10 @@ const NotificationItem: React.FC<{
   );
 };
 
-export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ 
-  className = '' 
-}) => {
+export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ className = '' }) => {
   const { user } = useAuth();
-  const { notifications, unreadCount, setNotifications, setUnreadCount, reloadNotifications } = useNotificationContext();
+  const { notifications, unreadCount, setNotifications, setUnreadCount, reloadNotifications } =
+    useNotificationContext();
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -127,10 +121,10 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
   const handleMarkAsRead = async (notificationId: string) => {
     try {
       await markNotificationAsRead(notificationId);
-      setNotifications(prev => 
-        prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === notificationId ? { ...n, read: true } : n))
       );
-      setUnreadCount(prev => Math.max(0, prev - 1));
+      setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch (error) {
       console.error('Error marking notification as read:', error);
     }
@@ -139,7 +133,7 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
   const handleMarkAllAsRead = async () => {
     try {
       await markAllNotificationsAsRead();
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
       setUnreadCount(0);
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
@@ -152,9 +146,12 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
     <div className={`relative ${className}`} ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-  className="relative p-2 bg-gradient-to-r from-[#B400FF] to-black bg-clip-text text-transparent hover:bg-gradient-to-r hover:from-[#B400FF]/10 hover:to-black/10 rounded-lg transition-colors"
+        className="relative p-2 text-white hover:bg-gradient-to-r hover:from-[#B400FF]/10 hover:to-black/10 rounded-lg transition-colors"
       >
-  <Bell className="w-5 h-5" />
+        <Bell
+          className="w-5 h-5"
+          style={{ color: '#00E5FF', filter: 'drop-shadow(0 0 8px #00E5FF)' }}
+        />
         {unreadCount > 0 && (
           <span className="absolute -top-1 -right-1 bg-gradient-to-r from-[#B400FF] to-black text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
             {unreadCount > 99 ? '99+' : unreadCount}
@@ -182,7 +179,9 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
             >
               <div className="bg-white dark:bg-black rounded-xl shadow-xl w-full max-w-md flex flex-col max-h-[80vh] border border-[color:transparent]">
                 <div className="flex items-center justify-between px-4 py-3 border-b border-[color:transparent]">
-                  <h3 className="text-lg font-semibold bg-gradient-to-r from-[#B400FF] to-black bg-clip-text text-transparent">Notificaties</h3>
+                  <h3 className="text-lg font-semibold bg-gradient-to-r from-[#B400FF] to-black bg-clip-text text-transparent">
+                    Notificaties
+                  </h3>
                   <div className="flex items-center space-x-2">
                     {unreadCount > 0 && (
                       <button
@@ -204,11 +203,20 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
                   {loading ? (
                     <div className="p-6 text-center">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#B400FF] mx-auto"></div>
-                      <p className="bg-gradient-to-r from-[#B400FF] to-black bg-clip-text text-transparent mt-2">Notificaties laden...</p>
+                      <p className="bg-gradient-to-r from-[#B400FF] to-black bg-clip-text text-transparent mt-2">
+                        Notificaties laden...
+                      </p>
                     </div>
                   ) : notifications.length === 0 ? (
                     <div className="p-6 text-center bg-gradient-to-r from-[#B400FF] to-black bg-clip-text text-transparent">
-                      <Bell className="w-8 h-8 mx-auto mb-2 opacity-50" style={{background: 'linear-gradient(to right, #B400FF, black)', WebkitBackgroundClip: 'text', color: 'transparent'}} />
+                      <Bell
+                        className="w-8 h-8 mx-auto mb-2 opacity-50"
+                        style={{
+                          background: 'linear-gradient(to right, #B400FF, black)',
+                          WebkitBackgroundClip: 'text',
+                          color: 'transparent',
+                        }}
+                      />
                       <p>Geen notificaties</p>
                     </div>
                   ) : (

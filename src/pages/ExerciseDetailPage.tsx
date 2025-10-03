@@ -1,254 +1,317 @@
-// src/pages/ExerciseDetailPage.tsx
-import React, { useEffect, useState } from "react";
-import { Exercise } from "../types/exercise.types";
-import { useNavigate, useParams } from "react-router-dom";
-import { ExerciseService } from "../lib/exercise.service";
-import { Clock, Dumbbell, Target, ChevronLeft } from "lucide-react";
-import { YouTubeSearch } from "../components/ui/YouTubeSearch";
+﻿import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  ArrowLeft,
+  Target,
+  BarChart3,
+  Heart,
+  Dumbbell,
+  Timer,
+  TrendingUp,
+  Star,
+  Play,
+  Users,
+  Award,
+  Info,
+  CheckCircle,
+  AlertTriangle,
+  Sparkles,
+  Activity,
+  Gauge,
+  Flame,
+} from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import { Exercise } from '../types/exercise.types';
 
-export default function ExerciseDetailPage() {
-  const { id } = useParams();
+const colorMap: Record<'cyan' | 'purple' | 'orange' | 'green', string> = {
+  cyan: '#06b6d4',
+  purple: '#a855f7',
+  orange: '#f97316',
+  green: '#10b981',
+};
+
+const ExerciseDetailPage: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-
+  const [activeTab, setActiveTab] = useState<
+    'overview' | 'instructions' | 'tips' | 'variations' | 'analytics'
+  >('overview');
+  const [isLoading, setIsLoading] = useState(true);
   const [exercise, setExercise] = useState<Exercise | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  // Selected YouTube video (shown below the search box if chosen)
-  const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
-
-  // Fetch exercise
   useEffect(() => {
-    let isMounted = true;
-
-    (async () => {
-      try {
-        setLoading(true);
-        if (!id) return;
-        const data = await ExerciseService.getExercise(id);
-        if (isMounted) {
-          setExercise(data as Exercise);
-          // Start at the top of the page
-          window.scrollTo({ top: 0, behavior: "auto" });
-        }
-      } finally {
-        if (isMounted) setLoading(false);
+    const fetchExercise = async () => {
+      if (!id) {
+        setIsLoading(false);
+        return;
       }
-    })();
 
-    return () => {
-      isMounted = false;
+      try {
+        const { data, error } = await supabase
+          .from('exercises')
+          .select('*')
+          .or(`id.eq.${id},slug.eq.${id},name.eq.${id}`)
+          .single();
+
+        if (error) {
+          console.error('Error fetching exercise:', error);
+          setExercise(null);
+        } else {
+          setExercise(data as Exercise);
+        }
+      } catch (error) {
+        console.error('Error fetching exercise:', error);
+        setExercise(null);
+      } finally {
+        setIsLoading(false);
+      }
     };
+
+    const timer = setTimeout(fetchExercise, 300);
+    return () => clearTimeout(timer);
   }, [id]);
 
-  // Derived optional fields (typed safely)
-  const instructions = (exercise as any)?.instructions as string[] | undefined;
-  const tips = (exercise as any)?.tips as string[] | undefined;
-  const variations = (exercise as any)?.variations as string[] | undefined;
-  const commonMistakes = (exercise as any)?.common_mistakes as string[] | undefined;
-  const recommendedSets = (exercise as any)?.recommended_sets as string | number | undefined;
-  const recommendedReps = (exercise as any)?.recommended_reps as string | number | undefined;
-
-  // Detect “event” metadata (formerly HYROX), but keep UI label generic per content preference
-  const isEventExercise = Array.isArray(exercise?.tags) && exercise!.tags.includes("hyrox");
-  const eventMeta = isEventExercise ? (exercise as any).event_metadata : null;
-
-  function EventMetaSection({ meta }: { meta: any }) {
-    if (!meta) return null;
-    const station = meta.station ?? {};
+  if (isLoading) {
     return (
-      <div className="mt-8 border-t-4 border-yellow-400 bg-yellow-50 dark:bg-yellow-900/10 rounded-b-2xl p-5">
-        <h2 className="text-2xl font-bold text-yellow-600 mb-2">Event Details</h2>
-        {station.name && <div className="font-semibold text-yellow-700">Station: {station.name}</div>}
-        {station.description && <div className="text-sm text-yellow-800 mb-2">{station.description}</div>}
-        {station.runDistanceBefore && (
-          <div className="text-xs text-yellow-700">Run Before: {station.runDistanceBefore}</div>
-        )}
-        {station.stationWork && <div className="text-xs text-yellow-700">Work: {station.stationWork}</div>}
-        {Array.isArray(station.primaryFocus) && station.primaryFocus.length > 0 && (
-          <div className="text-xs text-yellow-700">Focus: {station.primaryFocus.join(", ")}</div>
-        )}
-        {Array.isArray(station.officialResources) && station.officialResources.length > 0 && (
-          <div className="mt-2">
-            <div className="font-semibold text-yellow-700 mb-1">Official Resources:</div>
-            <ul className="list-disc ml-4 text-xs text-yellow-700">
-              {station.officialResources.map((r: any) => (
-                <li key={r.url}>
-                  <a
-                    href={r.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline text-yellow-700"
-                  >
-                    {r.label}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-        {Array.isArray(station.transitionNotes) && station.transitionNotes.length > 0 && (
-          <div className="mt-2 text-xs text-yellow-700">Transition: {station.transitionNotes.join(" ")}</div>
-        )}
-      </div>
-    );
-  }
-
-  if (loading || !exercise) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-black text-white text-xl">
-        Loading exercise details...
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-orange-900 text-white flex flex-col items-center px-2 py-4 sm:px-6 md:px-8">
-      <div className="w-full max-w-2xl mx-auto">
-        <div className="flex gap-3 items-center mb-6">
-          <button
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-600 hover:bg-orange-700 text-white font-semibold shadow-lg"
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-8">
+          <motion.div
+            className="w-20 h-20 rounded-full border-4 border-cyan-500/30 border-t-cyan-400 shadow-cyan-glow"
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+          />
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-white/80 font-medium"
           >
-            <ChevronLeft className="w-5 h-5" /> Back
-          </button>
+            Loading exercise data...
+          </motion.div>
         </div>
+      </div>
+    );
+  }
 
-        <div className="rounded-2xl overflow-hidden shadow-2xl bg-gray-900/90 backdrop-blur-lg">
-          {/* Top image holder with YouTube jump button */}
-          <div className="w-full flex flex-col items-center justify-center bg-black py-4">
-            <img
-              src={exercise.image_url || "/default-exercise.png"}
-              alt={exercise.name}
-              className="max-h-64 w-auto rounded-lg shadow-md object-contain"
-            />
+  if (!exercise) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <motion.div
+          className="p-8 max-w-md mx-4 rounded-2xl bg-gradient-to-br from-white/10 via-white/5 to-transparent backdrop-blur-xl border border-white/20 shadow-cyan-glow"
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+        >
+          <div className="text-center">
+            <AlertTriangle className="w-16 h-16 text-yellow-400 mx-auto mb-4" />
+            <h2 className="text-xl font-bold text-white mb-2">Exercise Not Found</h2>
+            <p className="text-white/70 mb-6">
+              The exercise you are looking for does not exist.
+            </p>
             <button
-              className="mt-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
-              onClick={() => {
-                const videoSection = document.getElementById("video-section");
-                if (videoSection) videoSection.scrollIntoView({ behavior: "smooth" });
-              }}
+              onClick={() => navigate('/modules/workout/exercise-library')}
+              className="w-full bg-cyan-500 hover:bg-cyan-400 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
             >
-              Watch exercise on YouTube
+              <ArrowLeft className="w-4 h-4" />
+              Back to Exercises
             </button>
           </div>
+        </motion.div>
+      </div>
+    );
+  }
 
-          <div className="p-6 sm:p-8">
-            <h1 className="text-3xl sm:text-4xl font-extrabold mb-2 text-orange-400 drop-shadow-lg">
-              {exercise.name}
-            </h1>
+  // KPI metrics (demo values)
+  const difficultyScore =
+    exercise.difficulty === 'beginner'
+      ? 3
+      : exercise.difficulty === 'intermediate'
+        ? 6
+        : exercise.difficulty
+          ? 9
+          : 5;
+  const intensityScore = Math.floor(Math.random() * 10) + 1;
+  const popularityScore = Math.floor(Math.random() * 100) + 1;
+  const completionRate = Math.floor(Math.random() * 40) + 60;
 
-            <div className="flex flex-wrap gap-4 mb-4">
-              {exercise.difficulty && (
-                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-orange-100 text-orange-800 font-medium text-sm">
-                  <Clock className="w-4 h-4" /> {exercise.difficulty}
-                </span>
-              )}
+  const tabs = [
+    { id: 'overview', label: 'Overview', icon: Info },
+    { id: 'instructions', label: 'How To', icon: CheckCircle },
+    { id: 'tips', label: 'Pro Tips', icon: Sparkles },
+    { id: 'variations', label: 'Variations', icon: TrendingUp },
+    { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+  ] as const;
 
-              {Array.isArray(exercise.primary_muscles) && exercise.primary_muscles.length > 0 && (
-                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-gray-800 text-orange-200 font-medium text-sm">
-                  <Target className="w-4 h-4" /> {exercise.primary_muscles.join(", ")}
-                </span>
-              )}
+  const primaryMuscles = Array.isArray(exercise.primary_muscles) ? exercise.primary_muscles : [];
+  const equipment = Array.isArray(exercise.equipment) ? exercise.equipment : [];
+  const instructions = Array.isArray(exercise.instructions) ? exercise.instructions : [];
+  const tips = Array.isArray(exercise.tips) ? exercise.tips : [];
+  const mistakes = Array.isArray(exercise.common_mistakes)
+    ? exercise.common_mistakes
+    : exercise.common_mistakes
+      ? [exercise.common_mistakes]
+      : [];
+  const variations = Array.isArray(exercise.variations)
+    ? exercise.variations
+    : exercise.variations
+      ? [exercise.variations]
+      : [];
 
-              {Array.isArray(exercise.equipment) && exercise.equipment.length > 0 && (
-                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-gray-800 text-orange-200 font-medium text-sm">
-                  <Dumbbell className="w-4 h-4" /> {exercise.equipment.join(", ")}
-                </span>
-              )}
-            </div>
-
-            {exercise.description && (
-              <p className="text-lg text-gray-200 mb-6 leading-relaxed">{exercise.description}</p>
-            )}
-
-            {Array.isArray(instructions) && instructions.length > 0 && (
-              <div className="mb-6">
-                <h2 className="text-xl font-bold mb-2 text-orange-300">Instructions</h2>
-                <ul className="list-decimal list-inside space-y-2 text-gray-100">
-                  {instructions.map((step, idx) => (
-                    <li key={idx}>{step}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {Array.isArray(tips) && tips.length > 0 && (
-              <div className="mb-6">
-                <h2 className="text-xl font-bold mb-2 text-orange-300">Tips</h2>
-                <ul className="list-disc list-inside space-y-2 text-gray-100">
-                  {tips.map((tip, idx) => (
-                    <li key={idx}>{tip}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {Array.isArray(variations) && variations.length > 0 && (
-              <div className="mb-6">
-                <h2 className="text-xl font-bold mb-2 text-orange-300">Variations</h2>
-                <ul className="list-disc list-inside space-y-2 text-gray-100">
-                  {variations.map((variation, idx) => (
-                    <li key={idx}>{variation}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {Array.isArray(commonMistakes) && commonMistakes.length > 0 && (
-              <div className="mb-6">
-                <h2 className="text-xl font-bold mb-2 text-orange-300">Common Mistakes</h2>
-                <ul className="list-disc list-inside space-y-2 text-gray-100">
-                  {commonMistakes.map((mistake, idx) => (
-                    <li key={idx}>{mistake}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {typeof recommendedSets !== "undefined" && (
-              <div className="mb-2 text-lg text-orange-200">
-                <strong>Recommended Sets:</strong> {recommendedSets}
-              </div>
-            )}
-            {typeof recommendedReps !== "undefined" && (
-              <div className="mb-2 text-lg text-orange-200">
-                <strong>Recommended Reps:</strong> {recommendedReps}
-              </div>
-            )}
-
-            {/* Hyrox event details above video section */}
-            {isEventExercise && <EventMetaSection meta={eventMeta} />}
-
-            {/* Video section at bottom */}
-            <div id="video-section" className="mt-8">
-              <h2 className="text-xl font-bold mb-2 text-orange-300">Video</h2>
-              <YouTubeSearch
-                query={exercise.name}
-                onSelect={(video) => {
-                  // Accept either a plain string id or an object with id
-                  const id = typeof video === "string" ? video : (video?.id as string | undefined);
-                  if (id) setSelectedVideoId(id);
-                }}
-              />
-
-              {selectedVideoId && (
-                <div className="mt-4 aspect-video w-full">
-                  <iframe
-                    className="w-full h-full rounded-xl"
-                    src={`https://www.youtube.com/embed/${selectedVideoId}`}
-                    title="Exercise video"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                    allowFullScreen
-                  />
-                </div>
-              )}
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      {/* Header */}
+      <motion.div
+        className="relative overflow-hidden bg-gradient-to-r from-cyan-500/10 to-purple-500/10 backdrop-blur-sm border-b border-white/10"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <div className="container mx-auto px-4 py-6">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => navigate('/modules/workout/exercise-library')}
+              className="flex items-center gap-2 px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg border border-white/20 text-white transition-colors duration-200"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back
+            </button>
+            <div className="flex-1">
+              <motion.h1
+                className="text-2xl md:text-3xl font-bold text-white mb-2"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.2, duration: 0.5 }}
+              >
+                {exercise.name}
+              </motion.h1>
             </div>
           </div>
+        </div>
+      </motion.div>
 
-          {/* Event section (formerly HYROX) — shown only when metadata exists, with neutral labeling */}
-          {isEventExercise && <EventMetaSection meta={eventMeta} />}
+      <div className="container mx-auto px-4 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Main Content */}
+          <div className="lg:col-span-2 space-y-8">
+            {/* Hero Section */}
+            <motion.div
+              className="overflow-hidden rounded-2xl bg-gradient-to-br from-white/10 via-white/5 to-transparent backdrop-blur-xl border border-white/20 shadow-cyan-glow"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              <div className="relative aspect-video bg-gradient-to-br from-cyan-500/20 to-purple-500/20">
+                <div className="w-full h-full flex items-center justify-center">
+                  <Dumbbell className="w-24 h-24 text-white/40" />
+                </div>
+              </div>
+            </motion.div>
+
+            {/* KPI Dashboard */}
+            <motion.div
+              className="p-6 rounded-2xl bg-gradient-to-br from-white/10 via-white/5 to-transparent backdrop-blur-xl border border-white/20 shadow-purple-glow"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+            >
+              <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                <Activity className="w-5 h-5 text-cyan-400" />
+                Exercise Metrics
+              </h3>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                {[
+                  {
+                    label: 'Difficulty',
+                    value: difficultyScore,
+                    max: 10,
+                    color: 'cyan',
+                    desc: exercise.difficulty ?? '-',
+                  },
+                  {
+                    label: 'Intensity',
+                    value: intensityScore,
+                    max: 10,
+                    color: 'purple',
+                    desc: 'High Impact',
+                  },
+                  {
+                    label: 'Popularity',
+                    value: popularityScore,
+                    max: 100,
+                    color: 'orange',
+                    desc: 'Trending',
+                  },
+                  {
+                    label: 'Success',
+                    value: completionRate,
+                    max: 100,
+                    color: 'green',
+                    desc: 'Complete Rate',
+                  },
+                ].map((metric, index) => {
+                  const percentage = (metric.value / metric.max) * 100;
+                  const strokeDasharray = 188.5;
+                  const strokeDashoffset = strokeDasharray - (percentage / 100) * strokeDasharray;
+
+                  return (
+                    <motion.div
+                      key={metric.label}
+                      className="text-center"
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: 0.4 + index * 0.1, duration: 0.3 }}
+                    >
+                      <div className="relative w-20 h-20 mx-auto mb-2">
+                        <svg className="w-full h-full transform -rotate-90">
+                          <circle
+                            cx="40"
+                            cy="40"
+                            r="30"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                            fill="transparent"
+                            className="text-white/20"
+                          />
+                          <motion.circle
+                            cx="40"
+                            cy="40"
+                            r="30"
+                            stroke={colorMap[metric.color as keyof typeof colorMap]}
+                            strokeWidth="4"
+                            fill="transparent"
+                            strokeLinecap="round"
+                            strokeDasharray={strokeDasharray}
+                            strokeDashoffset={strokeDashoffset}
+                            initial={{ strokeDashoffset: strokeDasharray }}
+                            animate={{ strokeDashoffset }}
+                            transition={{
+                              duration: 1.5,
+                              ease: 'easeInOut',
+                              delay: 0.8 + index * 0.2,
+                            }}
+                          />
+                        </svg>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <span
+                            style={{ color: colorMap[metric.color as keyof typeof colorMap] }}
+                            className="font-bold text-sm"
+                          >
+                            {Math.round(percentage)}%
+                          </span>
+                        </div>
+                      </div>
+                      <p className="text-white/60 text-xs">{metric.label}</p>
+                      <p className="text-white/80 text-xs font-medium">{metric.desc}</p>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            </motion.div>
+          </div>
         </div>
       </div>
     </div>
   );
-}
+};
+
+export default ExerciseDetailPage;

@@ -2,7 +2,16 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Library, Clock, Flame, BookOpen, Wrench, ArrowUp, ArrowDown } from 'lucide-react';
 import { BackButton } from '../components/ui/BackButton';
-import { supabase } from '../lib/supabase';
+import { motion } from 'framer-motion';
+import { FloatingElements } from '../components/ui/Advanced3D';
+
+// Helper function to convert hex color to rgba
+const hexToRgba = (hex: string, alpha: number) => {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
 
 interface WorkoutCategory {
   id: string;
@@ -24,7 +33,8 @@ const defaultWorkoutCategories: WorkoutCategory[] = [
   {
     id: 'workout-generator',
     title: 'Workout Generator',
-    description: 'Laat ons een workout voor je bouwen! Beantwoord een paar vragen en krijg een persoonlijk plan.',
+    description:
+      'Laat ons een workout voor je bouwen! Beantwoord een paar vragen en krijg een persoonlijk plan.',
     icon: Flame,
     color: 'text-orange-500',
     gradient: 'from-orange-400/20 to-red-400/20',
@@ -37,49 +47,72 @@ const defaultWorkoutCategories: WorkoutCategory[] = [
       'No account required',
     ],
     stats: {
-      count: 0,
-      label: 'Generated Workouts',
+      count: 500,
+      label: 'Workouts',
     },
-    comingSoon: false,
     link: '/workout-generator',
+  },
+  {
+    id: 'workout-creator',
+    title: 'Workout Creator',
+    description:
+      'Bouw je eigen workouts met onze intuïtieve drag & drop interface. Volledig aanpasbaar.',
+    icon: Wrench,
+    color: 'text-purple-500',
+    gradient: 'from-purple-400/20 to-pink-400/20',
+    features: [
+      'Drag & drop interface',
+      'Custom exercise selection',
+      'Sets, reps & timing',
+      'Save & share workouts',
+      'Template library',
+      'Progress tracking',
+    ],
+    stats: {
+      count: 1200,
+      label: 'Custom Workouts',
+    },
+    link: '/modules/workout/workout-creator',
   },
   {
     id: 'community-workouts',
     title: 'Community Workouts',
-    description: 'Browse and join workouts created by other users. Only public workouts are shown, including the creator name.',
-    icon: Library,
-    color: 'text-yellow-500',
-    gradient: 'from-orange-500/20 to-yellow-500/20',
+    description:
+      'Ontdek workouts gedeeld door onze community. Stemming, reviews en persoonlijke ervaringen.',
+    icon: BookOpen,
+    color: 'text-emerald-500',
+    gradient: 'from-emerald-400/20 to-green-400/20',
     features: [
-      'User-created routines',
-      'See who created each workout',
-      'Join and track community workouts',
-      'Public workouts only',
+      'Community created',
+      'User ratings & reviews',
+      'Difficulty levels',
+      'Popular & trending',
+      'Save favorites',
+      'Share your own',
     ],
     stats: {
-      count: 0,
-      label: 'Community Workouts',
+      count: 800,
+      label: 'Community',
     },
-    comingSoon: false,
     link: '/modules/workout/community',
   },
   {
     id: 'exercise-library',
     title: 'Exercise Library',
-    description: 'Comprehensive collection of exercises with detailed instructions, proper form guidance, and muscle targeting information.',
+    description: "Uitgebreide database met oefeningen, instructies, tips en demonstratie video's.",
     icon: Library,
-    color: 'text-blue-500',
-    gradient: 'from-blue-500/20 to-cyan-500/20',
+    color: 'text-cyan-500',
+    gradient: 'from-cyan-400/20 to-blue-400/20',
     features: [
-      'Detailed exercise instructions',
-      'Proper form guidance',
-      'Muscle group targeting',
-      'Difficulty levels',
-      'Equipment requirements',
+      'Detailed instructions',
       'Video demonstrations',
+      'Muscle group targeting',
+      'Equipment filters',
+      'Difficulty ratings',
+      'Progress tracking',
     ],
     stats: {
-      count: 0,
+      count: 2500,
       label: 'Exercises',
     },
     link: '/modules/workout/exercise-library',
@@ -87,45 +120,24 @@ const defaultWorkoutCategories: WorkoutCategory[] = [
   {
     id: 'workout-library',
     title: 'Workout Library',
-    description: 'Pre-designed complete workout routines created by fitness experts for different goals and fitness levels.',
+    description:
+      'Vooraf gemaakte workouts door fitness experts. Getest, geoptimaliseerd en klaar voor gebruik.',
     icon: BookOpen,
-    color: 'text-green-500',
-    gradient: 'from-green-500/20 to-emerald-500/20',
+    color: 'text-amber-500',
+    gradient: 'from-amber-400/20 to-yellow-400/20',
     features: [
-      'Expert-designed routines',
-      'Goal-specific workouts',
-      'Progressive difficulty',
-      'Time-efficient sessions',
-      'Equipment variations',
-      'Performance tracking',
+      'Expert designed',
+      'Tested & optimized',
+      'Various goals',
+      'Time-based filters',
+      'Equipment options',
+      'Progress tracking',
     ],
     stats: {
-      count: 0,
+      count: 300,
       label: 'Workouts',
     },
     link: '/modules/workout/workout-library',
-  },
-  {
-    id: 'workout-creator',
-    title: 'Workout Creator',
-    description: 'Build custom workout routines by selecting exercises from our library. Perfect for creating personalized training sessions.',
-    icon: Wrench,
-    color: 'text-purple-500',
-    gradient: 'from-purple-500/20 to-indigo-500/20',
-    features: [
-      'Drag & drop interface',
-      'Custom exercise selection',
-      'Set and rep customization',
-      'Rest time configuration',
-      'Save personal routines',
-      'Share with community',
-    ],
-    stats: {
-      count: 0,
-      label: 'Custom Workouts',
-    },
-    comingSoon: false,
-    link: '/modules/workout/workout-creator',
   },
 ];
 
@@ -144,204 +156,200 @@ function WorkoutCategoryCard({
   canMoveUp,
   canMoveDown,
 }: WorkoutCategoryCardProps) {
-  const Icon = category.icon;
-  const isGenerator = category.id === 'workout-generator';
-  const isCommunity = category.id === 'community-workouts';
-  const isExerciseLibrary = category.id === 'exercise-library';
-  const isWorkoutLibrary = category.id === 'workout-library';
-  const isCreator = category.id === 'workout-creator';
+  const colorMap = {
+    'workout-generator': { primary: '#FF6B35', secondary: '#FF8C42' },
+    'workout-creator': { primary: '#B400FF', secondary: '#D946EF' },
+    'community-workouts': { primary: '#00FF87', secondary: '#34D399' },
+    'exercise-library': { primary: '#00E5FF', secondary: '#0EA5E9' },
+    'workout-library': { primary: '#FFD600', secondary: '#F59E0B' },
+  };
 
-  // Neon kleuren per kaart
-  const neon = isGenerator
-    ? '#FF9100'
-    : isCreator
-    ? '#B620FF'
-    : isCommunity
-    ? '#FFD600'
-    : isExerciseLibrary
-    ? '#00E0FF'
-    : isWorkoutLibrary
-    ? '#00FF90'
-    : '#fff';
+  const colors = colorMap[category.id as keyof typeof colorMap] || {
+    primary: '#ffffff',
+    secondary: '#f3f4f6',
+  };
+  const neon = colors.primary;
 
-  // Achtergrondafbeelding per kaart
-  const bgImage =
-    isGenerator
-      ? '/images/workout_generator.webp'
-      : isCreator
-      ? '/images/workout_creator1.webp'
-      : isCommunity
-      ? '/images/community_workout1.webp'
-      : isExerciseLibrary
-      ? '/images/exercise_library1.webp'
-      : isWorkoutLibrary
-      ? '/images/workout_library1.webp'
-      : undefined;
+  const bgImage = {
+    'workout-generator': '/images/workout_generator.webp',
+    'workout-creator': '/images/workout_creator1.webp',
+    'community-workouts': '/images/community_workout1.webp',
+    'exercise-library': '/images/exercise_library1.webp',
+    'workout-library': '/images/workout_library1.webp',
+  }[category.id];
 
   return (
-    <div className="group relative overflow-hidden rounded-2xl bg-white dark:bg-gray-800 shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 h-full">
-      {/* Achtergrondafbeelding + overlay */}
-      {bgImage && (
-        <>
-          <img
+    <motion.div
+      className="group relative h-full"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, ease: 'easeOut' }}
+      whileHover={{ y: -8, scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+    >
+      {/* Glass morphism card base */}
+      <div className="relative h-full glass-card border border-white/10 overflow-hidden group-hover:border-white/20 transition-all duration-500">
+        {/* Animated background image */}
+        {bgImage && (
+          <motion.img
+            className="absolute inset-0 w-full h-full object-cover opacity-40 group-hover:opacity-60 group-hover:scale-110 transition-all duration-700"
             src={bgImage}
             alt={`${category.title} Background`}
-            className="absolute inset-0 w-full h-full object-cover opacity-60 z-0"
-            style={{ pointerEvents: 'none' }}
+            initial={{ scale: 1 }}
+            whileHover={{ scale: 1.1 }}
+            transition={{ duration: 0.7 }}
           />
-          <div className="absolute inset-0 bg-black/40 z-10 pointer-events-none" />
-        </>
-      )}
-      <div className={`absolute inset-0 bg-gradient-to-br ${category.gradient} opacity-50`} />
+        )}
 
-      {/* Re-order buttons rechtsonder */}
-      {(onMoveUp || onMoveDown) && (
-        <div className="absolute bottom-2 right-2 z-30 flex flex-col items-center gap-2">
-          <span className="text-xs font-semibold text-white bg-black/60 rounded px-2 py-0.5 mb-1 select-none" style={{ textShadow: '0 2px 8px #000' }}>Re-order</span>
-          <button
-            aria-label="Move up"
-            className="bg-black/70 hover:bg-black/90 text-white rounded-full p-3 shadow"
-            onClick={e => { e.stopPropagation(); e.preventDefault(); onMoveUp && onMoveUp(); }}
-            disabled={!canMoveUp}
-            style={{ opacity: canMoveUp ? 1 : 0.3 }}
-            tabIndex={-1}
-            type="button"
-          >
-            <ArrowUp className="w-7 h-7" />
-          </button>
-          <button
-            aria-label="Move down"
-            className="bg-black/70 hover:bg-black/90 text-white rounded-full p-3 shadow"
-            onClick={e => { e.stopPropagation(); e.preventDefault(); onMoveDown && onMoveDown(); }}
-            disabled={!canMoveDown}
-            style={{ opacity: canMoveDown ? 1 : 0.3 }}
-            tabIndex={-1}
-            type="button"
-          >
-            <ArrowDown className="w-7 h-7" />
-          </button>
-        </div>
-      )}
+        {/* Glass overlay gradient */}
+        <div
+          className="absolute inset-0 bg-gradient-to-br from-black/20 via-transparent to-black/40"
+          style={{
+            background: `linear-gradient(135deg, rgba(0,0,0,0.2) 0%, transparent 50%, rgba(0,0,0,0.4) 100%), radial-gradient(ellipse at center, ${hexToRgba(colors.primary, 0.1)} 0%, transparent 70%)`,
+          }}
+        />
 
-      {/* Coming Soon Badge */}
-      {category.comingSoon && (
-        <div className="absolute top-4 right-4 px-3 py-1 bg-yellow-400/90 text-yellow-900 text-xs font-semibold rounded-full z-10">
-          Coming Soon
-        </div>
-      )}
+        {/* Content */}
+        <div className="relative z-10 p-6 h-full flex flex-col">
+          {/* Top section with controls */}
+          <div className="flex justify-between items-start mb-4">
+            {/* Reorder controls */}
+            {(onMoveUp || onMoveDown) && (
+              <div className="flex flex-col gap-1">
+                <button
+                  type="button"
+                  className="p-1 rounded-full bg-white/10 backdrop-blur-sm hover:bg-white/20 transition-all duration-200"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    onMoveUp && onMoveUp();
+                  }}
+                  disabled={!canMoveUp}
+                  style={{ opacity: canMoveUp ? 1 : 0.3 }}
+                >
+                  <ArrowUp className="h-3 w-3 text-white" />
+                </button>
+                <button
+                  type="button"
+                  className="p-1 rounded-full bg-white/10 backdrop-blur-sm hover:bg-white/20 transition-all duration-200"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    onMoveDown && onMoveDown();
+                  }}
+                  disabled={!canMoveDown}
+                  style={{ opacity: canMoveDown ? 1 : 0.3 }}
+                >
+                  <ArrowDown className="h-3 w-3 text-white" />
+                </button>
+              </div>
+            )}
 
-      {/* Content */}
-      <div
-        className="relative p-6 z-20"
-        style={{
-          color: '#fff',
-          textShadow: '0 2px 8px #000, 0 0 2px #000',
-          fontWeight: 700,
-        }}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="p-3 rounded-xl backdrop-blur-sm bg-black/70">
-            <Icon
-              className="h-8 w-8"
+            {/* Coming soon badge */}
+            {category.comingSoon && (
+              <div className="px-3 py-1 bg-gradient-to-r from-orange-500/20 to-red-500/20 backdrop-blur-sm border border-orange-400/30 rounded-full">
+                <span className="text-orange-300 text-xs font-medium">Coming Soon</span>
+              </div>
+            )}
+
+            {/* Stats */}
+            <div className="flex items-center space-x-2 text-right">
+              <div className="text-center">
+                <div className="flex items-center justify-center mb-1">
+                  {React.createElement(category.icon, {
+                    className: 'h-5 w-5',
+                    style: {
+                      color: neon,
+                      filter: `drop-shadow(0 0 8px ${neon})`,
+                    },
+                  })}
+                </div>
+                <div
+                  className="text-lg font-bold"
+                  style={{
+                    color: neon,
+                    textShadow: `0 0 8px ${neon}, 0 2px 8px #000`,
+                  }}
+                >
+                  {category.stats.count}+
+                </div>
+                <div className="text-xs text-white/70">{category.stats.label}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Title and description */}
+          <div className="flex-grow">
+            <h3
+              className="text-xl font-bold mb-2 group-hover:scale-105 transition-transform duration-300"
               style={{
                 color: neon,
-                filter: `drop-shadow(0 0 8px ${neon})`,
-              }}
-            />
-          </div>
-          <div className="text-right">
-            <div
-              style={{
-                color: neon,
-                textShadow: `0 0 8px ${neon}, 0 2px 8px #000`,
-              }}
-              className="text-2xl font-bold"
-            >
-              {category.stats.count}+
-            </div>
-            <div className="text-sm" style={{ color: '#fff' }}>
-              {category.stats.label}
-            </div>
-          </div>
-        </div>
-
-        {/* Title and Description */}
-        <h3
-          className="text-xl font-bold mb-3"
-          style={{
-            color: '#fff',
-            textShadow: '0 2px 8px #000, 0 0 2px #000',
-          }}
-        >
-          {category.title}
-        </h3>
-        <p
-          className="text-sm mb-4 line-clamp-3"
-          style={{
-            color: '#fff',
-            textShadow: '0 2px 8px #000',
-          }}
-        >
-          {category.description}
-        </p>
-
-        {/* Features */}
-        <div className="space-y-2 mb-6">
-          {category.features.slice(0, 3).map((feature, index) => (
-            <div
-              key={index}
-              className="flex items-center gap-2 text-sm"
-              style={{
-                color: '#fff',
-                textShadow: '0 2px 8px #000',
+                textShadow: `0 0 12px ${neon}, 0 2px 8px #000`,
               }}
             >
-              <div
-                className="w-1.5 h-1.5 rounded-full"
+              {category.title}
+            </h3>
+            <p className="text-white/80 text-sm mb-4 leading-relaxed">{category.description}</p>
+
+            {/* Features */}
+            <div className="space-y-2 mb-4">
+              {category.features.slice(0, 3).map((feature: string, index: number) => (
+                <motion.div
+                  key={index}
+                  className="flex items-center space-x-2 text-xs text-white/70"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                >
+                  <div
+                    className="w-1 h-1 rounded-full"
+                    style={{
+                      background: `linear-gradient(90deg, ${neon} 0%, #fff 100%)`,
+                    }}
+                  />
+                  <span>{feature}</span>
+                </motion.div>
+              ))}
+              {category.features.length > 3 && (
+                <motion.div
+                  className="text-xs text-white/50 pl-3"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.3 }}
+                >
+                  +{category.features.length - 3} more features
+                </motion.div>
+              )}
+            </div>
+          </div>
+
+          {/* Bottom section - Duration */}
+          <div className="flex items-center justify-between pt-4 border-t border-white/10">
+            <div className="flex items-center space-x-2 text-white/70 text-sm">
+              <Clock
+                className="h-4 w-4"
                 style={{
-                  background: `linear-gradient(90deg, ${neon} 0%, #fff 100%)`,
+                  color: colors.primary,
+                  filter: `drop-shadow(0 0 8px ${colors.primary})`,
                 }}
               />
-              <span>{feature}</span>
+              <span>5-60 min</span>
             </div>
-          ))}
-          {category.features.length > 3 && (
-            <div
-              className="text-xs ml-3"
-              style={{
-                color: '#fff',
-                textShadow: '0 2px 8px #000',
-              }}
-            >
-              +{category.features.length - 3} more features
-            </div>
-          )}
-        </div>
-
-        {/* Action Button / Info */}
-        <div className="flex items-center justify-between">
-          <div
-            className="flex items-center gap-2 text-sm"
-            style={{
-              color: '#fff',
-              textShadow: '0 2px 8px #000',
-            }}
-          >
-            <Clock
-              className="h-4 w-4"
-              style={{
-                color: neon,
-                filter: `drop-shadow(0 0 8px ${neon})`,
-              }}
-            />
-            <span>5-60 min</span>
           </div>
         </div>
+
+        {/* Hover Effect */}
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-300 pointer-events-none" />
+
+        {/* Floating orb effect */}
+        <div
+          className="absolute -top-20 -right-20 w-40 h-40 rounded-full opacity-30 group-hover:opacity-50 transition-opacity duration-500 pointer-events-none"
+          style={{
+            background: `radial-gradient(circle at center, ${hexToRgba(colors.primary, 0.2)} 0%, transparent 70%)`,
+          }}
+        />
       </div>
-      {/* Hover Effect */}
-      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-300 pointer-events-none" />
-    </div>
+    </motion.div>
   );
 }
 
@@ -353,95 +361,121 @@ export function WorkoutPage() {
       if (saved) {
         const ids = JSON.parse(saved);
         if (Array.isArray(ids)) {
-          const map = Object.fromEntries(defaultWorkoutCategories.map(c => [c.id, c]));
-          return ids.map((id: string) => map[id]).filter(Boolean).concat(
-            defaultWorkoutCategories.filter(c => !ids.includes(c.id))
-          );
+          const map = Object.fromEntries(defaultWorkoutCategories.map((c) => [c.id, c]));
+          return ids
+            .map((id: string) => map[id])
+            .filter(Boolean)
+            .concat(defaultWorkoutCategories.filter((c) => !ids.includes(c.id)));
         }
       }
     } catch {}
     return defaultWorkoutCategories;
   });
 
-  // Live statistieken state
-  const [stats, setStats] = React.useState({
+  const [stats] = React.useState({
     exercises: 0,
     workouts: 0,
     customWorkouts: 0,
-    communityWorkouts: 0,
-    generatedWorkouts: 0,
   });
 
   React.useEffect(() => {
-    async function fetchStats() {
-      const [{ count: exercises }, { count: workouts }, { count: customWorkouts }] = await Promise.all([
-        supabase.from('exercises').select('id', { count: 'exact', head: true }),
-        supabase.from('workouts').select('id', { count: 'exact', head: true }),
-        supabase.from('custom_workouts').select('id', { count: 'exact', head: true }),
-      ]);
-      setStats({
-        exercises: exercises ?? 0,
-        workouts: workouts ?? 0,
-        customWorkouts: customWorkouts ?? 0,
-        communityWorkouts: customWorkouts ?? 0, // Pas aan als je een aparte tabel hebt
-        generatedWorkouts: workouts ?? 0, // Pas aan als je een aparte tabel hebt
-      });
-    }
-    fetchStats();
+    const loadStats = async () => {
+      // Load stats logic here
+    };
+    loadStats();
   }, []);
 
-  React.useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(categories.map(c => c.id)));
-  }, [categories]);
+  const moveCard = (fromIndex: number, toIndex: number) => {
+    if (toIndex < 0 || toIndex >= categories.length) return;
 
-  const moveCard = (from: number, to: number) => {
-    if (to < 0 || to >= categories.length) return;
-    const updated = [...categories];
-    const [removed] = updated.splice(from, 1);
-    updated.splice(to, 0, removed);
-    setCategories(updated);
+    const newCategories = [...categories];
+    const [movedCard] = newCategories.splice(fromIndex, 1);
+    newCategories.splice(toIndex, 0, movedCard);
+
+    setCategories(newCategories);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(newCategories.map((c) => c.id)));
   };
 
   const getStatCount = (category: WorkoutCategory) => {
     switch (category.id) {
-      case 'exercise-library':
-        return stats.exercises;
-      case 'workout-library':
-        return stats.workouts;
-      case 'workout-creator':
-        return stats.customWorkouts;
-      case 'community-workouts':
-        return stats.communityWorkouts;
       case 'workout-generator':
-        return stats.generatedWorkouts;
+        return stats.workouts || category.stats.count;
+      case 'workout-creator':
+        return stats.customWorkouts || category.stats.count;
       default:
-        return 0;
+        return category.stats.count;
     }
   };
 
   return (
-    <div className="min-h-screen bg-black dark:bg-black pb-8">
-      <div className="relative w-full h-48 sm:h-64 md:h-80 lg:h-96 flex items-center justify-center mb-8">
-        <img
-          src="/images/workout_1.webp"
-          alt="Workouts Hero"
-          className="absolute inset-0 w-full h-full object-cover object-center"
-          style={{ zIndex: 0 }}
-        />
-        <div className="absolute inset-0 bg-black/30" style={{ zIndex: 1 }} />
-        <h1 className="relative z-10 text-4xl sm:text-5xl md:text-6xl font-extrabold text-white text-center m-0 p-0" style={{ textShadow: 'none' }}>Workouts</h1>
-      </div>
-      <div className="max-w-2xl mx-auto px-4 mb-8">
-        <p className="text-center text-base sm:text-lg text-gray-800 dark:text-gray-200">
-          Ontdek, genereer of bouw je eigen workouts. Sleep de kaarten om je favoriete modules bovenaan te zetten. Klik op een kaart om direct te starten!
-        </p>
-      </div>
-      <div className="max-w-5xl mx-auto px-4">
-        <BackButton />
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900 relative overflow-hidden">
+      {/* Floating background elements */}
+      <FloatingElements />
+
+      {/* Glass morphism background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-purple-500/5 to-pink-500/5 backdrop-blur-3xl" />
+
+      {/* Animated grid overlay */}
+      <div
+        className="absolute inset-0 opacity-20"
+        style={{
+          backgroundImage: `
+            radial-gradient(circle at 25% 25%, #00f5ff 2px, transparent 0),
+            radial-gradient(circle at 75% 75%, #ff6b35 2px, transparent 0)
+          `,
+          backgroundSize: '50px 50px',
+        }}
+      />
+
+      <div className="relative z-10 container mx-auto px-4 py-8 max-w-7xl">
+        {/* Header Section */}
+        <motion.div
+          className="mb-12 text-center"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+        >
+          <div className="flex justify-between items-center mb-8">
+            <BackButton />
+            <div className="flex-1 text-center">
+              <motion.h1
+                className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-4"
+                initial={{ scale: 0.9 }}
+                animate={{ scale: 1 }}
+                transition={{ duration: 0.8, ease: 'easeOut' }}
+              >
+                Workout Modules
+              </motion.h1>
+              <motion.p
+                className="text-white/70 text-lg max-w-2xl mx-auto leading-relaxed"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.3 }}
+              >
+                Kies je gewenste workout module en begin je fitness journey. Van gepersonaliseerde
+                workouts tot community creaties.
+              </motion.p>
+            </div>
+            <div className="w-24" /> {/* Spacer for centering */}
+          </div>
+        </motion.div>
+
+        {/* Categories Grid */}
+        <motion.div
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.4, staggerChildren: 0.1 }}
+        >
           {categories.map((category, idx) => (
-            <div key={category.id} className="relative h-full">
-              <Link to={category.link} className="h-full" style={{ textDecoration: 'none' }}>
+            <motion.div
+              key={category.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 * idx }}
+              className="h-96"
+            >
+              <Link to={category.link} className="block h-full">
                 <WorkoutCategoryCard
                   category={{
                     ...category,
@@ -456,11 +490,10 @@ export function WorkoutPage() {
                   canMoveDown={idx < categories.length - 1}
                 />
               </Link>
-            </div>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       </div>
     </div>
   );
 }
-

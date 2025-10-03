@@ -88,6 +88,9 @@ module.exports = {
         'neon-cyan': '0 0 20px rgba(0, 229, 255, 0.5)',
         'neon-purple': '0 0 20px rgba(180, 0, 255, 0.5)',
         'neon-orange': '0 0 20px rgba(255, 107, 53, 0.5)',
+        'cyan-glow': '0 0 15px rgba(6, 182, 212, 0.4)',
+        'purple-glow': '0 0 15px rgba(147, 51, 234, 0.4)',
+        'orange-glow': '0 0 15px rgba(234, 88, 12, 0.4)',
         'inner-glass': 'inset 0 2px 4px 0 rgba(255, 255, 255, 0.1)',
       },
       backdropBlur: {

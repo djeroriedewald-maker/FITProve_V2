@@ -11,9 +11,10 @@ export default function HelpPage() {
         <section className="mb-8">
           <h2 className="text-2xl font-semibold mb-2 text-orange-500">Navigation</h2>
           <ul className="list-disc ml-6 text-gray-700 dark:text-gray-200">
-            <li>Use the sidebar or top navigation to access different modules.</li>
+            <li>Use the top navigation to access different modules.</li>
             <li>The <b>Back</b> button at the top left returns you to the previous section or main modules page.</li>
-            <li>The floating <b>Help</b> button (bottom right) brings you back to this help section anytime.</li>
+            <li>The floating <b>Navigation Menu</b> (bottom right) provides quick access to all sections and includes an AI fitness assistant.</li>
+            <li>Tap the floating <b>+</b> button to open the navigation menu with Home, Stats, Modules, Community, Friends, and AI Chat options.</li>
           </ul>
         </section>
         <section className="mb-8">

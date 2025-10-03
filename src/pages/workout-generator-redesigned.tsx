@@ -13,9 +13,10 @@ import {
   ParticleSystem,
   HolographicButton,
 } from '../components/ui/WorkoutGenerator3D';
-
+import { GlassCard } from '../components/ui/GlassCard';
 import { FloatingElements, Glass3DCard, GlowEffect } from '../components/ui/Advanced3D';
 import {
+  Sparkles,
   Target,
   Zap,
   Users,
@@ -30,7 +31,6 @@ import {
   Star,
   Dumbbell,
   Activity,
-  Sparkles,
 } from 'lucide-react';
 import rawManFrontSvg from '../assets/man-front.svg?raw';
 import rawManBackSvg from '../assets/man-back.svg?raw';
@@ -164,25 +164,23 @@ const Enhanced3DMuscleMapSelector: React.FC<{
     <GlowEffect color="cyan" intensity="high">
       <Glass3DCard className="p-8 bg-gradient-to-br from-white/20 to-white/5">
         <div className="text-center mb-6">
-          <h3 className="text-xl sm:text-2xl font-bold text-white mb-2 flex items-center justify-center gap-2">
-            <Target className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
+          <h3 className="text-2xl font-bold text-white mb-2 flex items-center justify-center gap-2">
+            <Target className="w-6 h-6 text-primary" />
             Target Muscle Groups
           </h3>
-          <p className="text-white/70 text-sm sm:text-base px-4">
-            Click on the body or select from buttons below
-          </p>
+          <p className="text-white/70">Click on the body or select from buttons below</p>
         </div>
 
         {/* 3D Muscle Maps */}
-        <div className="flex flex-col sm:flex-row justify-center items-center sm:items-end gap-4 sm:gap-8 mb-6">
+        <div className="flex justify-center items-end gap-8 mb-6">
           <motion.div
-            className="text-center w-full sm:w-auto"
+            className="text-center"
             whileHover={{ scale: 1.05 }}
             transition={{ type: 'spring', stiffness: 300 }}
           >
             <h4 className="text-lg font-semibold text-white/90 mb-3">Front View</h4>
             <div
-              className="relative cursor-pointer select-none bg-gradient-to-br from-white/10 to-white/5 rounded-2xl p-2 sm:p-4 border border-white/20 hover:border-primary/50 transition-all duration-300 max-w-[200px] sm:max-w-none mx-auto muscle-map-container"
+              className="relative cursor-pointer select-none bg-gradient-to-br from-white/10 to-white/5 rounded-2xl p-4 border border-white/20 hover:border-primary/50 transition-all duration-300"
               onClick={handleSvgClick}
               dangerouslySetInnerHTML={{
                 __html:
@@ -201,13 +199,13 @@ const Enhanced3DMuscleMapSelector: React.FC<{
           </motion.div>
 
           <motion.div
-            className="text-center w-full sm:w-auto"
+            className="text-center"
             whileHover={{ scale: 1.05 }}
             transition={{ type: 'spring', stiffness: 300 }}
           >
             <h4 className="text-lg font-semibold text-white/90 mb-3">Back View</h4>
             <div
-              className="relative cursor-pointer select-none bg-gradient-to-br from-white/10 to-white/5 rounded-2xl p-2 sm:p-4 border border-white/20 hover:border-primary/50 transition-all duration-300 max-w-[200px] sm:max-w-none mx-auto muscle-map-container"
+              className="relative cursor-pointer select-none bg-gradient-to-br from-white/10 to-white/5 rounded-2xl p-4 border border-white/20 hover:border-primary/50 transition-all duration-300"
               onClick={handleSvgClick}
               dangerouslySetInnerHTML={{ __html: getHighlightedSvg(manBackSvg) }}
             />
@@ -215,11 +213,11 @@ const Enhanced3DMuscleMapSelector: React.FC<{
         </div>
 
         {/* Interactive Muscle Buttons */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3 mb-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-4">
           {(Object.keys(MUSCLE_MAP) as MuscleGroup[]).map((group) => (
             <motion.button
               key={group}
-              className={`relative px-2 sm:px-4 py-2 rounded-xl text-sm sm:text-base font-semibold transition-all duration-300 ${
+              className={`relative px-4 py-2 rounded-xl font-semibold transition-all duration-300 ${
                 value.includes(group)
                   ? 'bg-gradient-to-r from-primary to-secondary text-white shadow-lg'
                   : 'bg-white/10 text-white/80 hover:bg-white/20 border border-white/20'
@@ -275,7 +273,7 @@ const Enhanced3DMuscleMapSelector: React.FC<{
 };
 
 // Enhanced selection data with icons and better visuals
-const steps = ['Gender', 'Age', 'Goal', 'Level', 'Equipment', 'Muscles', 'Generate'];
+const steps = ['Gender', 'Age', 'Goal', 'Level', 'Equipment', 'Muscles', 'Generate'] as const;
 
 const genderOptions = [
   {
@@ -560,35 +558,28 @@ const WorkoutGenerator: React.FC = () => {
               >
                 Choose Your Gender
               </motion.h2>
-              <p className="text-lg sm:text-xl text-white/80 mb-8 px-4">
-                Let's personalize your fitness journey
-              </p>
+              <p className="text-xl text-white/80 mb-8">Let's personalize your fitness journey</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 max-w-2xl mx-auto px-4">
+            <div className="grid md:grid-cols-2 gap-8 max-w-2xl mx-auto">
               {genderOptions.map((option) => (
                 <Interactive3DCard
                   key={option.value}
                   selected={gender === option.value}
-                  onClick={() => setGender(option.value as 'male' | 'female')}
-                  className="h-[350px] sm:h-[420px] overflow-hidden"
+                  onClick={() => setGender(option.value)}
+                  className="aspect-[4/5] overflow-hidden"
                   glowColor={option.value === 'female' ? '#B400FF' : '#00E5FF'}
                 >
                   <div className="relative h-full flex flex-col">
-                    <div className="h-72 p-4 pb-2">
-                      <img
-                        src={option.src}
-                        alt={option.label}
-                        className="w-full h-full object-contain rounded-lg"
-                      />
-                    </div>
-                    <div className="flex-1 bg-black/90 p-2 sm:p-4 flex items-center justify-center min-h-[80px] sm:min-h-[120px]">
-                      <div className="flex items-center justify-center gap-2 sm:gap-4 bg-gradient-to-br from-black/80 to-black/60 rounded-xl px-3 sm:px-6 py-2 sm:py-3 backdrop-blur-sm border border-white/20 w-full">
-                        <option.icon className="w-6 h-6 sm:w-10 sm:h-10 text-white drop-shadow-lg" />
-                        <h3 className="text-xl sm:text-3xl font-bold text-white drop-shadow-lg tracking-wide">
-                          {option.label}
-                        </h3>
-                      </div>
+                    <img
+                      src={option.src}
+                      alt={option.label}
+                      className="absolute inset-0 w-full h-full object-cover rounded-2xl"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent rounded-2xl" />
+                    <div className="relative z-10 h-full flex flex-col justify-end p-6">
+                      <option.icon className="w-8 h-8 text-white mb-2" />
+                      <h3 className="text-2xl font-bold text-white">{option.label}</h3>
                     </div>
                   </div>
                 </Interactive3DCard>
@@ -606,8 +597,8 @@ const WorkoutGenerator: React.FC = () => {
             exit={{ opacity: 0, y: -20 }}
           >
             <div className="text-center">
-              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">What's Your Age?</h2>
-              <p className="text-lg sm:text-xl text-white/80 mb-8 px-4">
+              <h2 className="text-4xl font-bold text-white mb-4">What's Your Age?</h2>
+              <p className="text-xl text-white/80 mb-8">
                 We'll adjust your workout intensity accordingly
               </p>
             </div>
@@ -656,38 +647,29 @@ const WorkoutGenerator: React.FC = () => {
             exit={{ opacity: 0, y: -20 }}
           >
             <div className="text-center">
-              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">What's Your Goal?</h2>
-              <p className="text-lg sm:text-xl text-white/80 mb-8 px-4">
-                Define your fitness objective
-              </p>
+              <h2 className="text-4xl font-bold text-white mb-4">What's Your Goal?</h2>
+              <p className="text-xl text-white/80 mb-8">Define your fitness objective</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto px-4">
+            <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
               {goalOptions.map((option) => (
                 <Interactive3DCard
                   key={option.value}
                   selected={goal === option.value}
                   onClick={() => setGoal(option.value)}
-                  className="h-[400px] sm:h-[500px] overflow-hidden"
+                  className="aspect-[4/5] overflow-hidden"
                 >
                   <div className="relative h-full flex flex-col">
-                    <div className="h-72 p-4 pb-2">
-                      <img
-                        src={option.src[gender ?? 'male']}
-                        alt={option.label}
-                        className="w-full h-full object-contain rounded-lg"
-                      />
-                    </div>
-                    <div className="flex-1 bg-black/90 p-2 sm:p-4 flex items-center justify-center min-h-[120px] sm:min-h-[180px]">
-                      <div className="text-center bg-gradient-to-br from-black/80 to-black/60 rounded-xl p-3 sm:p-4 backdrop-blur-sm border border-white/20 w-full">
-                        <option.icon className="w-8 h-8 sm:w-12 sm:h-12 text-white drop-shadow-lg mx-auto mb-2 sm:mb-3" />
-                        <h3 className="text-lg sm:text-xl font-bold text-white mb-1 sm:mb-2 drop-shadow-lg">
-                          {option.label}
-                        </h3>
-                        <p className="text-white text-sm sm:text-base drop-shadow-md font-medium">
-                          {option.description}
-                        </p>
-                      </div>
+                    <img
+                      src={option.src[gender ?? 'male']}
+                      alt={option.label}
+                      className="absolute inset-0 w-full h-full object-cover rounded-2xl"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent rounded-2xl" />
+                    <div className="relative z-10 h-full flex flex-col justify-end p-6">
+                      <option.icon className="w-8 h-8 text-white mb-3" />
+                      <h3 className="text-2xl font-bold text-white mb-2">{option.label}</h3>
+                      <p className="text-white/80 text-sm">{option.description}</p>
                     </div>
                   </div>
                 </Interactive3DCard>
@@ -705,42 +687,33 @@ const WorkoutGenerator: React.FC = () => {
             exit={{ opacity: 0, y: -20 }}
           >
             <div className="text-center">
-              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">Fitness Level</h2>
-              <p className="text-lg sm:text-xl text-white/80 mb-8 px-4">
-                How experienced are you with fitness?
-              </p>
+              <h2 className="text-4xl font-bold text-white mb-4">Fitness Level</h2>
+              <p className="text-xl text-white/80 mb-8">How experienced are you with fitness?</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto px-4">
+            <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
               {levelOptions.map((option) => (
                 <Interactive3DCard
                   key={option.value}
                   selected={level === option.value}
                   onClick={() => setLevel(option.value)}
-                  className="h-[350px] sm:h-[450px] overflow-hidden"
+                  className="aspect-[3/4] overflow-hidden"
                 >
                   <div className="relative h-full flex flex-col">
-                    <div className="h-44 sm:h-64 p-2 sm:p-4 pb-1 sm:pb-2">
-                      <img
-                        src={option.src[gender ?? 'male']}
-                        alt={option.label}
-                        className="w-full h-full object-contain rounded-lg"
-                      />
-                    </div>
-                    <div className="flex-1 bg-black/90 p-2 sm:p-4 flex items-center justify-center min-h-[100px] sm:min-h-[160px]">
-                      <div className="text-center bg-gradient-to-br from-black/80 to-black/60 rounded-xl p-3 sm:p-4 backdrop-blur-sm border border-white/20 w-full">
-                        <div
-                          className={`w-10 h-10 sm:w-14 sm:h-14 rounded-full bg-gradient-to-r ${option.gradient} flex items-center justify-center shadow-xl mx-auto mb-2 sm:mb-3`}
-                        >
-                          <Trophy className="w-5 h-5 sm:w-7 sm:h-7 text-white" />
-                        </div>
-                        <h3 className="text-lg sm:text-xl font-bold text-white drop-shadow-lg mb-1 sm:mb-2">
-                          {option.label}
-                        </h3>
-                        <p className="text-white text-sm sm:text-base drop-shadow-md font-medium">
-                          {option.description}
-                        </p>
+                    <img
+                      src={option.src[gender ?? 'male']}
+                      alt={option.label}
+                      className="absolute inset-0 w-full h-full object-cover rounded-2xl"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent rounded-2xl" />
+                    <div className="relative z-10 h-full flex flex-col justify-end p-6">
+                      <div
+                        className={`w-12 h-12 rounded-full bg-gradient-to-r ${option.gradient} flex items-center justify-center mb-3`}
+                      >
+                        <Trophy className="w-6 h-6 text-white" />
                       </div>
+                      <h3 className="text-xl font-bold text-white mb-2">{option.label}</h3>
+                      <p className="text-white/80 text-sm">{option.description}</p>
                     </div>
                   </div>
                 </Interactive3DCard>
@@ -758,15 +731,11 @@ const WorkoutGenerator: React.FC = () => {
             exit={{ opacity: 0, y: -20 }}
           >
             <div className="text-center">
-              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
-                Available Equipment
-              </h2>
-              <p className="text-lg sm:text-xl text-white/80 mb-8 px-4">
-                Select all equipment you have access to
-              </p>
+              <h2 className="text-4xl font-bold text-white mb-4">Available Equipment</h2>
+              <p className="text-xl text-white/80 mb-8">Select all equipment you have access to</p>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4 md:gap-6 max-w-6xl mx-auto px-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
               {equipmentOptions.map((option) => (
                 <Interactive3DCard
                   key={option.value}
@@ -774,16 +743,14 @@ const WorkoutGenerator: React.FC = () => {
                   onClick={() => handleEquipmentClick(option.value)}
                   className="aspect-square overflow-hidden"
                 >
-                  <div className="relative h-full flex flex-col items-center justify-center p-2 sm:p-4">
+                  <div className="relative h-full flex flex-col items-center justify-center p-4">
                     <img
                       src={option.src}
                       alt={option.label}
-                      className="w-12 h-12 sm:w-16 sm:h-16 object-contain mb-2 sm:mb-4"
+                      className="w-16 h-16 object-contain mb-4"
                     />
-                    <div className="text-2xl sm:text-4xl mb-1 sm:mb-2">{option.icon}</div>
-                    <h3 className="text-sm sm:text-lg font-bold text-white text-center leading-tight">
-                      {option.label}
-                    </h3>
+                    <div className="text-4xl mb-2">{option.icon}</div>
+                    <h3 className="text-lg font-bold text-white text-center">{option.label}</h3>
                   </div>
                 </Interactive3DCard>
               ))}
@@ -826,14 +793,14 @@ const WorkoutGenerator: React.FC = () => {
           >
             <div className="text-center mb-8">
               <motion.h2
-                className="text-3xl sm:text-4xl font-bold text-white mb-4"
+                className="text-4xl font-bold text-white mb-4"
                 animate={{ scale: [1, 1.02, 1] }}
                 transition={{ duration: 2, repeat: Infinity }}
               >
-                <Sparkles className="w-8 h-8 sm:w-10 sm:h-10 inline mr-3 text-accent" />
+                <Sparkles className="w-10 h-10 inline mr-3 text-accent" />
                 Ready to Generate!
               </motion.h2>
-              <p className="text-lg sm:text-xl text-white/80 px-4">
+              <p className="text-xl text-white/80">
                 Your personalized workout is just one click away
               </p>
             </div>
@@ -919,16 +886,14 @@ const WorkoutGenerator: React.FC = () => {
                 transition={{ duration: 0.8, ease: 'easeOut' }}
               >
                 <div className="text-center">
-                  <h3 className="text-2xl sm:text-3xl font-bold text-white mb-4">
-                    <Trophy className="w-6 h-6 sm:w-8 sm:h-8 inline mr-3 text-accent" />
+                  <h3 className="text-3xl font-bold text-white mb-4">
+                    <Trophy className="w-8 h-8 inline mr-3 text-accent" />
                     Your Generated Workout
                   </h3>
-                  <p className="text-white/80 text-sm sm:text-base px-4">
-                    Perfectly tailored to your preferences
-                  </p>
+                  <p className="text-white/80">Perfectly tailored to your preferences</p>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 max-w-7xl mx-auto px-4">
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
                   {workout.map((exercise, index) => (
                     <motion.div
                       key={(exercise as any).id ?? `${(exercise as any).name}-${index}`}
@@ -938,29 +903,29 @@ const WorkoutGenerator: React.FC = () => {
                     >
                       <GlowEffect color={index % 2 === 0 ? 'cyan' : 'purple'} intensity="medium">
                         <Glass3DCard className="h-full">
-                          <div className="p-4 sm:p-6 text-center space-y-3 sm:space-y-4">
+                          <div className="p-6 text-center space-y-4">
                             {(exercise as any).image_url ? (
                               <img
                                 src={(exercise as any).image_url}
                                 alt={(exercise as any).name}
-                                className="w-20 h-20 sm:w-24 sm:h-24 mx-auto rounded-xl object-cover border-2 border-white/20"
+                                className="w-24 h-24 mx-auto rounded-xl object-cover border-2 border-white/20"
                               />
                             ) : (
-                              <div className="w-20 h-20 sm:w-24 sm:h-24 mx-auto rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center border-2 border-white/20">
-                                <Dumbbell className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
+                              <div className="w-24 h-24 mx-auto rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center border-2 border-white/20">
+                                <Dumbbell className="w-8 h-8 text-white" />
                               </div>
                             )}
 
                             <div>
-                              <h4 className="text-base sm:text-lg font-bold text-white mb-1">
+                              <h4 className="text-lg font-bold text-white mb-1">
                                 {(exercise as any).name}
                               </h4>
-                              <p className="text-xs sm:text-sm text-white/60 capitalize">
+                              <p className="text-sm text-white/60 capitalize">
                                 ({(exercise as any).difficulty})
                               </p>
                             </div>
 
-                            <div className="space-y-2 text-xs sm:text-sm">
+                            <div className="space-y-2 text-sm">
                               <div className="text-primary">
                                 <strong>Primary:</strong>{' '}
                                 {((exercise as any).primary_muscles ?? []).join(', ')}
@@ -1001,7 +966,7 @@ const WorkoutGenerator: React.FC = () => {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex flex-col sm:flex-row gap-4 justify-center mt-8 px-4">
+                <div className="flex flex-col sm:flex-row gap-4 justify-center mt-8">
                   <HolographicButton
                     onClick={handleSaveWorkout}
                     disabled={saveStatus === 'saving' || saveStatus === 'saved'}
@@ -1067,7 +1032,7 @@ const WorkoutGenerator: React.FC = () => {
           transition={{ duration: 0.8, ease: 'easeOut' }}
         >
           <motion.h1
-            className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent mb-4"
+            className="text-6xl md:text-7xl font-bold bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent mb-4"
             animate={{
               backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'],
             }}
@@ -1076,7 +1041,7 @@ const WorkoutGenerator: React.FC = () => {
           >
             Workout Generator
           </motion.h1>
-          <p className="text-lg sm:text-xl text-white/80 max-w-2xl mx-auto px-4">
+          <p className="text-xl text-white/80 max-w-2xl mx-auto">
             Create your perfect workout with AI-powered personalization
           </p>
         </motion.div>
@@ -1147,48 +1112,6 @@ const WorkoutGenerator: React.FC = () => {
           cursor: pointer;
           box-shadow: 0 0 20px rgba(0,229,255,0.5);
           border: 2px solid white;
-        }
-
-        /* Ensure images scale properly on mobile */
-        @media (max-width: 768px) {
-          .grid img {
-            object-position: center top;
-          }
-        }
-        
-        /* Improve image contrast for better visibility */
-        .workout-card-image {
-          filter: contrast(1.1) brightness(1.05);
-        }
-
-        /* Fix margin spacing for level description */
-        .ml-13 {
-          margin-left: 3.25rem;
-        }
-        
-        /* Mobile-specific improvements */
-        @media (max-width: 640px) {
-          .container {
-            padding-left: 1rem;
-            padding-right: 1rem;
-          }
-          
-          /* Ensure muscle map SVGs don't overflow */
-          .muscle-map-container svg {
-            max-width: 100%;
-            height: auto;
-          }
-          
-          /* Better spacing for mobile cards */
-          .mobile-card-spacing {
-            margin-bottom: 1rem;
-          }
-          
-          /* Ensure text doesn't get cut off */
-          .text-overflow-mobile {
-            word-wrap: break-word;
-            hyphens: auto;
-          }
         }
       `}</style>
     </div>

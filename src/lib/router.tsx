@@ -10,7 +10,7 @@ import { WorkoutPage } from '../pages/WorkoutPage';
 import WorkoutLibraryPage from '../pages/workout-library/WorkoutLibraryPage';
 import { ExerciseLibraryPage } from '../pages/ExerciseLibraryPage';
 import { WorkoutCreatorPage } from '../pages/workout-creator/WorkoutCreatorPage';
-import { ExerciseSelectionPage } from '../pages/workout-creator/ExerciseSelectionPage';
+import { EnhancedExerciseSelectionPage } from '../pages/workout-creator/EnhancedExerciseSelectionPage';
 import { WorkoutExecutePage } from '../pages/workout-creator/WorkoutExecutePage';
 import { MyWorkoutsPage } from '../pages/workout-creator/MyWorkoutsPage';
 import PlannerPage from '../pages/PlannerPage';
@@ -23,6 +23,7 @@ import SettingsPage from '../pages/SettingsPage';
 import FriendsPage from '../pages/FriendsPage';
 import { StatsPage } from '../pages/StatsPage';
 import { WorkoutsPage } from '../pages/WorkoutsPage';
+import DebugLoginPage from '../pages/DebugLoginPage';
 
 export const router = createBrowserRouter(
   [
@@ -42,7 +43,7 @@ export const router = createBrowserRouter(
         { path: 'modules/workout/workout-creator', element: <WorkoutCreatorPage /> },
         {
           path: 'modules/workout/workout-creator/select-exercises',
-          element: <ExerciseSelectionPage />,
+          element: <EnhancedExerciseSelectionPage />,
         },
         { path: 'modules/workout/execute/:workoutId', element: <WorkoutExecutePage /> },
         { path: 'modules/workout/my-workouts', element: <MyWorkoutsPage /> },
@@ -55,6 +56,7 @@ export const router = createBrowserRouter(
         { path: 'friends', element: <FriendsPage /> },
         { path: 'signin', element: <SignInForm /> },
         { path: 'reset-password', element: <ResetPasswordPage /> },
+        { path: 'debug-login', element: <DebugLoginPage /> },
         { path: 'settings', element: <SettingsPage /> },
         { path: 'following', element: <FollowingList /> },
       ],

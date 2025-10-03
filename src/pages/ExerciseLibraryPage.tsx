@@ -231,63 +231,152 @@ function ExerciseCard({ exercise, viewMode, onExerciseClick }: ExerciseCardProps
             intensity="high" 
             depth={12}
           >
-          <div className="relative h-48 overflow-hidden rounded-t-xl">
+          <div className="relative h-48 overflow-hidden rounded-t-xl group">
             <ExerciseImage 
               exercise={exercise} 
               className="w-full h-full object-cover transition-transform duration-500 hover:scale-110" 
               priority={false} 
             />
+            
+            {/* Animated Border Effect */}
+            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse" />
+            </div>
+            
             {/* Difficulty Badge */}
-            <div className="absolute top-3 left-3">
-              <div className={`px-3 py-1 rounded-full text-xs font-bold ${config.color} bg-gradient-to-r ${config.bg} to-black/40 backdrop-blur-sm border border-current/30`}>
+            <motion.div 
+              className="absolute top-3 left-3"
+              whileHover={{ scale: 1.1 }}
+              transition={{ type: "spring", stiffness: 400, damping: 17 }}
+            >
+              <div className={`px-3 py-1 rounded-full text-xs font-bold ${config.color} bg-gradient-to-r ${config.bg} to-black/40 backdrop-blur-sm border border-current/30 shadow-lg`}>
                 {exercise.difficulty}
               </div>
-            </div>
+            </motion.div>
+            
             {/* Hyrox Badge */}
             {isHyrox && (
-              <div className="absolute top-3 right-3">
-                <div className="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center shadow-neon-orange">
+              <motion.div 
+                className="absolute top-3 right-3"
+                whileHover={{ rotate: 15, scale: 1.1 }}
+                transition={{ type: "spring", stiffness: 400, damping: 17 }}
+              >
+                <div className="w-8 h-8 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center shadow-neon-orange">
                   <Trophy className="w-4 h-4 text-white" />
+                </div>
+              </motion.div>
+            )}
+            
+            {/* Muscle Count Badge */}
+            {Array.isArray(exercise.primary_muscles) && exercise.primary_muscles.length > 0 && (
+              <div className="absolute bottom-3 left-3">
+                <div className="px-2 py-1 rounded-full bg-black/60 backdrop-blur-sm border border-white/20 flex items-center gap-1">
+                  <Target className="w-3 h-3 text-cyan-400" />
+                  <span className="text-xs text-white font-medium">{exercise.primary_muscles.length}</span>
                 </div>
               </div>
             )}
+            
+            {/* Equipment Count Badge */}
+            {Array.isArray(exercise.equipment) && exercise.equipment.length > 0 && (
+              <div className="absolute bottom-3 right-3">
+                <div className="px-2 py-1 rounded-full bg-black/60 backdrop-blur-sm border border-white/20 flex items-center gap-1">
+                  <Dumbbell className="w-3 h-3 text-purple-400" />
+                  <span className="text-xs text-white font-medium">{exercise.equipment.length}</span>
+                </div>
+              </div>
+            )}
+            
             {/* Gradient Overlay */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+            
+            {/* Hover Play Button */}
+            <motion.div 
+              className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100"
+              initial={{ scale: 0 }}
+              whileHover={{ scale: 1 }}
+              transition={{ type: "spring", stiffness: 400, damping: 17 }}
+            >
+              <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center border border-white/30">
+                <Zap className="w-6 h-6 text-white" />
+              </div>
+            </motion.div>
           </div>
           
           {/* Content Section */}
-          <div className="p-6">
-            <h3 className="font-bold text-white text-lg mb-2">{exercise.name}</h3>
+          <div className="p-6 relative">
+            {/* Animated Title */}
+            <motion.h3 
+              className="font-bold text-white text-lg mb-2 line-clamp-1"
+              whileHover={{ x: 4 }}
+              transition={{ type: "spring", stiffness: 400, damping: 17 }}
+            >
+              {exercise.name}
+            </motion.h3>
+            
             {!!exercise.description && (
-              <p className="text-white/70 text-sm mb-4 line-clamp-2">{exercise.description}</p>
+              <p className="text-white/70 text-sm mb-4 line-clamp-2 leading-relaxed">{exercise.description}</p>
             )}
             
-            {/* Exercise Details */}
+            {/* Exercise Details with Enhanced Icons */}
             <div className="space-y-3 mb-4">
               {!!primaryMuscles && (
-                <div className="flex items-center gap-2 text-sm">
-                  <div className="w-8 h-8 bg-cyan-500/20 rounded-lg flex items-center justify-center">
-                    <Target className="w-4 h-4 text-cyan-400" />
+                <motion.div 
+                  className="flex items-center gap-3 text-sm group cursor-pointer"
+                  whileHover={{ x: 2 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                >
+                  <div className="w-8 h-8 bg-gradient-to-br from-cyan-500/20 to-blue-500/20 rounded-lg flex items-center justify-center group-hover:shadow-cyan-glow transition-shadow duration-300">
+                    <Target className="w-4 h-4 text-cyan-400 group-hover:text-cyan-300 transition-colors" />
                   </div>
-                  <span className="text-white/80 font-medium">{primaryMuscles}</span>
-                </div>
+                  <span className="text-white/80 font-medium group-hover:text-white transition-colors">{primaryMuscles}</span>
+                </motion.div>
               )}
+              
               {!!equipment && (
-                <div className="flex items-center gap-2 text-sm">
-                  <div className="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center">
-                    <Dumbbell className="w-4 h-4 text-purple-400" />
+                <motion.div 
+                  className="flex items-center gap-3 text-sm group cursor-pointer"
+                  whileHover={{ x: 2 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                >
+                  <div className="w-8 h-8 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-lg flex items-center justify-center group-hover:shadow-purple-glow transition-shadow duration-300">
+                    <Dumbbell className="w-4 h-4 text-purple-400 group-hover:text-purple-300 transition-colors" />
                   </div>
-                  <span className="text-white/80 font-medium">{equipment}</span>
-                </div>
+                  <span className="text-white/80 font-medium group-hover:text-white transition-colors">{equipment}</span>
+                </motion.div>
               )}
+              
               {!!exercise.recommended_reps && (
-                <div className="flex items-center gap-2 text-sm">
-                  <div className="w-8 h-8 bg-orange-500/20 rounded-lg flex items-center justify-center">
-                    <Clock className="w-4 h-4 text-orange-400" />
+                <motion.div 
+                  className="flex items-center gap-3 text-sm group cursor-pointer"
+                  whileHover={{ x: 2 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                >
+                  <div className="w-8 h-8 bg-gradient-to-br from-orange-500/20 to-red-500/20 rounded-lg flex items-center justify-center group-hover:shadow-orange-glow transition-shadow duration-300">
+                    <Clock className="w-4 h-4 text-orange-400 group-hover:text-orange-300 transition-colors" />
                   </div>
-                  <span className="text-white/80 font-medium">{exercise.recommended_reps}</span>
-                </div>
+                  <span className="text-white/80 font-medium group-hover:text-white transition-colors">{exercise.recommended_reps}</span>
+                </motion.div>
               )}
+            </div>
+
+            {/* Progress Bar based on difficulty */}
+            <div className="mb-4">
+              <div className="flex items-center justify-between text-xs text-white/60 mb-2">
+                <span>Intensity Level</span>
+                <span className={config.color}>{exercise.difficulty}</span>
+              </div>
+              <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
+                <motion.div 
+                  className={`h-full bg-gradient-to-r ${config.bg} to-transparent rounded-full`}
+                  initial={{ width: 0 }}
+                  animate={{ 
+                    width: exercise.difficulty === 'beginner' ? '33%' : 
+                           exercise.difficulty === 'intermediate' ? '66%' : '100%'
+                  }}
+                  transition={{ delay: 0.5, duration: 1 }}
+                />
+              </div>
             </div>
 
             {/* Hyrox Special Section */}
