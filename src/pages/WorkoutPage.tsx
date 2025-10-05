@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { Library, Clock, Flame, BookOpen, Wrench, ArrowUp, ArrowDown } from 'lucide-react';
 import { BackButton } from '../components/ui/BackButton';
 import { motion } from 'framer-motion';
-import { FloatingElements } from '../components/ui/Advanced3D';
 
 // Helper function to convert hex color to rgba
 const hexToRgba = (hex: string, alpha: number) => {
@@ -29,12 +28,35 @@ interface WorkoutCategory {
   link: string;
 }
 
+const colorMap = {
+  'workout-generator': {
+    primary: '#f97316',
+    secondary: '#f43f5e',
+  },
+  'workout-creator': {
+    primary: '#a855f7',
+    secondary: '#ec4899',
+  },
+  'community-workouts': {
+    primary: '#10b981',
+    secondary: '#22c55e',
+  },
+  'exercise-library': {
+    primary: '#06b6d4',
+    secondary: '#3b82f6',
+  },
+  'workout-library': {
+    primary: '#f59e0b',
+    secondary: '#eab308',
+  },
+};
+
 const defaultWorkoutCategories: WorkoutCategory[] = [
   {
     id: 'workout-generator',
     title: 'Workout Generator',
     description:
-      'Laat ons een workout voor je bouwen! Beantwoord een paar vragen en krijg een persoonlijk plan.',
+      'Let us build a workout for you! Answer a few questions and get a personalized plan.',
     icon: Flame,
     color: 'text-orange-500',
     gradient: 'from-orange-400/20 to-red-400/20',
@@ -56,7 +78,7 @@ const defaultWorkoutCategories: WorkoutCategory[] = [
     id: 'workout-creator',
     title: 'Workout Creator',
     description:
-      'Bouw je eigen workouts met onze intuïtieve drag & drop interface. Volledig aanpasbaar.',
+      'Build your own workouts with our intuitive drag & drop interface. Fully customizable.',
     icon: Wrench,
     color: 'text-purple-500',
     gradient: 'from-purple-400/20 to-pink-400/20',
@@ -78,7 +100,7 @@ const defaultWorkoutCategories: WorkoutCategory[] = [
     id: 'community-workouts',
     title: 'Community Workouts',
     description:
-      'Ontdek workouts gedeeld door onze community. Stemming, reviews en persoonlijke ervaringen.',
+      'Discover workouts shared by our community. Ratings, reviews, and personal experiences.',
     icon: BookOpen,
     color: 'text-emerald-500',
     gradient: 'from-emerald-400/20 to-green-400/20',
@@ -99,7 +121,8 @@ const defaultWorkoutCategories: WorkoutCategory[] = [
   {
     id: 'exercise-library',
     title: 'Exercise Library',
-    description: "Uitgebreide database met oefeningen, instructies, tips en demonstratie video's.",
+    description:
+      'Comprehensive database of exercises with instructions, tips, and demonstration videos.',
     icon: Library,
     color: 'text-cyan-500',
     gradient: 'from-cyan-400/20 to-blue-400/20',
@@ -121,7 +144,7 @@ const defaultWorkoutCategories: WorkoutCategory[] = [
     id: 'workout-library',
     title: 'Workout Library',
     description:
-      'Vooraf gemaakte workouts door fitness experts. Getest, geoptimaliseerd en klaar voor gebruik.',
+      'Pre-made workouts by fitness experts. Tested, optimized, and ready to use.',
     icon: BookOpen,
     color: 'text-amber-500',
     gradient: 'from-amber-400/20 to-yellow-400/20',
@@ -156,14 +179,7 @@ function WorkoutCategoryCard({
   canMoveUp,
   canMoveDown,
 }: WorkoutCategoryCardProps) {
-  const colorMap = {
-    'workout-generator': { primary: '#FF6B35', secondary: '#FF8C42' },
-    'workout-creator': { primary: '#B400FF', secondary: '#D946EF' },
-    'community-workouts': { primary: '#00FF87', secondary: '#34D399' },
-    'exercise-library': { primary: '#00E5FF', secondary: '#0EA5E9' },
-    'workout-library': { primary: '#FFD600', secondary: '#F59E0B' },
-  };
-
+  // The icon component will be used directly from the category object
   const colors = colorMap[category.id as keyof typeof colorMap] || {
     primary: '#ffffff',
     secondary: '#f3f4f6',
@@ -184,8 +200,13 @@ function WorkoutCategoryCard({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, ease: 'easeOut' }}
-      whileHover={{ y: -8, scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
+      whileHover={{ scale: 1.02, y: -8 }}
+      whileTap={{ scale: 0.96 }}
+      transition={{
+        type: 'spring',
+        stiffness: 300,
+        damping: 20
+      }}
     >
       {/* Glass morphism card base */}
       <div className="relative h-full glass-card border border-white/10 overflow-hidden group-hover:border-white/20 transition-all duration-500">
@@ -355,7 +376,7 @@ function WorkoutCategoryCard({
 
 export function WorkoutPage() {
   const STORAGE_KEY = 'fitprove_card_order_v1';
-  const [categories, setCategories] = React.useState<WorkoutCategory[]>(() => {
+  const [workoutCards, setWorkoutCards] = React.useState<WorkoutCategory[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
@@ -368,7 +389,9 @@ export function WorkoutPage() {
             .concat(defaultWorkoutCategories.filter((c) => !ids.includes(c.id)));
         }
       }
-    } catch {}
+    } catch (error) {
+      console.error('Error loading saved card order:', error);
+    }
     return defaultWorkoutCategories;
   });
 
@@ -386,14 +409,14 @@ export function WorkoutPage() {
   }, []);
 
   const moveCard = (fromIndex: number, toIndex: number) => {
-    if (toIndex < 0 || toIndex >= categories.length) return;
+    if (toIndex < 0 || toIndex >= workoutCards.length) return;
 
-    const newCategories = [...categories];
-    const [movedCard] = newCategories.splice(fromIndex, 1);
-    newCategories.splice(toIndex, 0, movedCard);
+    const newCards = [...workoutCards];
+    const [movedCard] = newCards.splice(fromIndex, 1);
+    newCards.splice(toIndex, 0, movedCard);
 
-    setCategories(newCategories);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newCategories.map((c) => c.id)));
+    setWorkoutCards(newCards);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(newCards.map((c) => c.id)));
   };
 
   const getStatCount = (category: WorkoutCategory) => {
@@ -408,26 +431,21 @@ export function WorkoutPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900 relative overflow-hidden">
-      {/* Floating background elements */}
-      <FloatingElements />
+    <div className="min-h-screen space-y-8">
+      {/* Hero Section with Glass Morphism */}
+      <section className="relative -mx-4 -mt-4">
+        <div className="relative w-full h-[40vh] sm:h-[50vh] overflow-hidden rounded-b-3xl">
+          <img
+            src="/images/workout_hero.webp"
+            alt="Workout Module Hero"
+            className="w-full h-full object-cover"
+          />
+          {/* Glass morphism overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
+        </div>
+      </section>
 
-      {/* Glass morphism background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-purple-500/5 to-pink-500/5 backdrop-blur-3xl" />
-
-      {/* Animated grid overlay */}
-      <div
-        className="absolute inset-0 opacity-20"
-        style={{
-          backgroundImage: `
-            radial-gradient(circle at 25% 25%, #00f5ff 2px, transparent 0),
-            radial-gradient(circle at 75% 75%, #ff6b35 2px, transparent 0)
-          `,
-          backgroundSize: '50px 50px',
-        }}
-      />
-
-      <div className="relative z-10 container mx-auto px-4 py-8 max-w-7xl">
+      <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 max-w-7xl">
         {/* Header Section */}
         <motion.div
           className="mb-12 text-center"
@@ -438,23 +456,15 @@ export function WorkoutPage() {
           <div className="flex justify-between items-center mb-8">
             <BackButton />
             <div className="flex-1 text-center">
-              <motion.h1
-                className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-4"
-                initial={{ scale: 0.9 }}
-                animate={{ scale: 1 }}
-                transition={{ duration: 0.8, ease: 'easeOut' }}
-              >
-                Workout Modules
-              </motion.h1>
-              <motion.p
-                className="text-white/70 text-lg max-w-2xl mx-auto leading-relaxed"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.3 }}
-              >
-                Kies je gewenste workout module en begin je fitness journey. Van gepersonaliseerde
-                workouts tot community creaties.
-              </motion.p>
+              <h1 className="text-4xl md:text-6xl font-bold mb-6">
+                <span className="bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">
+                  Workout Modules
+                </span>
+              </h1>
+
+              <p className="text-lg md:text-xl text-white/80 mb-8 leading-relaxed max-w-2xl mx-auto text-center">
+                Transform your fitness journey with our complete workout system
+              </p>
             </div>
             <div className="w-24" /> {/* Spacer for centering */}
           </div>
@@ -462,12 +472,12 @@ export function WorkoutPage() {
 
         {/* Categories Grid */}
         <motion.div
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4, staggerChildren: 0.1 }}
         >
-          {categories.map((category, idx) => (
+          {workoutCards.map((category, idx) => (
             <motion.div
               key={category.id}
               initial={{ opacity: 0, y: 20 }}
@@ -487,7 +497,7 @@ export function WorkoutPage() {
                   onMoveUp={() => moveCard(idx, idx - 1)}
                   onMoveDown={() => moveCard(idx, idx + 1)}
                   canMoveUp={idx > 0}
-                  canMoveDown={idx < categories.length - 1}
+                  canMoveDown={idx < workoutCards.length - 1}
                 />
               </Link>
             </motion.div>

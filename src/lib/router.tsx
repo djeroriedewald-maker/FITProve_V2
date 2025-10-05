@@ -1,7 +1,7 @@
 import React from 'react';
-import { createBrowserRouter } from 'react-router-dom';
+import { createBrowserRouter, Outlet } from 'react-router-dom';
 import ExerciseDetailPage from '../pages/ExerciseDetailPage';
-import { HomePage } from '../pages/HomePage';
+import HomePage from '../pages/HomePage';
 import ProfilePage from '../pages/ProfilePage';
 import { FollowingList } from '../components/profile/FollowingList';
 import { CommunityPage } from '../pages/CommunityPage';
@@ -17,23 +17,35 @@ import PlannerPage from '../pages/PlannerPage';
 import WorkoutGenerator from '../pages/workout-generator';
 import { CommunityWorkoutsPage } from '../pages/CommunityWorkoutsPage';
 import { SignInForm } from '../components/SignInForm';
-import { RootLayout } from '../components/RootLayout';
 import { ResetPasswordPage } from '../pages/ResetPasswordPage';
 import SettingsPage from '../pages/SettingsPage';
 import FriendsPage from '../pages/FriendsPage';
 import { StatsPage } from '../pages/StatsPage';
 import { WorkoutsPage } from '../pages/WorkoutsPage';
 import DebugLoginPage from '../pages/DebugLoginPage';
+import { AppLayout } from '../components/ui/AppLayout';
 
 export const router = createBrowserRouter(
   [
     {
-      path: '/',
-      element: <RootLayout />,
+      element: (
+        <AppLayout>
+          <Outlet />
+        </AppLayout>
+      ),
       children: [
-        { index: true, element: <HomePage /> },
-        { path: 'profile', element: <ProfilePage /> },
-        { path: 'coach', element: <div className="p-4">Coach Page (Coming Soon)</div> },
+        {
+          path: '/',
+          element: <HomePage />,
+        },
+        {
+          path: '/profile',
+          element: <ProfilePage />,
+        },
+        {
+          path: '/coach',
+          element: <div className="p-4">Coach Page (Coming Soon)</div>,
+        },
         { path: 'stats', element: <StatsPage /> },
         { path: 'news', element: <div className="p-4">News Page (Coming Soon)</div> },
         { path: 'modules', element: <ModulesPage /> },
@@ -50,7 +62,7 @@ export const router = createBrowserRouter(
         { path: 'modules/workout/planner', element: <PlannerPage /> },
         { path: 'modules/workout/workout-library', element: <WorkoutLibraryPage /> },
         { path: 'modules/workout/community', element: <CommunityWorkoutsPage /> },
-        { path: 'workout-generator', element: <WorkoutGenerator onComplete={() => {}} /> },
+        { path: 'workout-generator', element: <WorkoutGenerator /> },
         { path: 'workouts', element: <WorkoutsPage /> },
         { path: 'community', element: <CommunityPage /> },
         { path: 'friends', element: <FriendsPage /> },
@@ -66,5 +78,5 @@ export const router = createBrowserRouter(
     future: {
       v7_relativeSplatPath: true,
     },
-  }
+  },
 );

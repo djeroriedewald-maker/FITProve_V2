@@ -10,14 +10,11 @@ function AppContent() {
   const { user, isLoading } = useAuth();
   const [showSplash, setShowSplash] = useState<boolean>(true);
 
-  // Memoize to avoid re-renders from changing function identity
   const handleAuthSuccess = useCallback(() => {
-    // Called by SplashScreen after successful auth
     setShowSplash(false);
   }, []);
 
   useEffect(() => {
-    // Keep splash visible while loading, then decide based on user
     if (isLoading) return;
 
     if (user) {
@@ -27,12 +24,6 @@ function AppContent() {
     }
   }, [user, isLoading]);
 
-  // Always show splash first; if no user yet, splash acts as auth gate
-  if (showSplash || !user) {
-    return <SplashScreen onAuthSuccess={handleAuthSuccess} />;
-  }
-
-  // Optional: show a quick spinner during transition phases
   if (isLoading) {
     return (
       <div className="fixed inset-0 bg-gradient-to-br from-gray-900 via-black to-gray-900 flex items-center justify-center">
@@ -41,24 +32,29 @@ function AppContent() {
     );
   }
 
-  // Main app once authenticated
-  return (
-    <NotificationProvider>
-      <RouterProvider
-        router={router}
-        future={{
-          v7_startTransition: true,
-        }}
-      />
-    </NotificationProvider>
+  return showSplash ? (
+    <SplashScreen onAuthSuccess={handleAuthSuccess} />
+  ) : (
+    <RouterProvider router={router} />
   );
 }
 
 export default function App() {
   return (
     <AuthProvider>
-      <AppContent />
-      <Toaster position="top-right" />
+      <NotificationProvider>
+        <AppContent />
+        <Toaster 
+          position="top-center"
+          reverseOrder={false}
+          toastOptions={{
+            style: {
+              background: 'rgba(0, 0, 0, 0.8)',
+              color: '#fff'
+            }
+          }}
+        />
+      </NotificationProvider>
     </AuthProvider>
   );
 }

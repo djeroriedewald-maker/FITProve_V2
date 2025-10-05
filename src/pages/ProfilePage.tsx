@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, MotionProps } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
@@ -81,8 +81,8 @@ export default function ProfilePage() {
   });
 
   // Debug avatar specifically
-  if (profile?.avatar_url) {
-    console.log('🖼️ Avatar URL found:', profile.avatar_url);
+  if (profile?.avatarUrl) {
+    console.log('🖼️ Avatar URL found:', profile.avatarUrl);
   } else {
     console.log('❌ No avatar URL in profile');
   }
@@ -93,7 +93,7 @@ export default function ProfilePage() {
       id: profile.id,
       name: profile.name,
       email: profile.email,
-      avatar_url: profile.avatar_url,
+      avatar_url: profile.avatarUrl,
     });
   }
 
@@ -162,9 +162,9 @@ export default function ProfilePage() {
       }
 
       // Delete old avatar if exists
-      if (profile?.avatar_url) {
+      if (profile?.avatarUrl) {
         try {
-          const oldPath = profile.avatar_url.split('/').pop();
+          const oldPath = profile.avatarUrl.split('/').pop();
           if (oldPath && oldPath !== 'default-avatar.png') {
             console.log('Removing old avatar:', oldPath);
             await supabase.storage.from('avatars').remove([oldPath]);
@@ -188,40 +188,11 @@ export default function ProfilePage() {
 
       if (uploadError) {
         console.error('Upload error:', uploadError);
-        // Fallback: save as base64 in profile for now
-        console.log('Using fallback: converting to base64...');
-        
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-          try {
-            const base64 = e.target?.result as string;
-            
-            const { error: updateError } = await supabase
-              .from('profiles')
-              .update({
-                avatar_url: base64,
-                updated_at: new Date().toISOString(),
-              })
-              .eq('id', user.id);
-
-            if (updateError) {
-              throw updateError;
-            }
-
-            console.log('Profile updated with base64 avatar');
-            await refreshProfile({ force: true });
-            toast.success('Profielfoto succesvol geüpload! (fallback methode)');
-          } catch (error) {
-            console.error('Fallback save error:', error);
-            toast.error('Fout bij uploaden profielfoto');
-          } finally {
-            setUploadingAvatar(false);
-            if (event.target) {
-              event.target.value = '';
-            }
-          }
-        };
-        reader.readAsDataURL(file);
+        toast.error(`Upload mislukt: ${uploadError.message}`);
+        setUploadingAvatar(false);
+        if (event.target) {
+          event.target.value = '';
+        }
         return;
       }
 
@@ -320,7 +291,7 @@ export default function ProfilePage() {
     try {
       // Get workout count
       const { data: workouts, error: workoutError } = await supabase
-        .from('sessions')
+        .from('workout_sessions')
         .select('id')
         .eq('user_id', user.id)
         .eq('status', 'completed');
@@ -329,7 +300,7 @@ export default function ProfilePage() {
 
       // Calculate current streak (simple implementation)
       const { data: recentWorkouts, error: streakError } = await supabase
-        .from('sessions')
+        .from('workout_sessions')
         .select('started_at')
         .eq('user_id', user.id)
         .eq('status', 'completed')
@@ -456,7 +427,12 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen pb-20 bg-gradient-to-br from-gray-900 via-black to-gray-900 relative overflow-hidden">
-      <div className="relative z-10 px-4 py-8">
+      {/* Animated background patterns */}
+      <div className="absolute inset-0 z-0 opacity-30">
+        <div className="absolute w-full h-full bg-[radial-gradient(circle_500px_at_50%_200px,rgba(0,229,255,0.1),transparent)]" />
+        <div className="absolute w-full h-full bg-[radial-gradient(circle_500px_at_80%_50%,rgba(180,0,255,0.1),transparent)]" />
+      </div>
+      <div className="relative z-10 container mx-auto px-4 py-8 max-w-4xl">
         {/* Header met back button */}
         <motion.div
           initial={{ opacity: 0, y: -50 }}
@@ -487,18 +463,21 @@ export default function ProfilePage() {
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.6, delay: 0.1 }}
         >
-          <GlassCard variant="hero" className="text-center mb-6">
+          <GlassCard variant="hero" className="text-center mb-6 relative overflow-visible">
+            {/* Decorative circles */}
+            <div className="absolute -top-12 -left-12 w-24 h-24 bg-gradient-to-br from-primary/20 to-transparent rounded-full blur-xl" />
+            <div className="absolute -bottom-12 -right-12 w-24 h-24 bg-gradient-to-br from-secondary/20 to-transparent rounded-full blur-xl" />
 
             <div className="relative inline-block mb-6">
               <div className="relative w-32 h-32 mx-auto">
-                {profile.avatar_url ? (
+                {profile.avatarUrl ? (
                   <div className="relative">
                     <img
-                      src={profile.avatar_url}
+                      src={profile.avatarUrl}
                       alt="Profile"
                       className="w-32 h-32 rounded-full border-4 border-white/30 object-cover"
                       onError={(e) => {
-                        console.error('🖼️ Avatar failed to load:', profile.avatar_url);
+                        console.error('🖼️ Avatar failed to load:', profile.avatarUrl);
                         console.error('Error details:', e);
                         // Hide the image and show fallback
                         e.currentTarget.style.display = 'none';
@@ -506,7 +485,7 @@ export default function ProfilePage() {
                         if (fallback) fallback.style.display = 'flex';
                       }}
                       onLoad={() => {
-                        console.log('✅ Avatar loaded successfully:', profile.avatar_url);
+                        console.log('✅ Avatar loaded successfully:', profile.avatarUrl);
                       }}
                     />
                     <div 
@@ -613,22 +592,50 @@ export default function ProfilePage() {
             )}
 
             {/* Live Stats Row */}
-            <div className="grid grid-cols-3 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-white mb-1">{userStats.totalWorkouts}</div>
-                <div className="text-white/70 text-sm">Workouts</div>
+            <motion.div 
+              className="grid grid-cols-3 gap-4 p-4 bg-white/5 backdrop-blur-sm rounded-xl border border-white/10"
+              whileHover={{ scale: 1.02, backgroundColor: 'rgba(255, 255, 255, 0.1)' }}
+              transition={{ duration: 0.3 }}
+            >
+              {/* Workouts Stats */}
+              <div className="text-center p-3 rounded-lg hover:bg-white/5 transition-all duration-300 group cursor-help">
+                <motion.div
+                  whileHover={{ scale: 1.05 }}
+                  transition={{ type: 'spring', stiffness: 300 }}
+                >
+                  <div className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent mb-1 group-hover:animate-pulse">
+                    {userStats.totalWorkouts}
+                  </div>
+                  <div className="text-white/70 text-sm font-medium">Workouts</div>
+                </motion.div>
               </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-white mb-1">
-                  {allBadges.filter((b) => b.unlocked_at).length}
-                </div>
-                <div className="text-white/70 text-sm">Badges</div>
+
+              {/* Badges Stats */}
+              <div className="text-center p-3 rounded-lg hover:bg-white/5 transition-all duration-300 group cursor-help">
+                <motion.div
+                  whileHover={{ scale: 1.05 }}
+                  transition={{ type: 'spring', stiffness: 300 }}
+                >
+                  <div className="text-3xl font-bold bg-gradient-to-r from-secondary to-secondary/70 bg-clip-text text-transparent mb-1 group-hover:animate-pulse">
+                    {allBadges.filter((b) => b.unlocked_at).length}
+                  </div>
+                  <div className="text-white/70 text-sm font-medium">Badges</div>
+                </motion.div>
               </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-white mb-1">{userStats.currentStreak}</div>
-                <div className="text-white/70 text-sm">Day Streak</div>
+
+              {/* Streak Stats */}
+              <div className="text-center p-3 rounded-lg hover:bg-white/5 transition-all duration-300 group cursor-help">
+                <motion.div
+                  whileHover={{ scale: 1.05 }}
+                  transition={{ type: 'spring', stiffness: 300 }}
+                >
+                  <div className="text-3xl font-bold bg-gradient-to-r from-accent to-accent/70 bg-clip-text text-transparent mb-1 group-hover:animate-pulse">
+                    {userStats.currentStreak}
+                  </div>
+                  <div className="text-white/70 text-sm font-medium">Day Streak</div>
+                </motion.div>
               </div>
-            </div>
+            </motion.div>
           </GlassCard>
         </motion.div>
 
@@ -639,19 +646,25 @@ export default function ProfilePage() {
           transition={{ duration: 0.6, delay: 0.3 }}
           className="mb-6"
         >
-          <GlassCard>
+          <GlassCard className="transform hover:scale-[1.02] transition-all duration-300 hover:shadow-lg hover:shadow-primary/10">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold text-white flex items-center">
-                <Trophy className="w-6 h-6 text-yellow-400 mr-2" />
-                Achievements
+                <Trophy className="w-6 h-6 text-yellow-400 mr-2 animate-pulse" />
+                <span className="bg-gradient-to-r from-yellow-400 to-yellow-600 bg-clip-text text-transparent">Achievements</span>
               </h3>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-white/60">
-                  {allBadges.filter((b) => b.unlocked_at).length}/{allBadges.length}
-                </span>
+              <div className="flex items-center gap-3">
+                <div className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10">
+                  <span className="text-sm font-medium text-white">
+                    {allBadges.filter((b) => b.unlocked_at).length}
+                  </span>
+                  <span className="text-sm text-white/60 mx-1">/</span>
+                  <span className="text-sm text-white/60">
+                    {allBadges.length}
+                  </span>
+                </div>
                 <button
                   onClick={() => setShowAllBadges(!showAllBadges)}
-                  className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+                  className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-300 hover:scale-110"
                 >
                   {showAllBadges ? (
                     <ChevronUp className="w-4 h-4 text-white" />
@@ -681,17 +694,21 @@ export default function ProfilePage() {
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ duration: 0.3, delay: index * 0.1 }}
-                      className={`p-4 rounded-xl border-2 transition-all duration-300 ${
-                        isUnlocked
-                          ? `bg-gradient-to-br ${tierColors[badge.tier]} border-white/30`
-                          : 'bg-gray-800/50 border-gray-600/30'
-                      }`}
+                      className={`p-4 rounded-xl border transition-all duration-300 group cursor-pointer
+                        ${isUnlocked
+                          ? `bg-gradient-to-br ${tierColors[badge.tier]} border-white/30 hover:shadow-lg hover:shadow-${badge.tier === 'gold' ? 'yellow' : badge.tier}-400/30`
+                          : 'bg-gray-800/50 border-gray-600/30 hover:bg-gray-700/50'}
+                      `}
+                      whileHover={{ scale: 1.03 }}
+                      whileTap={{ scale: 0.98 }}
                     >
                       <div className="text-center">
                         <div
-                          className={`w-12 h-12 mx-auto mb-3 rounded-full flex items-center justify-center ${
-                            isUnlocked ? 'bg-white/20' : 'bg-gray-600/20'
-                          }`}
+                          className={`w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center transform transition-all duration-300 group-hover:scale-110
+                            ${isUnlocked 
+                              ? 'bg-white/20 group-hover:bg-white/30 group-hover:rotate-3' 
+                              : 'bg-gray-600/20 group-hover:bg-gray-600/30'}
+                          `}
                         >
                           <IconComponent
                             className={`w-6 h-6 ${isUnlocked ? 'text-white' : 'text-gray-400'}`}
@@ -735,10 +752,13 @@ export default function ProfilePage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.4 }}
         >
-          <GlassCard>
-            <h3 className="text-xl font-bold text-white mb-6 flex items-center">
-              <TrendingUp className="w-6 h-6 text-green-400 mr-2" />
-              Recente Activiteit
+          <GlassCard className="transform hover:scale-[1.02] transition-all duration-300 hover:shadow-xl hover:shadow-green-400/10 relative overflow-visible group">
+            {/* Decorative accents */}
+            <div className="absolute -top-6 -right-6 w-24 h-24 bg-gradient-to-br from-green-400/20 to-transparent rounded-full blur-xl opacity-75 group-hover:opacity-100 transition-opacity duration-300" />
+            <div className="absolute -bottom-6 -left-6 w-24 h-24 bg-gradient-to-tr from-green-400/10 to-transparent rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <h3 className="text-xl font-bold mb-6 flex items-center">
+              <TrendingUp className="w-6 h-6 text-green-400 mr-2 group-hover:animate-bounce" />
+              <span className="bg-gradient-to-r from-green-400 to-green-600 bg-clip-text text-transparent">Recente Activiteit</span>
             </h3>
             <div className="space-y-4">
               {[
@@ -766,14 +786,16 @@ export default function ProfilePage() {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.3, delay: index * 0.1 }}
-                  className="flex items-center space-x-3 p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
+                  className="flex items-center space-x-4 p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all duration-300 transform hover:scale-[1.02] hover:shadow-lg border border-white/5 hover:border-white/10 group cursor-pointer"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                 >
-                  <div className="p-2 rounded-full bg-white/10">
-                    <activity.icon className={`w-4 h-4 ${activity.color}`} />
+                  <div className="p-3 rounded-xl bg-white/10 group-hover:bg-white/20 transition-all duration-300 transform group-hover:scale-110 group-hover:rotate-3">
+                    <activity.icon className={`w-5 h-5 ${activity.color} transition-transform duration-300 group-hover:rotate-12`} />
                   </div>
                   <div className="flex-1">
-                    <p className="text-white text-sm">{activity.text}</p>
-                    <p className="text-white/60 text-xs">{activity.time}</p>
+                    <p className="text-white text-sm font-medium group-hover:text-white/90 transition-colors duration-300">{activity.text}</p>
+                    <p className="text-white/60 text-xs group-hover:text-white/70 transition-colors duration-300">{activity.time}</p>
                   </div>
                 </motion.div>
               ))}
