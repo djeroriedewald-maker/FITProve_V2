@@ -15,12 +15,18 @@
 }
 
 /* Enhanced background with gradient */
+html, body, #root {
+  min-height: 100vh;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
 body {
   background: linear-gradient(135deg, #0A0A0F 0%, #151520 50%, #1F1F2E 100%);
   background-attachment: fixed;
   color: #ffffff;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  overflow-x: hidden;
+  position: relative;
 }
 
 /* Glass morphism base classes */

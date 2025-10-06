@@ -198,7 +198,7 @@ async function getWeeklyWorkoutCount(userId: string): Promise<number> {
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
     const { count, error } = await supabase
-      .from('sessions')
+      .from('workout_sessions')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', userId)
       .eq('status', 'completed')

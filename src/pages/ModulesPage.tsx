@@ -265,44 +265,104 @@ export function ModulesPage() {
 
   return (
     <div className="min-h-screen space-y-8">
-      {/* Hero Section with Glass Morphism */}
+      {/* Hero Section with Parallax Effect */}
       <section className="relative -mx-4 -mt-4">
-        <div className="relative w-full h-[50vh] sm:h-[60vh] overflow-hidden rounded-3xl">
-          <ProgressiveImage
-            src="/images/training_modules.webp"
-            alt="Training Modules Hero"
-            className="w-full h-full object-cover"
-          />
-          {/* Glass morphism overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
+        <div className="relative w-full h-[60vh] sm:h-[70vh] overflow-hidden rounded-3xl">
+          <motion.div
+            initial={{ scale: 1.1 }}
+            animate={{ scale: 1 }}
+            transition={{ duration: 1.5, ease: "easeOut" }}
+            className="absolute inset-0"
+          >
+            <ProgressiveImage
+              src="/images/training_modules.webp"
+              alt="Training Modules Hero"
+              className="w-full h-full object-cover"
+            />
+          </motion.div>
+          
+          {/* Enhanced glass morphism overlay with animated gradient */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent">
+            <motion.div 
+              className="absolute inset-0 opacity-30"
+              animate={{ 
+                background: [
+                  "linear-gradient(45deg, rgba(0,229,255,0.1) 0%, rgba(180,0,255,0.1) 100%)",
+                  "linear-gradient(45deg, rgba(180,0,255,0.1) 0%, rgba(255,107,53,0.1) 100%)",
+                  "linear-gradient(45deg, rgba(255,107,53,0.1) 0%, rgba(0,229,255,0.1) 100%)"
+                ]
+              }}
+              transition={{ 
+                duration: 10, 
+                repeat: Infinity,
+                ease: "linear"
+              }}
+            />
+          </div>
+
+          {/* Floating particles effect */}
+          <div className="absolute inset-0">
+            {Array.from({ length: 20 }).map((_, i) => (
+              <motion.div
+                key={i}
+                className="absolute w-1 h-1 bg-white rounded-full"
+                style={{
+                  left: `${Math.random() * 100}%`,
+                  top: `${Math.random() * 100}%`,
+                }}
+                animate={{
+                  y: [0, -20, 0],
+                  opacity: [0.2, 0.5, 0.2],
+                }}
+                transition={{
+                  duration: 3 + Math.random() * 2,
+                  repeat: Infinity,
+                  delay: Math.random() * 2,
+                }}
+              />
+            ))}
+          </div>
         </div>
 
         <div className="absolute inset-0 flex items-center justify-center p-6">
-          <GlassCard variant="hero" className="max-w-4xl text-center">
+          <GlassCard variant="hero" className="max-w-4xl text-center backdrop-blur-lg">
             <motion.div
               initial={{ opacity: 0, y: 30, scale: 0.9 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={{ duration: 0.8, ease: "easeOut" }}
             >
-              <h1 className="text-4xl md:text-6xl font-bold leading-tight mb-6">
-                Training
-                <span className="bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent"> Modules</span>
+              <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold leading-tight mb-6">
+                Transform Your
+                <div className="bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent"> Lifestyle</div>
               </h1>
 
-              <p className="text-lg md:text-xl text-white/80 mb-8 leading-relaxed max-w-2xl mx-auto">
-                Discover comprehensive training programs designed to transform your fitness journey. 
-                From strength building to mindful wellness, find the perfect module for your goals.
+              <p className="text-lg md:text-xl text-white/90 mb-8 leading-relaxed max-w-2xl mx-auto">
+                Embark on a journey of transformation with our expertly crafted training modules. 
+                From intense workouts to mindful wellness, we've got everything you need to reach your peak.
               </p>
 
-              <div className="flex items-center justify-center gap-6">
-                <div className="flex items-center gap-2 text-primary">
+              <div className="grid grid-cols-2 sm:flex sm:items-center justify-center gap-4 sm:gap-6">
+                <motion.div 
+                  className="flex items-center gap-2 text-primary bg-primary/10 p-3 rounded-xl"
+                  whileHover={{ scale: 1.05 }}
+                >
                   <Trophy className="w-5 h-5" />
-                  <span className="text-sm font-medium">Professional Programs</span>
-                </div>
-                <div className="flex items-center gap-2 text-secondary">
+                  <span className="text-sm font-medium">Pro Programs</span>
+                </motion.div>
+                <motion.div 
+                  className="flex items-center gap-2 text-secondary bg-secondary/10 p-3 rounded-xl"
+                  whileHover={{ scale: 1.05 }}
+                >
                   <Zap className="w-5 h-5" />
                   <span className="text-sm font-medium">Fast Results</span>
-                </div>
+                </motion.div>
+                <motion.div 
+                  className="flex items-center gap-2 text-accent bg-accent/10 p-3 rounded-xl"
+                  whileHover={{ scale: 1.05 }}
+                >
+                  <Users className="w-5 h-5" />
+                  <span className="text-sm font-medium">Community</span>
+                </motion.div>
               </div>
             </motion.div>
           </GlassCard>
@@ -310,41 +370,64 @@ export function ModulesPage() {
       </section>
 
       {/* Module Stats Overview */}
-      <section>
+      {/* Quick Stats with Interactive Animation */}
+      <section className="relative">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.2 }}
-          className="grid grid-cols-2 lg:grid-cols-4 gap-4"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
         >
-          <StatsCard
-            title="Exercises"
-            value={exerciseCount !== null ? exerciseCount : "..."}
-            icon={<Dumbbell className="w-6 h-6" />}
-            glowColor="cyan"
-          />
-          <StatsCard
-            title="Recipes"
-            value="200+"
-            icon={<Utensils className="w-6 h-6" />}
-            glowColor="green"
-          />
-          <StatsCard
-            title="Recovery"
-            value="80+"
-            icon={<Heart className="w-6 h-6" />}
-            glowColor="purple"
-          />
-          <StatsCard
-            title="Zen Sessions"
-            value="60+"
-            icon={<Brain className="w-6 h-6" />}
-            glowColor="orange"
-          />
+          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+            <StatsCard
+              title="Exercise Library"
+              value={exerciseCount !== null ? exerciseCount : "..."}
+              icon={<Dumbbell className="w-6 h-6" />}
+              glowColor="cyan"
+              subtitle="Professional Moves"
+            />
+          </motion.div>
+
+          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+            <StatsCard
+              title="Healthy Recipes"
+              value="200+"
+              icon={<Utensils className="w-6 h-6" />}
+              glowColor="green"
+              subtitle="Nutritious & Delicious"
+            />
+          </motion.div>
+
+          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+            <StatsCard
+              title="Recovery Plans"
+              value="80+"
+              icon={<Heart className="w-6 h-6" />}
+              glowColor="purple"
+              subtitle="Science-backed"
+            />
+          </motion.div>
+
+          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+            <StatsCard
+              title="Mindfulness"
+              value="60+"
+              icon={<Brain className="w-6 h-6" />}
+              glowColor="orange"
+              subtitle="Guided Sessions"
+            />
+          </motion.div>
         </motion.div>
+
+        {/* Decorative Elements */}
+        <div className="absolute -inset-4 -z-10">
+          <div className="absolute top-0 left-1/4 w-32 h-32 bg-primary/20 rounded-full mix-blend-multiply filter blur-xl animate-blob" />
+          <div className="absolute top-0 right-1/4 w-32 h-32 bg-secondary/20 rounded-full mix-blend-multiply filter blur-xl animate-blob animation-delay-2000" />
+          <div className="absolute bottom-8 left-1/3 w-32 h-32 bg-accent/20 rounded-full mix-blend-multiply filter blur-xl animate-blob animation-delay-4000" />
+        </div>
       </section>
 
-      {/* Module Categories Grid */}
+      {/* Module Categories Grid with Enhanced Animation */}
       <section>
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -378,37 +461,96 @@ export function ModulesPage() {
         </motion.div>
       </section>
 
-      {/* Call to Action */}
+      {/* Enhanced Call to Action */}
       <section>
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.8 }}
         >
-          <GlassCard variant="workout" className="p-8 text-center">
-            <div className="relative">
-              {/* Background Gradient */}
-              <div className="absolute inset-0 bg-gradient-to-r from-primary/20 via-secondary/20 to-accent/20 rounded-xl" />
-              
-              <div className="relative z-10">
-                <h2 className="text-3xl font-bold text-white mb-4">Ready to Start Your Journey?</h2>
-                <p className="text-lg text-white/80 mb-8 max-w-2xl mx-auto leading-relaxed">
-                  Begin with our workout module featuring expertly crafted exercise routines. More
-                  modules coming soon to complete your wellness journey!
+          <GlassCard variant="workout" className="p-8 text-center relative overflow-hidden">
+            {/* Animated Background Elements */}
+            <motion.div 
+              className="absolute inset-0 opacity-30"
+              animate={{ 
+                background: [
+                  'radial-gradient(circle at 20% 20%, var(--color-primary) 0%, transparent 50%)',
+                  'radial-gradient(circle at 80% 80%, var(--color-secondary) 0%, transparent 50%)',
+                  'radial-gradient(circle at 20% 80%, var(--color-accent) 0%, transparent 50%)',
+                  'radial-gradient(circle at 80% 20%, var(--color-primary) 0%, transparent 50%)',
+                ]
+              }}
+              transition={{ duration: 10, repeat: Infinity, ease: 'linear' }}
+            />
+            
+            {/* Content */}
+            <div className="relative z-10">
+              <motion.div
+                initial={{ scale: 0.95 }}
+                animate={{ scale: 1 }}
+                transition={{ duration: 0.5 }}
+              >
+                <h2 className="text-3xl sm:text-4xl font-bold mb-4">
+                  Ready to 
+                  <span className="bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent"> Transform</span>
+                  ?
+                </h2>
+                <p className="text-lg text-white/90 mb-8 max-w-2xl mx-auto leading-relaxed">
+                  Join thousands of others who have already started their fitness journey. 
+                  Our workout module is the perfect starting point for your transformation!
                 </p>
                 
-                <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <GlassButton size="lg" onClick={() => window.location.href = "/modules/workout"}>
-                    <Dumbbell className="w-5 h-5 mr-2" />
-                    Start with Workouts
-                    <ArrowRight className="w-5 h-5 ml-2" />
-                  </GlassButton>
+                <div className="flex flex-col sm:flex-row items-center gap-4 justify-center">
+                  <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                    <GlassButton 
+                      size="lg" 
+                      onClick={() => window.location.href = "/modules/workout"}
+                      className="relative overflow-hidden group"
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-secondary/20 transform group-hover:translate-x-full transition-transform duration-500" />
+                      <div className="relative flex items-center">
+                        <Dumbbell className="w-5 h-5 mr-2" />
+                        Start Your Journey
+                        <ArrowRight className="w-5 h-5 ml-2 transform group-hover:translate-x-1 transition-transform" />
+                      </div>
+                    </GlassButton>
+                  </motion.div>
                   
-                  <GlassButton variant="secondary" size="lg">
-                    Explore All Modules
-                  </GlassButton>
+                  <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                    <GlassButton 
+                      variant="secondary" 
+                      size="lg"
+                      className="group"
+                    >
+                      <div className="relative flex items-center">
+                        <span>Browse All Modules</span>
+                        <ArrowRight className="w-5 h-5 ml-2 transform group-hover:translate-x-1 transition-transform" />
+                      </div>
+                    </GlassButton>
+                  </motion.div>
                 </div>
-              </div>
+              </motion.div>
+              
+              {/* Social Proof */}
+              <motion.div 
+                className="mt-8 flex flex-wrap justify-center gap-4 text-sm text-white/60"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 1 }}
+              >
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4" />
+                  <span>1000+ Active Users</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Star className="w-4 h-4" />
+                  <span>4.9/5 Rating</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Trophy className="w-4 h-4" />
+                  <span>Pro Trainers</span>
+                </div>
+              </motion.div>
             </div>
           </GlassCard>
         </motion.div>

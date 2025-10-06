@@ -2,7 +2,6 @@ import { Outlet } from 'react-router-dom';
 import { FloatingNavigation } from './FloatingNavigation';
 import { AIChat } from './AIChat';
 import { Toaster } from 'sonner';
-import { FloatingActionMenu } from './ui/FloatingActionMenu';
 import { motion } from 'framer-motion';
 import { useState } from 'react';
 
@@ -14,11 +13,25 @@ export function RootLayout() {
   };
 
   return (
-    <div className="min-h-screen relative">
-      {/* Animated background with glass morphism */}
-      <div className="fixed inset-0 z-0">
-        {/* Primary gradient background */}
-        <div className="absolute inset-0 bg-gradient-to-br from-background-primary via-background-secondary to-background-tertiary" />
+    <div className="relative min-h-screen">
+      {/* Main content */}
+      <Outlet />
+
+      {/* Fixed navigation */}
+      <div 
+        className="fixed bottom-4 left-4 right-4"
+        style={{ zIndex: 999999 }}
+      >
+        <FloatingNavigation onAIChatToggle={toggleAIChat} />
+      </div>
+
+      {/* AI Chat */}
+      {/* AI Chat */}
+      <AIChat isOpen={isAIChatOpen} onClose={toggleAIChat} />
+      
+      {/* Toaster */}
+      <Toaster position="top-center" expand={true} richColors />
+    </div>
 
         {/* Floating orbs for depth */}
         <motion.div
@@ -89,17 +102,11 @@ export function RootLayout() {
       />
 
       {/* Content wrapper with proper z-index */}
-      <div className="relative z-10 min-h-screen flex flex-col">
-        {/* Main content with enhanced padding and smooth transitions */}
-        <main className="flex-1 pt-4 pb-8 px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: 'easeOut' }}
-            className="w-full max-w-7xl mx-auto"
-          >
+      <div className="relative min-h-screen pb-24">
+        <main className="relative z-10">
+          <div className="w-full h-full">
             <Outlet />
-          </motion.div>
+          </div>
         </main>
       </div>
 
@@ -111,14 +118,15 @@ export function RootLayout() {
         }}
       />
 
-      {/* New Floating Navigation System */}
-      <FloatingNavigation onAIChatToggle={toggleAIChat} />
-
-      {/* Floating Action Menu */}
-      <FloatingActionMenu />
+      {/* Navigation Bar - fixed to top of viewport */}
+      <div className="fixed z-[9999999] top-4 left-0 right-0 pointer-events-none">
+        <div className="max-w-screen-xl mx-auto px-4 pointer-events-auto">
+          <FloatingNavigation onAIChatToggle={toggleAIChat} />
+        </div>
+      </div>
 
       {/* AI Chat Component */}
       <AIChat isOpen={isAIChatOpen} onClose={() => setIsAIChatOpen(false)} />
-    </div>
+    </>
   );
 }

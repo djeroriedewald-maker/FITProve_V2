@@ -7,6 +7,16 @@ module.exports = {
   darkMode: 'class',
   theme: {
     extend: {
+      animation: {
+        'slow-spin': 'slow-spin 20s linear infinite',
+        'slow-spin-reverse': 'slow-spin 25s linear infinite reverse',
+      },
+      keyframes: {
+        'slow-spin': {
+          '0%': { transform: 'rotate(0deg)' },
+          '100%': { transform: 'rotate(360deg)' },
+        },
+      },
       colors: {
         // Glass morphism inspired palette
         primary: {

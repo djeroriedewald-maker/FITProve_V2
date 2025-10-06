@@ -1,1196 +1,784 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { scrollToTop } from '../utils/scroll';
-import { useAuth } from '../contexts/AuthContext';
-import { saveGeneratorWorkout } from '../lib/generator-workout.service';
-import { Exercise } from '../types/exercise.types';
-import { ExerciseService } from '../lib/exercise.service';
 import {
-  Interactive3DCard,
-  FloatingProgressRing,
-  AnimatedStepIndicator,
-  ParticleSystem,
-  HolographicButton,
-} from '../components/ui/WorkoutGenerator3D';
+  ChevronRightIcon,
+  ChevronLeftIcon,
+  CheckCircleIcon,
+} from '@heroicons/react/24/outline';
 
-import { FloatingElements, Glass3DCard, GlowEffect } from '../components/ui/Advanced3D';
-import {
-  Target,
-  Zap,
-  Users,
-  Heart,
-  Trophy,
-  Flame,
-  ArrowRight,
-  ArrowLeft,
-  Save,
-  Calendar,
-  Play,
-  Star,
-  Dumbbell,
-  Activity,
-  Sparkles,
-} from 'lucide-react';
-import rawManFrontSvg from '../assets/man-front.svg?raw';
-import rawManBackSvg from '../assets/man-back.svg?raw';
+/* ----------------------------- Types & Data ------------------------------ */
 
-// Utility to strip width/height attributes from SVG root
-function stripSvgSizeAttributes(svg: string) {
-  return svg.replace(
-    /(<svg\b[^>]*)(?:(?:\swidth="[^"]*")|(?:\sheight="[^"]*"))+([^>]*>)/gi,
-    (_m, p1, p2) => `${p1}${p2}`
-  );
+interface WorkoutPreferences {
+  goal: string;
+  eventType?: string;
+  eventDate?: Date;
+  experienceLevel: string;
+  equipment: string[];
+  duration: number;
+  frequency: {
+    days: string[];
+    preferredTime?: string;
+  };
+  limitations: string[];
+  workoutStyle: string;
+  music?: string;
+  tracking: {
+    social: boolean;
+    metrics: string[];
+  };
 }
 
-const manFrontSvg = stripSvgSizeAttributes(rawManFrontSvg);
-const manBackSvg = stripSvgSizeAttributes(rawManBackSvg);
-
-// Muscle group types and mappings (keeping the existing logic)
-type MuscleGroup =
-  | 'chest'
-  | 'back'
-  | 'shoulders'
-  | 'biceps'
-  | 'triceps'
-  | 'forearms'
-  | 'abdominals'
-  | 'obliques'
-  | 'lowerBack'
-  | 'glutes'
-  | 'quadriceps'
-  | 'hamstrings'
-  | 'calves'
-  | 'serratusAnterior';
-
-const MUSCLE_MAP: Record<MuscleGroup, string[]> = {
-  chest: ['muscle-0', 'muscle-24'],
-  back: ['bMuscle-0', 'bMuscle-18', 'bMuscle-3', 'bMuscle-19', 'bMuscle-32', 'bMuscle-33'],
-  shoulders: ['muscle-3', 'muscle-25', 'bMuscle-18', 'bMuscle-0'],
-  biceps: ['muscle-41', 'muscle-19'],
-  triceps: ['muscle-5', 'muscle-27', 'bMuscle-15', 'bMuscle-28'],
-  forearms: ['muscle-6', 'muscle-28', 'muscle-22', 'muscle-44', 'bMuscle-29', 'bMuscle-16'],
-  abdominals: [
-    'muscle-10',
-    'muscle-32',
-    'muscle-33',
-    'muscle-34',
-    'muscle-35',
-    'muscle-11',
-    'muscle-12',
-    'muscle-13',
-  ],
-  obliques: ['muscle-9', 'muscle-31', 'muscle-8', 'muscle-30'],
-  lowerBack: ['bMuscle-4', 'bMuscle-34'],
-  glutes: ['bMuscle-7', 'bMuscle-22', 'bMuscle-21', 'bMuscle-6'],
-  quadriceps: [
-    'muscle-21',
-    'muscle-43',
-    'muscle-23',
-    'muscle-45',
-    'muscle-20',
-    'muscle-42',
-    'bMuscle-36',
-    'bMuscle-35',
-    'bMuscle-38',
-    'bMuscle-8',
-  ],
-  hamstrings: ['bMuscle-17', 'bMuscle-37'],
-  calves: ['muscle-14', 'bMuscle-9', 'bMuscle-10', 'muscle-36', 'bMuscle-24', 'bMuscle-23'],
-  serratusAnterior: ['muscle-7', 'muscle-29'],
-};
-
-const MUSCLE_LABELS: Record<MuscleGroup, string> = {
-  chest: 'Chest',
-  back: 'Back',
-  shoulders: 'Shoulders',
-  biceps: 'Biceps',
-  triceps: 'Triceps',
-  forearms: 'Forearms',
-  abdominals: 'Abdominals',
-  obliques: 'Obliques',
-  lowerBack: 'Lower Back',
-  glutes: 'Glutes',
-  quadriceps: 'Quadriceps',
-  hamstrings: 'Hamstrings',
-  calves: 'Calves',
-  serratusAnterior: 'Serratus Anterior',
-};
-
-function getMuscleGroupByPathId(pathId: string): MuscleGroup | undefined {
-  return (Object.keys(MUSCLE_MAP) as MuscleGroup[]).find((group) =>
-    MUSCLE_MAP[group].includes(pathId)
-  );
+interface EventItem {
+  id: string;
+  title: string;
+  description: string;
+  image: string;
+  recommendedFrequency: number;
+  minDuration: number;
+  equipment: string[];
+  tips: string[];
 }
 
-// Enhanced Muscle Map Selector with 3D effects
-const Enhanced3DMuscleMapSelector: React.FC<{
-  value: MuscleGroup[];
-  onChange: (muscles: MuscleGroup[]) => void;
-}> = ({ value, onChange }) => {
-  function getHighlightedSvg(svg: string) {
-    let highlightedSvg = svg;
-    Object.entries(MUSCLE_MAP).forEach(([group, ids]) => {
-      if (value.includes(group as MuscleGroup)) {
-        ids.forEach((id) => {
-          const regex = new RegExp(
-            `<path([^>]*\\bid=['"]${id}['"][^>]*)fill=['"][^'"]*['"]([^>]*)>`,
-            'g'
-          );
-          highlightedSvg = highlightedSvg.replace(
-            regex,
-            `<path$1fill="url(#muscleGradient)"$2 style="filter: drop-shadow(0 0 8px #00E5FF);">`
-          );
-        });
-      }
-    });
-    return highlightedSvg;
-  }
+const EVENTS: EventItem[] = [
+  {
+    id: 'hyrox',
+    title: 'HYROX',
+    description: 'High-intensity race combining running with functional workouts',
+    image: '/images/creator-flow/event-hyrox.webp',
+    recommendedFrequency: 4,
+    minDuration: 45,
+    equipment: ['sled', 'rower', 'skierg', 'sandbag', 'wallballs'],
+    tips: ['Focus on endurance', 'Practice transitions', 'Build pulling strength'],
+  },
+  {
+    id: 'spartan',
+    title: 'Spartan Race',
+    description: 'Obstacle course race testing strength and endurance',
+    image: '/images/creator-flow/event-spartan.webp',
+    recommendedFrequency: 4,
+    minDuration: 45,
+    equipment: ['pull-up-bar', 'rope', 'weights'],
+    tips: ['Build grip strength', 'Practice climbing', 'Improve running endurance'],
+  },
+  {
+    id: 'marathon',
+    title: 'Marathon',
+    description: '26.2 mile endurance running event',
+    image: '/images/creator-flow/event-marathon.webp',
+    recommendedFrequency: 5,
+    minDuration: 60,
+    equipment: ['running-shoes'],
+    tips: ['Build weekly mileage', 'Include recovery runs', 'Practice nutrition'],
+  },
+  {
+    id: 'triathlon',
+    title: 'Triathlon',
+    description: 'Multi-sport event combining swimming, cycling, and running',
+    image: '/images/creator-flow/event-triathlon.webp',
+    recommendedFrequency: 6,
+    minDuration: 60,
+    equipment: ['bike', 'swim-gear', 'running-shoes'],
+    tips: ['Practice transitions', 'Build discipline endurance', 'Focus on weakest sport'],
+  },
+  {
+    id: 'crossfit',
+    title: 'CrossFit Competition',
+    description: 'High-intensity functional fitness competition',
+    image: '/images/creator-flow/event-crossfit.webp',
+    recommendedFrequency: 5,
+    minDuration: 60,
+    equipment: ['barbell', 'pull-up-bar', 'kettlebell', 'rower'],
+    tips: ['Master Olympic lifts', 'Build engine', 'Practice complex movements'],
+  },
+];
 
-  function handleSvgClick(e: React.MouseEvent<HTMLDivElement>) {
-    const target = e.target as Element;
-    if (target && target.tagName.toLowerCase() === 'path') {
-      const pathId = (target as SVGPathElement).id;
-      if (pathId) {
-        const group = getMuscleGroupByPathId(pathId);
-        if (group) {
-          onChange(value.includes(group) ? value.filter((g) => g !== group) : [...value, group]);
-        }
-      }
-    }
-  }
+const EXPERIENCE_LEVELS = [
+  {
+    id: 'beginner',
+    title: 'Beginner',
+    description: '0-6 months experience',
+    image: '/images/creator-flow/exp-beginner.webp',
+    tips: ['Focus on form', 'Start slow', 'Build consistency'],
+  },
+  {
+    id: 'intermediate',
+    title: 'Intermediate',
+    description: '6 months - 2 years',
+    image: '/images/creator-flow/exp-intermediate.webp',
+    tips: ['Increase intensity', 'Try complex movements', 'Track progress'],
+  },
+  {
+    id: 'advanced',
+    title: 'Advanced',
+    description: '2+ years',
+    image: '/images/creator-flow/exp-advanced.webp',
+    tips: ['Optimize performance', 'Focus on weaknesses', 'Advanced techniques'],
+  },
+];
 
-  return (
-    <GlowEffect color="cyan" intensity="high">
-      <Glass3DCard className="p-8 bg-gradient-to-br from-white/20 to-white/5">
-        <div className="text-center mb-6">
-          <h3 className="text-xl sm:text-2xl font-bold text-white mb-2 flex items-center justify-center gap-2">
-            <Target className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
-            Target Muscle Groups
-          </h3>
-          <p className="text-white/70 text-sm sm:text-base px-4">
-            Click on the body or select from buttons below
-          </p>
-        </div>
+const WORKOUT_GOALS = [
+  {
+    id: 'general',
+    title: 'General Fitness',
+    description: 'Balanced workouts for overall health and fitness',
+    imageSrc: '/images/creator-flow/goal-general.webp',
+    stats: [
+      { label: 'Focus', value: 'Balance' },
+      { label: 'Duration', value: '30-45m' },
+    ],
+  },
+  {
+    id: 'strength',
+    title: 'Build Strength',
+    description: 'Focus on building muscle and increasing strength',
+    imageSrc: '/images/creator-flow/goal-strength.webp',
+    stats: [
+      { label: 'Focus', value: 'Power' },
+      { label: 'Duration', value: '45-60m' },
+    ],
+  },
+  {
+    id: 'endurance',
+    title: 'Improve Endurance',
+    description: 'Enhance stamina and cardiovascular fitness',
+    imageSrc: '/images/creator-flow/goal-endurance.webp',
+    stats: [
+      { label: 'Focus', value: 'Cardio' },
+      { label: 'Duration', value: '30-45m' },
+    ],
+  },
+  {
+    id: 'weight-loss',
+    title: 'Weight Loss',
+    description: 'Targeted workouts to help you burn fat and lose weight',
+    imageSrc: '/images/creator-flow/goal-weight-loss.webp',
+    stats: [
+      { label: 'Focus', value: 'Fat Loss' },
+      { label: 'Duration', value: '40-50m' },
+    ],
+  },
+  {
+    id: 'event',
+    title: 'Train for Event',
+    description: 'Prepare for a specific competition or event',
+    imageSrc: '/images/creator-flow/goal-event.webp',
+    stats: [
+      { label: 'Focus', value: 'Specific' },
+      { label: 'Duration', value: 'Varied' },
+    ],
+  },
+];
 
-        {/* 3D Muscle Maps */}
-        <div className="flex flex-col sm:flex-row justify-center items-center sm:items-end gap-4 sm:gap-8 mb-6">
-          <motion.div
-            className="text-center w-full sm:w-auto"
-            whileHover={{ scale: 1.05 }}
-            transition={{ type: 'spring', stiffness: 300 }}
-          >
-            <h4 className="text-lg font-semibold text-white/90 mb-3">Front View</h4>
-            <div
-              className="relative cursor-pointer select-none bg-gradient-to-br from-white/10 to-white/5 rounded-2xl p-2 sm:p-4 border border-white/20 hover:border-primary/50 transition-all duration-300 max-w-[200px] sm:max-w-none mx-auto muscle-map-container"
-              onClick={handleSvgClick}
-              dangerouslySetInnerHTML={{
-                __html:
-                  getHighlightedSvg(manFrontSvg) +
-                  `
-                <defs>
-                  <linearGradient id="muscleGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stop-color="#00E5FF" />
-                    <stop offset="50%" stop-color="#B400FF" />
-                    <stop offset="100%" stop-color="#FF6B35" />
-                  </linearGradient>
-                </defs>
-              `,
-              }}
-            />
-          </motion.div>
+/* ------------------------------- UI Bits -------------------------------- */
 
-          <motion.div
-            className="text-center w-full sm:w-auto"
-            whileHover={{ scale: 1.05 }}
-            transition={{ type: 'spring', stiffness: 300 }}
-          >
-            <h4 className="text-lg font-semibold text-white/90 mb-3">Back View</h4>
-            <div
-              className="relative cursor-pointer select-none bg-gradient-to-br from-white/10 to-white/5 rounded-2xl p-2 sm:p-4 border border-white/20 hover:border-primary/50 transition-all duration-300 max-w-[200px] sm:max-w-none mx-auto muscle-map-container"
-              onClick={handleSvgClick}
-              dangerouslySetInnerHTML={{ __html: getHighlightedSvg(manBackSvg) }}
-            />
-          </motion.div>
-        </div>
+type Stat = { label: string; value: string };
 
-        {/* Interactive Muscle Buttons */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3 mb-4">
-          {(Object.keys(MUSCLE_MAP) as MuscleGroup[]).map((group) => (
-            <motion.button
-              key={group}
-              className={`relative px-2 sm:px-4 py-2 rounded-xl text-sm sm:text-base font-semibold transition-all duration-300 ${
-                value.includes(group)
-                  ? 'bg-gradient-to-r from-primary to-secondary text-white shadow-lg'
-                  : 'bg-white/10 text-white/80 hover:bg-white/20 border border-white/20'
-              }`}
-              onClick={() =>
-                onChange(
-                  value.includes(group) ? value.filter((g) => g !== group) : [...value, group]
-                )
-              }
-              whileHover={{ scale: 1.05, y: -2 }}
-              whileTap={{ scale: 0.95 }}
-              animate={
-                value.includes(group)
-                  ? {
-                      boxShadow: [
-                        '0 0 20px rgba(0,229,255,0.3)',
-                        '0 0 30px rgba(0,229,255,0.6)',
-                        '0 0 20px rgba(0,229,255,0.3)',
-                      ],
-                    }
-                  : {}
-              }
-              transition={{ boxShadow: { duration: 2, repeat: Infinity } }}
-            >
-              {MUSCLE_LABELS[group]}
-              {value.includes(group) && (
-                <motion.div
-                  className="absolute -top-1 -right-1 w-4 h-4 bg-accent rounded-full flex items-center justify-center"
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  exit={{ scale: 0 }}
-                >
-                  <Star className="w-2 h-2 text-white fill-white" />
-                </motion.div>
-              )}
-            </motion.button>
+const SelectionCard: React.FC<{
+  title: string;
+  description?: string;
+  imageSrc: string;
+  isSelected: boolean;
+  onClick: () => void;
+  stats?: Stat[];
+  className?: string;
+}> = ({ title, description, imageSrc, isSelected, onClick, stats, className = '' }) => (
+  <motion.div
+    whileHover={{ scale: 1.02 }}
+    whileTap={{ scale: 0.98 }}
+    onClick={onClick}
+    className={`relative overflow-hidden rounded-none cursor-pointer transition-all duration-300 ${className} ${
+      isSelected
+        ? 'ring-2 ring-purple-500 shadow-lg shadow-purple-500/50'
+        : 'hover:ring-2 hover:ring-purple-400/50'
+    }`}
+  >
+    <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-black/20 z-10" />
+    <img src={imageSrc} alt={title} className="w-full h-60 sm:h-48 object-cover" />
+    <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 z-20 bg-gradient-to-t from-black via-black/80 to-transparent">
+      <h3 className="text-xl font-semibold text-white mb-1">{title}</h3>
+      {description && <p className="text-gray-200 text-sm mb-2">{description}</p>}
+      {stats && (
+        <div className="flex gap-4 mt-2">
+          {stats.map((stat, i) => (
+            <div key={i} className="text-center">
+              <div className="text-purple-400 font-medium">{stat.value}</div>
+              <div className="text-gray-400 text-xs">{stat.label}</div>
+            </div>
           ))}
         </div>
+      )}
+    </div>
+    {isSelected && (
+      <div className="absolute top-2 right-2 z-20">
+        <div className="bg-purple-500 rounded-full p-1">
+          <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+      </div>
+    )}
+  </motion.div>
+);
 
-        {/* Selection Summary */}
-        <motion.div
-          className="text-center p-4 bg-gradient-to-r from-primary/20 to-secondary/20 rounded-xl border border-white/20"
-          animate={{ scale: value.length > 0 ? 1 : 0.95 }}
-        >
-          <p className="text-white font-semibold">
-            <Zap className="w-4 h-4 inline mr-2 text-accent" />
-            Selected: {value.length ? value.map((g) => MUSCLE_LABELS[g]).join(', ') : 'None'}
-          </p>
-        </motion.div>
-      </Glass3DCard>
-    </GlowEffect>
-  );
-};
-
-// Enhanced selection data with icons and better visuals
-const steps = ['Gender', 'Age', 'Goal', 'Level', 'Equipment', 'Muscles', 'Generate'];
-
-const genderOptions = [
-  {
-    value: 'male',
-    src: '/images/male_selection.webp',
-    label: 'Male',
-    icon: Users,
-    gradient: 'from-blue-500 to-cyan-500',
-  },
-  {
-    value: 'female',
-    src: '/images/female_selection.webp',
-    label: 'Female',
-    icon: Heart,
-    gradient: 'from-pink-500 to-purple-500',
-  },
-];
-
-const goalOptions = [
-  {
-    value: 'buildmuscle',
-    label: 'Build Muscle',
-    description: 'Gain strength and muscle mass',
-    icon: Dumbbell,
-    gradient: 'from-red-500 to-orange-500',
-    src: { male: '/images/buildmuscle_men.webp', female: '/images/buildmuscle_women.webp' },
-  },
-  {
-    value: 'endurance',
-    label: 'Endurance',
-    description: 'Improve cardiovascular fitness',
-    icon: Activity,
-    gradient: 'from-green-500 to-emerald-500',
-    src: { male: '/images/endurance_male.webp', female: '/images/endurance_female.webp' },
-  },
-  {
-    value: 'getfitter',
-    label: 'Get Fitter',
-    description: 'Overall fitness improvement',
-    icon: Target,
-    gradient: 'from-blue-500 to-indigo-500',
-    src: { male: '/images/getfitter_male.webp', female: '/images/getfitter_female.webp' },
-  },
-  {
-    value: 'weightloss',
-    label: 'Weight Loss',
-    description: 'Burn calories and lose weight',
-    icon: Flame,
-    gradient: 'from-orange-500 to-yellow-500',
-    src: { male: '/images/losefat_male.webp', female: '/images/losefat_female.webp' },
-  },
-];
-
-const levelOptions = [
-  {
-    value: 'beginner',
-    label: 'Beginner',
-    description: 'New to fitness training',
-    gradient: 'from-green-400 to-green-600',
-    src: { male: '/images/beginner_male.webp', female: '/images/beginner_female.webp' },
-  },
-  {
-    value: 'intermediate',
-    label: 'Intermediate',
-    description: 'Some fitness experience',
-    gradient: 'from-yellow-400 to-orange-500',
-    src: { male: '/images/Intermediate_male.webp', female: '/images/Intermediate_female.webp' },
-  },
-  {
-    value: 'advanced',
-    label: 'Advanced',
-    description: 'Experienced fitness enthusiast',
-    gradient: 'from-red-500 to-purple-600',
-    src: { male: '/images/Advanced_male.webp', female: '/images/Advanced_female.webp' },
-  },
-];
-
-const equipmentOptions = [
-  { value: 'bodyweight', src: '/images/noequipment.webp', label: 'Bodyweight', icon: '🏃' },
-  { value: 'barbell', src: '/images/barbell.webp', label: 'Barbell', icon: '🏋️' },
-  { value: 'bench', src: '/images/bench.webp', label: 'Bench', icon: '🪑' },
-  { value: 'dumbbells', src: '/images/dumbbells.webp', label: 'Dumbbells', icon: '💪' },
-  { value: 'kettlebell', src: '/images/kettlebell.webp', label: 'Kettlebell', icon: '⚡' },
-  { value: 'pullupbar', src: '/images/Pull-up Bar.webp', label: 'Pull-up Bar', icon: '🔗' },
-  {
-    value: 'resistancebands',
-    src: '/images/resistance Bands.webp',
-    label: 'Resistance Bands',
-    icon: '🔄',
-  },
-];
+/* --------------------------- Main Component ----------------------------- */
 
 const WorkoutGenerator: React.FC = () => {
-  const { user, isLoading } = useAuth();
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
-  const navigate = useNavigate();
+  const [showWelcome, setShowWelcome] = useState(true);
+  const [currentStep, setCurrentStep] = useState(0); // <-- moved above useEffect
 
-  // State management
-  const [step, setStep] = useState(0);
-  const [gender, setGender] = useState<'male' | 'female' | null>(null);
-  const [age, setAge] = useState<number>(25);
-  const [goal, setGoal] = useState<string | null>(null);
-  const [level, setLevel] = useState<string | null>(null);
-  const [equipment, setEquipment] = useState<string[]>([]);
-  const [muscles, setMuscles] = useState<MuscleGroup[]>([]);
-  const [workout, setWorkout] = useState<Exercise[]>([]);
-  const [hasTriedGenerate, setHasTriedGenerate] = useState(false);
-  const [allExercises, setAllExercises] = useState<Exercise[]>([]);
-  const [loadingExercises, setLoadingExercises] = useState<boolean>(true);
-
-  const workoutListRef = useRef<HTMLDivElement | null>(null);
-
-  // Progress calculation
-  const progress = useMemo(() => ((step + 1) / steps.length) * 100, [step]);
-
-  // Fetch exercises on mount
+  // Scroll to top when step changes
   useEffect(() => {
-    let mounted = true;
-    setLoadingExercises(true);
-    const fetchAllExercises = async () => {
-      let all: Exercise[] = [];
-      let page = 1;
-      const pageSize = 500;
-      let keepGoing = true;
-      try {
-        while (keepGoing) {
-          const result = await (ExerciseService as any).getExercises?.({ page, pageSize });
-          const exercises: Exercise[] = result?.exercises ?? [];
-          all = all.concat(exercises);
-          if (exercises.length < pageSize) {
-            keepGoing = false;
-          } else {
-            page++;
-          }
-        }
-        if (mounted) setAllExercises(all);
-      } catch {
-        if (mounted) setAllExercises([]);
-      } finally {
-        if (mounted) setLoadingExercises(false);
-      }
-    };
-    fetchAllExercises();
-    return () => {
-      mounted = false;
-    };
-  }, []);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [currentStep]);
 
-  // Navigation functions
-  const nextStep = () => setStep((s) => Math.min(s + 1, steps.length - 1));
-  const prevStep = () => setStep((s) => Math.max(s - 1, 0));
+  const [preferences, setPreferences] = useState<WorkoutPreferences>({
+    goal: '',
+    experienceLevel: '',
+    equipment: [],
+    duration: 30,
+    frequency: {
+      days: [],
+      preferredTime: undefined,
+    },
+    limitations: [],
+    workoutStyle: '',
+    tracking: {
+      social: false,
+      metrics: [],
+    },
+  });
 
-  // Scroll to top on step change
-  useEffect(() => {
-    scrollToTop('smooth');
-  }, [step]);
+  const totalSteps = 7; // 0..6
 
-  // Equipment selection handler
-  const handleEquipmentClick = (value: string) => {
-    setEquipment((prev) =>
-      prev.includes(value) ? prev.filter((e) => e !== value) : [...prev, value]
+  const updatePreferences = (updates: Partial<WorkoutPreferences>) =>
+    setPreferences((prev) => ({ ...prev, ...updates }));
+
+  /* --------------------------- Local Step Views -------------------------- */
+
+  const WelcomeScreen: React.FC<{ onStart: () => void }> = ({ onStart }) => (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="relative h-screen flex flex-col items-center justify-center text-white text-center px-4"
+    >
+      <div className="absolute inset-0 overflow-hidden">
+        <img
+          src="/images/creator-flow/hero-welcome.webp"
+          alt="Welcome"
+          className="w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
+      </div>
+
+      <div className="relative z-10 max-w-2xl mx-auto space-y-6">
+        <motion.h1
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.2 }}
+          className="text-4xl md:text-5xl font-bold"
+        >
+          Your Personal Workout Journey Begins Here
+        </motion.h1>
+
+        <motion.p
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.4 }}
+          className="text-xl text-gray-300"
+        >
+          AI-powered workouts tailored just for you, adapting to your goals and progress
+        </motion.p>
+
+        <motion.button
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.6 }}
+          onClick={onStart}
+          className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-lg font-semibold px-8 py-4 rounded-lg
+          hover:from-purple-500 hover:to-indigo-500 transform hover:scale-105 transition-all duration-300
+          shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50"
+        >
+          Let&apos;s Get Started
+        </motion.button>
+      </div>
+    </motion.div>
+  );
+
+  const ProgressBar = () => {
+    const progress = (currentStep / totalSteps) * 100;
+    return (
+      <div className="fixed top-0 left-0 right-0 z-50 p-4 bg-black/20 backdrop-blur-sm">
+        <div className="max-w-2xl mx-auto space-y-2">
+          <div className="relative h-2 bg-gray-800/50 rounded-full overflow-hidden">
+            <motion.div
+              className="absolute inset-0 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full"
+              initial={{ width: 0 }}
+              animate={{ width: `${progress}%` }}
+              transition={{ duration: 0.5 }}
+            />
+          </div>
+          <div className="flex justify-between text-sm text-gray-400">
+            <span>
+              Step {Math.min(currentStep + 1, totalSteps)} of {totalSteps}
+            </span>
+            <span className="text-purple-400">{Math.round(progress)}% Complete</span>
+          </div>
+        </div>
+      </div>
     );
   };
 
-  // Workout generation logic
-  const generateWorkout = () => {
-    let filtered = allExercises.filter((ex) => {
-      const primary = (ex as any).primary_muscles as string[] | undefined;
-      const secondary = (ex as any).secondary_muscles as string[] | undefined;
-      return muscles.some((muscle) => primary?.includes(muscle) || secondary?.includes(muscle));
-    });
+  const GoalSelection = () => (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      className="space-y-8"
+    >
+      <div className="text-center space-y-4">
+        <h2 className="text-3xl font-bold text-white">What&apos;s Your Main Fitness Goal?</h2>
+        <p className="text-gray-400">Select the primary focus for your training</p>
+      </div>
 
-    if (equipment.length > 0) {
-      filtered = filtered.filter((ex) => {
-        const eq = (ex as any).equipment as string[] | undefined;
-        return Array.isArray(eq) && eq.some((e) => equipment.includes(e));
-      });
-    }
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 w-full">
+        {WORKOUT_GOALS.map((goal) => (
+          <SelectionCard
+            key={goal.id}
+            title={goal.title}
+            description={goal.description}
+            imageSrc={goal.imageSrc}
+            isSelected={preferences.goal === goal.id}
+            onClick={() => {
+              updatePreferences({ goal: goal.id });
+              setCurrentStep(goal.id === 'event' ? 1 : 2);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            stats={goal.stats}
+            className="w-full h-full"
+          />
+        ))}
+      </div>
+    </motion.div>
+  );
 
-    if (level) {
-      filtered = filtered.filter((ex) => (ex as any).difficulty === level);
-    }
+  const EventSelection = () => (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      className="space-y-8"
+    >
+      <div className="text-center space-y-4">
+        <h2 className="text-3xl font-bold text-white">Select Your Event</h2>
+        <p className="text-gray-400">We’ll tailor your plan to this competition</p>
+      </div>
 
-    if (goal) {
-      filtered = filtered.filter((ex) => {
-        const cat = ((ex as any).category || '').toString().toLowerCase();
-        if (goal === 'buildmuscle') return cat === 'strength';
-        return cat === 'cardio' || cat === 'endurance' || cat === 'strength';
-      });
-    }
-
-    const shuffled = [...filtered].sort(() => 0.5 - Math.random());
-    const selected = shuffled.slice(0, Math.min(6, shuffled.length));
-    setWorkout(selected);
-
-    setTimeout(() => {
-      if (workoutListRef.current) {
-        workoutListRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    }, 200);
-  };
-
-  // Save workout handlers
-  const handleSaveToPlanner = () => {
-    if (!workout.length) return;
-    const plannerAddWorkout = {
-      name: `Generated Workout (${goal || 'Custom'})`,
-      description: '',
-      trainingType: goal || 'Other',
-      hero_image_url: '',
-      tags: [] as string[],
-      exercises: workout,
-      duration: 0,
-    };
-    navigate('/modules/workout/planner', { state: { plannerAddWorkout } });
-  };
-
-  const handleSaveWorkout = async () => {
-    if (!workout.length) return;
-    if (isLoading) {
-      alert('Checking login status, please wait...');
-      return;
-    }
-    if (!user) {
-      alert('You must be logged in to save workouts.');
-      setSaveStatus('idle');
-      return;
-    }
-    setSaveStatus('saving');
-    const workoutName = `Generated Workout (${goal || 'Custom'})`;
-    const meta = { gender, age, goal, level, equipment, muscles };
-    try {
-      await saveGeneratorWorkout({
-        name: workoutName,
-        exercises: workout,
-        meta,
-        user_id: (user as any).id ?? user,
-      });
-      setSaveStatus('saved');
-    } catch (_e) {
-      alert('Failed to save workout.');
-      setSaveStatus('idle');
-    }
-  };
-
-  // Step validation
-  const canContinue = () => {
-    switch (step) {
-      case 0:
-        return !!gender;
-      case 1:
-        return !!age && age >= 12 && age <= 80;
-      case 2:
-        return !!goal;
-      case 3:
-        return !!level;
-      case 4:
-        return equipment.length > 0;
-      case 5:
-        return muscles.length > 0;
-      default:
-        return true;
-    }
-  };
-
-  // Step content renderer
-  const renderStep = () => {
-    switch (step) {
-      case 0:
-        return (
-          <motion.div
-            className="space-y-8"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-          >
-            <div className="text-center">
-              <motion.h2
-                className="text-4xl font-bold text-white mb-4"
-                animate={{ scale: [1, 1.02, 1] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              >
-                Choose Your Gender
-              </motion.h2>
-              <p className="text-lg sm:text-xl text-white/80 mb-8 px-4">
-                Let's personalize your fitness journey
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 max-w-2xl mx-auto px-4">
-              {genderOptions.map((option) => (
-                <Interactive3DCard
-                  key={option.value}
-                  selected={gender === option.value}
-                  onClick={() => setGender(option.value as 'male' | 'female')}
-                  className="h-[350px] sm:h-[420px] overflow-hidden"
-                  glowColor={option.value === 'female' ? '#B400FF' : '#00E5FF'}
-                >
-                  <div className="relative h-full flex flex-col">
-                    <div className="h-72 p-4 pb-2">
-                      <img
-                        src={option.src}
-                        alt={option.label}
-                        className="w-full h-full object-contain rounded-lg"
-                      />
-                    </div>
-                    <div className="flex-1 bg-black/90 p-2 sm:p-4 flex items-center justify-center min-h-[80px] sm:min-h-[120px]">
-                      <div className="flex items-center justify-center gap-2 sm:gap-4 bg-gradient-to-br from-black/80 to-black/60 rounded-xl px-3 sm:px-6 py-2 sm:py-3 backdrop-blur-sm border border-white/20 w-full">
-                        <option.icon className="w-6 h-6 sm:w-10 sm:h-10 text-white drop-shadow-lg" />
-                        <h3 className="text-xl sm:text-3xl font-bold text-white drop-shadow-lg tracking-wide">
-                          {option.label}
-                        </h3>
-                      </div>
-                    </div>
-                  </div>
-                </Interactive3DCard>
-              ))}
-            </div>
-          </motion.div>
-        );
-
-      case 1:
-        return (
-          <motion.div
-            className="space-y-8 max-w-2xl mx-auto"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-          >
-            <div className="text-center">
-              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">What's Your Age?</h2>
-              <p className="text-lg sm:text-xl text-white/80 mb-8 px-4">
-                We'll adjust your workout intensity accordingly
-              </p>
-            </div>
-
-            <GlowEffect color="cyan" intensity="medium">
-              <Glass3DCard className="p-8 text-center">
-                <div className="space-y-8">
-                  <motion.div
-                    className="text-6xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent"
-                    animate={{ scale: [1, 1.1, 1] }}
-                    transition={{ duration: 0.5 }}
-                    key={age}
-                  >
-                    {age} years
-                  </motion.div>
-
-                  <div className="relative">
-                    <input
-                      type="range"
-                      min={12}
-                      max={80}
-                      value={age}
-                      onChange={(e) => setAge(Number(e.target.value))}
-                      className="w-full h-3 bg-white/20 rounded-lg appearance-none cursor-pointer slider"
-                      style={{
-                        background: `linear-gradient(to right, #00E5FF 0%, #B400FF ${((age - 12) / (80 - 12)) * 100}%, rgba(255,255,255,0.2) ${((age - 12) / (80 - 12)) * 100}%)`,
-                      }}
-                    />
-                    <div className="flex justify-between text-sm text-white/60 mt-2">
-                      <span>12</span>
-                      <span>80</span>
-                    </div>
-                  </div>
-                </div>
-              </Glass3DCard>
-            </GlowEffect>
-          </motion.div>
-        );
-
-      case 2:
-        return (
-          <motion.div
-            className="space-y-8"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-          >
-            <div className="text-center">
-              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">What's Your Goal?</h2>
-              <p className="text-lg sm:text-xl text-white/80 mb-8 px-4">
-                Define your fitness objective
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto px-4">
-              {goalOptions.map((option) => (
-                <Interactive3DCard
-                  key={option.value}
-                  selected={goal === option.value}
-                  onClick={() => setGoal(option.value)}
-                  className="h-[400px] sm:h-[500px] overflow-hidden"
-                >
-                  <div className="relative h-full flex flex-col">
-                    <div className="h-72 p-4 pb-2">
-                      <img
-                        src={option.src[gender ?? 'male']}
-                        alt={option.label}
-                        className="w-full h-full object-contain rounded-lg"
-                      />
-                    </div>
-                    <div className="flex-1 bg-black/90 p-2 sm:p-4 flex items-center justify-center min-h-[120px] sm:min-h-[180px]">
-                      <div className="text-center bg-gradient-to-br from-black/80 to-black/60 rounded-xl p-3 sm:p-4 backdrop-blur-sm border border-white/20 w-full">
-                        <option.icon className="w-8 h-8 sm:w-12 sm:h-12 text-white drop-shadow-lg mx-auto mb-2 sm:mb-3" />
-                        <h3 className="text-lg sm:text-xl font-bold text-white mb-1 sm:mb-2 drop-shadow-lg">
-                          {option.label}
-                        </h3>
-                        <p className="text-white text-sm sm:text-base drop-shadow-md font-medium">
-                          {option.description}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </Interactive3DCard>
-              ))}
-            </div>
-          </motion.div>
-        );
-
-      case 3:
-        return (
-          <motion.div
-            className="space-y-8"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-          >
-            <div className="text-center">
-              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">Fitness Level</h2>
-              <p className="text-lg sm:text-xl text-white/80 mb-8 px-4">
-                How experienced are you with fitness?
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto px-4">
-              {levelOptions.map((option) => (
-                <Interactive3DCard
-                  key={option.value}
-                  selected={level === option.value}
-                  onClick={() => setLevel(option.value)}
-                  className="h-[350px] sm:h-[450px] overflow-hidden"
-                >
-                  <div className="relative h-full flex flex-col">
-                    <div className="h-44 sm:h-64 p-2 sm:p-4 pb-1 sm:pb-2">
-                      <img
-                        src={option.src[gender ?? 'male']}
-                        alt={option.label}
-                        className="w-full h-full object-contain rounded-lg"
-                      />
-                    </div>
-                    <div className="flex-1 bg-black/90 p-2 sm:p-4 flex items-center justify-center min-h-[100px] sm:min-h-[160px]">
-                      <div className="text-center bg-gradient-to-br from-black/80 to-black/60 rounded-xl p-3 sm:p-4 backdrop-blur-sm border border-white/20 w-full">
-                        <div
-                          className={`w-10 h-10 sm:w-14 sm:h-14 rounded-full bg-gradient-to-r ${option.gradient} flex items-center justify-center shadow-xl mx-auto mb-2 sm:mb-3`}
-                        >
-                          <Trophy className="w-5 h-5 sm:w-7 sm:h-7 text-white" />
-                        </div>
-                        <h3 className="text-lg sm:text-xl font-bold text-white drop-shadow-lg mb-1 sm:mb-2">
-                          {option.label}
-                        </h3>
-                        <p className="text-white text-sm sm:text-base drop-shadow-md font-medium">
-                          {option.description}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </Interactive3DCard>
-              ))}
-            </div>
-          </motion.div>
-        );
-
-      case 4:
-        return (
-          <motion.div
-            className="space-y-8"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-          >
-            <div className="text-center">
-              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
-                Available Equipment
-              </h2>
-              <p className="text-lg sm:text-xl text-white/80 mb-8 px-4">
-                Select all equipment you have access to
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4 md:gap-6 max-w-6xl mx-auto px-4">
-              {equipmentOptions.map((option) => (
-                <Interactive3DCard
-                  key={option.value}
-                  selected={equipment.includes(option.value)}
-                  onClick={() => handleEquipmentClick(option.value)}
-                  className="aspect-square overflow-hidden"
-                >
-                  <div className="relative h-full flex flex-col items-center justify-center p-2 sm:p-4">
-                    <img
-                      src={option.src}
-                      alt={option.label}
-                      className="w-12 h-12 sm:w-16 sm:h-16 object-contain mb-2 sm:mb-4"
-                    />
-                    <div className="text-2xl sm:text-4xl mb-1 sm:mb-2">{option.icon}</div>
-                    <h3 className="text-sm sm:text-lg font-bold text-white text-center leading-tight">
-                      {option.label}
-                    </h3>
-                  </div>
-                </Interactive3DCard>
-              ))}
-            </div>
-
-            {equipment.length > 0 && (
-              <motion.div
-                className="text-center"
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-              >
-                <p className="text-white/80">
-                  <Zap className="w-5 h-5 inline mr-2 text-accent" />
-                  {equipment.length} equipment type{equipment.length !== 1 ? 's' : ''} selected
-                </p>
-              </motion.div>
-            )}
-          </motion.div>
-        );
-
-      case 5:
-        return (
-          <motion.div
-            className="space-y-8"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-          >
-            <Enhanced3DMuscleMapSelector value={muscles} onChange={setMuscles} />
-          </motion.div>
-        );
-
-      case 6:
-        return (
-          <motion.div
-            className="space-y-8 text-center"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-          >
-            <div className="text-center mb-8">
-              <motion.h2
-                className="text-3xl sm:text-4xl font-bold text-white mb-4"
-                animate={{ scale: [1, 1.02, 1] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              >
-                <Sparkles className="w-8 h-8 sm:w-10 sm:h-10 inline mr-3 text-accent" />
-                Ready to Generate!
-              </motion.h2>
-              <p className="text-lg sm:text-xl text-white/80 px-4">
-                Your personalized workout is just one click away
-              </p>
-            </div>
-
-            {/* Summary Preview */}
-            <GlowEffect color="purple" intensity="high">
-              <Glass3DCard className="p-8 max-w-2xl mx-auto">
-                <div className="grid md:grid-cols-2 gap-6 text-left">
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3">
-                      <Users className="w-5 h-5 text-primary" />
-                      <span className="text-white">
-                        <strong>Gender:</strong> {gender}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Calendar className="w-5 h-5 text-secondary" />
-                      <span className="text-white">
-                        <strong>Age:</strong> {age} years
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Target className="w-5 h-5 text-accent" />
-                      <span className="text-white">
-                        <strong>Goal:</strong> {goal}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3">
-                      <Trophy className="w-5 h-5 text-primary" />
-                      <span className="text-white">
-                        <strong>Level:</strong> {level}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Dumbbell className="w-5 h-5 text-secondary" />
-                      <span className="text-white">
-                        <strong>Equipment:</strong> {equipment.length} types
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Activity className="w-5 h-5 text-accent" />
-                      <span className="text-white">
-                        <strong>Muscles:</strong> {muscles.length} groups
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </Glass3DCard>
-            </GlowEffect>
-
-            {/* Generate Button */}
-            <HolographicButton
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {EVENTS.map((evt) => {
+          const selected = preferences.eventType === evt.id;
+          return (
+            <motion.button
+              key={evt.id}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               onClick={() => {
-                setHasTriedGenerate(true);
-                generateWorkout();
+                updatePreferences({ eventType: evt.id });
+                setCurrentStep(2); // proceed to experience
               }}
-              size="lg"
-              className="mx-auto"
-              glowIntensity="high"
+              className={`relative overflow-hidden rounded-xl aspect-[4/3] group ${
+                selected
+                  ? 'ring-2 ring-purple-500 shadow-lg shadow-purple-500/50'
+                  : 'hover:ring-2 hover:ring-purple-400/50'
+              }`}
             >
-              <Zap className="w-6 h-6 mr-2" />
-              Generate My Workout
-              <Sparkles className="w-6 h-6 ml-2" />
-            </HolographicButton>
-
-            {/* Generated Workout Display */}
-            {loadingExercises ? (
-              <motion.div
-                className="mt-12"
-                animate={{ opacity: [0.5, 1, 0.5] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              >
-                <div className="text-white text-xl">Loading exercises...</div>
-              </motion.div>
-            ) : workout.length > 0 ? (
-              <motion.div
-                ref={workoutListRef}
-                className="mt-12 space-y-8"
-                initial={{ opacity: 0, y: 50 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, ease: 'easeOut' }}
-              >
-                <div className="text-center">
-                  <h3 className="text-2xl sm:text-3xl font-bold text-white mb-4">
-                    <Trophy className="w-6 h-6 sm:w-8 sm:h-8 inline mr-3 text-accent" />
-                    Your Generated Workout
-                  </h3>
-                  <p className="text-white/80 text-sm sm:text-base px-4">
-                    Perfectly tailored to your preferences
-                  </p>
+              <img
+                src={evt.image}
+                alt={evt.title}
+                className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
+              <div className="absolute bottom-0 left-0 right-0 p-6 text-left">
+                <h3 className="text-xl font-semibold text-white mb-2">{evt.title}</h3>
+                <p className="text-gray-300 text-sm">{evt.description}</p>
+              </div>
+              {selected && (
+                <div className="absolute top-4 right-4">
+                  <CheckCircleIcon className="w-6 h-6 text-purple-500" />
                 </div>
+              )}
+            </motion.button>
+          );
+        })}
+      </div>
+    </motion.div>
+  );
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 max-w-7xl mx-auto px-4">
-                  {workout.map((exercise, index) => (
-                    <motion.div
-                      key={(exercise as any).id ?? `${(exercise as any).name}-${index}`}
-                      initial={{ opacity: 0, y: 20, scale: 0.9 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      transition={{ duration: 0.5, delay: index * 0.1 }}
-                    >
-                      <GlowEffect color={index % 2 === 0 ? 'cyan' : 'purple'} intensity="medium">
-                        <Glass3DCard className="h-full">
-                          <div className="p-4 sm:p-6 text-center space-y-3 sm:space-y-4">
-                            {(exercise as any).image_url ? (
-                              <img
-                                src={(exercise as any).image_url}
-                                alt={(exercise as any).name}
-                                className="w-20 h-20 sm:w-24 sm:h-24 mx-auto rounded-xl object-cover border-2 border-white/20"
-                              />
-                            ) : (
-                              <div className="w-20 h-20 sm:w-24 sm:h-24 mx-auto rounded-xl bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center border-2 border-white/20">
-                                <Dumbbell className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
-                              </div>
-                            )}
+  const ExperienceSelection = () => (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      className="space-y-8"
+    >
+      <div className="text-center space-y-4">
+        <h2 className="text-2xl sm:text-3xl font-bold text-white">Your Experience Level</h2>
+        <p className="text-sm sm:text-base text-gray-400">Help us tailor the difficulty of your workouts</p>
+      </div>
 
-                            <div>
-                              <h4 className="text-base sm:text-lg font-bold text-white mb-1">
-                                {(exercise as any).name}
-                              </h4>
-                              <p className="text-xs sm:text-sm text-white/60 capitalize">
-                                ({(exercise as any).difficulty})
-                              </p>
-                            </div>
-
-                            <div className="space-y-2 text-xs sm:text-sm">
-                              <div className="text-primary">
-                                <strong>Primary:</strong>{' '}
-                                {((exercise as any).primary_muscles ?? []).join(', ')}
-                              </div>
-                              {((exercise as any).secondary_muscles ?? []).length > 0 && (
-                                <div className="text-secondary">
-                                  <strong>Secondary:</strong>{' '}
-                                  {((exercise as any).secondary_muscles ?? []).join(', ')}
-                                </div>
-                              )}
-                              <div className="text-accent">
-                                <strong>Equipment:</strong>{' '}
-                                {((exercise as any).equipment ?? []).join(', ')}
-                              </div>
-                              <div className="text-white/80">
-                                <strong>Sets:</strong> {(exercise as any).recommended_sets ?? 3} |
-                                <strong> Reps:</strong>{' '}
-                                {(exercise as any).recommended_reps ?? '8-12'}
-                              </div>
-                            </div>
-
-                            {(exercise as any).youtube_id && (
-                              <a
-                                href={`https://youtube.com/watch?v=${(exercise as any).youtube_id}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-2 text-primary hover:text-secondary transition-colors"
-                              >
-                                <Play className="w-4 h-4" />
-                                Watch Demo
-                              </a>
-                            )}
-                          </div>
-                        </Glass3DCard>
-                      </GlowEffect>
-                    </motion.div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {EXPERIENCE_LEVELS.map((level) => {
+          const selected = preferences.experienceLevel === level.id;
+          return (
+            <motion.button
+              key={level.id}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => {
+                updatePreferences({ experienceLevel: level.id });
+                setCurrentStep(3);
+              }}
+              className={`relative overflow-hidden rounded-xl aspect-video group ${
+                selected
+                  ? 'ring-2 ring-purple-500 shadow-lg shadow-purple-500/50'
+                  : 'hover:ring-2 hover:ring-purple-400/50'
+              }`}
+            >
+              <img
+                src={level.image}
+                alt={level.title}
+                className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
+              <div className="absolute bottom-0 left-0 right-0 p-6 text-left">
+                <h3 className="text-xl font-semibold text-white mb-2">{level.title}</h3>
+                <p className="text-gray-300 text-sm mb-4">{level.description}</p>
+                <div className="space-y-2">
+                  {level.tips.map((tip, i) => (
+                    <div key={i} className="flex items-start gap-2 text-sm">
+                      <CheckCircleIcon className="w-5 h-5 text-purple-500 flex-shrink-0 mt-0.5" />
+                      <span className="text-gray-300">{tip}</span>
+                    </div>
                   ))}
                 </div>
-
-                {/* Action Buttons */}
-                <div className="flex flex-col sm:flex-row gap-4 justify-center mt-8 px-4">
-                  <HolographicButton
-                    onClick={handleSaveWorkout}
-                    disabled={saveStatus === 'saving' || saveStatus === 'saved'}
-                    variant="primary"
-                    size="lg"
-                  >
-                    <Save className="w-5 h-5 mr-2" />
-                    {saveStatus === 'idle' && 'Save Workout'}
-                    {saveStatus === 'saving' && 'Saving...'}
-                    {saveStatus === 'saved' && 'Saved!'}
-                  </HolographicButton>
-
-                  <HolographicButton onClick={handleSaveToPlanner} variant="secondary" size="lg">
-                    <Calendar className="w-5 h-5 mr-2" />
-                    Add to Planner
-                  </HolographicButton>
+              </div>
+              {selected && (
+                <div className="absolute top-4 right-4">
+                  <CheckCircleIcon className="w-6 h-6 text-purple-500" />
                 </div>
+              )}
+            </motion.button>
+          );
+        })}
+      </div>
+    </motion.div>
+  );
 
-                {saveStatus === 'saved' && (
-                  <motion.div
-                    className="text-center text-accent font-semibold"
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                  >
-                    ✨ Workout saved to My Workouts!
-                  </motion.div>
-                )}
-              </motion.div>
-            ) : hasTriedGenerate ? (
-              <motion.div
-                className="mt-12 text-center"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
+  const DurationSelection = () => {
+    const durations = [15, 30, 45, 60];
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -20 }}
+        className="space-y-8"
+      >
+        <div className="text-center space-y-4">
+          <h2 className="text-3xl font-bold text-white">Choose Your Workout Duration</h2>
+          <p className="text-gray-400">How long would you like your workouts to be?</p>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {durations.map((duration) => {
+            const selected = preferences.duration === duration;
+            return (
+              <motion.button
+                key={duration}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  updatePreferences({ duration });
+                  setCurrentStep(4);
+                }}
+                className={`relative p-6 rounded-xl ${
+                  selected
+                    ? 'bg-gradient-to-br from-purple-600 to-indigo-600 ring-2 ring-purple-500 shadow-lg shadow-purple-500/50'
+                    : 'bg-gray-800/50 hover:bg-gray-800/80'
+                }`}
               >
-                <div className="text-red-400 text-xl font-semibold">
-                  No exercises found for your selection.
-                  <br />
-                  Try adjusting your equipment, level, or muscle choices.
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-white mb-1">{duration} min</div>
+                  <div className="text-gray-400 text-sm">~{Math.round(duration * 4.5)} calories</div>
                 </div>
-              </motion.div>
-            ) : null}
-          </motion.div>
-        );
+              </motion.button>
+            );
+          })}
+        </div>
+      </motion.div>
+    );
+  };
 
+  const FrequencySelection = () => {
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
+    const timeSlots = ['Morning', 'Afternoon', 'Evening'] as const;
+
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -20 }}
+        className="space-y-8"
+      >
+        <div className="text-center space-y-4">
+          <h2 className="text-3xl font-bold text-white">Plan Your Week</h2>
+          <p className="text-gray-400">Select your preferred workout days and time</p>
+        </div>
+
+        <div className="space-y-6">
+          <div className="grid grid-cols-7 gap-2">
+            {days.map((day) => {
+              const isSelected = preferences.frequency.days.includes(day);
+              return (
+                <motion.button
+                  key={day}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => {
+                    const nextDays = isSelected
+                      ? preferences.frequency.days.filter((d) => d !== day)
+                      : [...preferences.frequency.days, day];
+                    updatePreferences({ frequency: { ...preferences.frequency, days: nextDays } });
+                  }}
+                  className={`p-4 rounded-xl ${
+                    isSelected
+                      ? 'bg-gradient-to-br from-purple-600 to-indigo-600 ring-2 ring-purple-500 shadow-lg shadow-purple-500/50'
+                      : 'bg-gray-800/50 hover:bg-gray-800/80'
+                  }`}
+                >
+                  <span className="text-white font-medium">{day}</span>
+                </motion.button>
+              );
+            })}
+          </div>
+
+          <div className="bg-gray-800/50 rounded-xl p-6 space-y-4">
+            <h3 className="text-lg font-semibold text-white">Preferred Time</h3>
+            <div className="grid grid-cols-3 gap-3">
+              {timeSlots.map((time) => {
+                const isSelected = preferences.frequency.preferredTime === time;
+                return (
+                  <motion.button
+                    key={time}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => {
+                      updatePreferences({
+                        frequency: {
+                          ...preferences.frequency,
+                          preferredTime: isSelected ? undefined : time,
+                        },
+                      });
+                    }}
+                    className={`p-3 rounded-lg ${
+                      isSelected
+                        ? 'bg-gradient-to-r from-purple-600 to-indigo-600 ring-2 ring-purple-500/50'
+                        : 'bg-black/20 hover:bg-black/30'
+                    }`}
+                  >
+                    <span className="text-white text-sm">{time}</span>
+                  </motion.button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    );
+  };
+
+  const LimitationsSelection = () => {
+    const options = [
+      { id: 'none', label: 'No Limitations' },
+      { id: 'knee', label: 'Knee Issues' },
+      { id: 'back', label: 'Back Problems' },
+      { id: 'shoulder', label: 'Shoulder Injury' },
+      { id: 'other', label: 'Other (Please Specify)' },
+    ] as const;
+
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -20 }}
+        className="space-y-8"
+      >
+        <div className="text-center space-y-4">
+          <h2 className="text-3xl font-bold text-white">Any Physical Limitations?</h2>
+          <p className="text-gray-400">Help us customize your workouts for safety</p>
+        </div>
+
+        <div className="space-y-4">
+          {options.map((opt) => {
+            const isSelected = preferences.limitations.includes(opt.id);
+            return (
+              <motion.button
+                key={opt.id}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => {
+                  if (opt.id === 'none') {
+                    updatePreferences({ limitations: ['none'] });
+                  } else {
+                    const next = isSelected
+                      ? preferences.limitations.filter((l) => l !== opt.id)
+                      : [...preferences.limitations.filter((l) => l !== 'none'), opt.id];
+                    updatePreferences({ limitations: next });
+                  }
+                }}
+                className={`w-full p-4 rounded-xl ${
+                  isSelected
+                    ? 'bg-gradient-to-r from-purple-600 to-indigo-600 ring-2 ring-purple-500/50'
+                    : 'bg-gray-800/50 hover:bg-gray-800/80'
+                }`}
+              >
+                <span className="text-white">{opt.label}</span>
+              </motion.button>
+            );
+          })}
+        </div>
+      </motion.div>
+    );
+  };
+
+  const SummaryStep = () => (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      className="space-y-8"
+    >
+      <div className="text-center space-y-4">
+        <h2 className="text-3xl font-bold text-white">Ready to Generate Your Workout!</h2>
+        <p className="text-gray-400">Review your preferences below</p>
+      </div>
+
+      <div className="bg-gray-800/50 rounded-xl p-6 space-y-6 backdrop-blur-sm">
+        <div className="grid gap-6">
+          <div className="space-y-2">
+            <h3 className="text-lg font-semibold text-white">Your Goal</h3>
+            <p className="text-gray-300">{preferences.goal || '—'}</p>
+            {preferences.eventType && <p className="text-purple-400">Event: {preferences.eventType}</p>}
+          </div>
+
+          <div className="space-y-2">
+            <h3 className="text-lg font-semibold text-white">Experience Level</h3>
+            <p className="text-gray-300">{preferences.experienceLevel || '—'}</p>
+          </div>
+
+          <div className="space-y-2">
+            <h3 className="text-lg font-semibold text-white">Workout Schedule</h3>
+            <p className="text-gray-300">{preferences.duration} minutes per session</p>
+            <p className="text-gray-300">{preferences.frequency.days.join(', ') || 'No days selected'}</p>
+            {preferences.frequency.preferredTime && (
+              <p className="text-purple-400">Preferred time: {preferences.frequency.preferredTime}</p>
+            )}
+          </div>
+
+          {preferences.limitations.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold text-white">Limitations</h3>
+              <p className="text-gray-300">{preferences.limitations.join(', ')}</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  );
+
+  /* ------------------------------ Renderer ------------------------------- */
+
+  const renderCurrentStep = () => {
+    if (showWelcome) return <WelcomeScreen onStart={() => setShowWelcome(false)} />;
+
+    switch (currentStep) {
+      case 0:
+        return <GoalSelection />;
+      case 1:
+        return <EventSelection />;
+      case 2:
+        return <ExperienceSelection />;
+      case 3:
+        return <DurationSelection />;
+      case 4:
+        return <FrequencySelection />;
+      case 5:
+        return <LimitationsSelection />;
+      case 6:
+        return <SummaryStep />;
       default:
         return null;
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background-primary via-background-secondary to-background-tertiary relative overflow-hidden">
-      {/* Background Effects */}
-      <ParticleSystem />
-      <FloatingElements />
+    <div className="min-h-screen w-full bg-[#0B0F1C] bg-gradient-to-b from-purple-900/20 to-indigo-900/20 relative overflow-x-hidden">
+      <div className="absolute inset-0 bg-[url('/images/noise.png')] opacity-5" />
 
-      {/* Main Content */}
-      <div className="relative z-10 container mx-auto px-4 py-8">
-        {/* Header */}
-        <motion.div
-          className="text-center mb-12"
-          initial={{ opacity: 0, y: -50 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: 'easeOut' }}
-        >
-          <motion.h1
-            className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent mb-4"
-            animate={{
-              backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'],
-            }}
-            transition={{ duration: 5, repeat: Infinity }}
-            style={{ backgroundSize: '200% 200%' }}
-          >
-            Workout Generator
-          </motion.h1>
-          <p className="text-lg sm:text-xl text-white/80 max-w-2xl mx-auto px-4">
-            Create your perfect workout with AI-powered personalization
-          </p>
-        </motion.div>
-
-        {/* Progress Ring and Step Indicator */}
-        <div className="flex flex-col items-center mb-12">
-          <FloatingProgressRing progress={progress} className="mb-8" />
-          <AnimatedStepIndicator
-            steps={steps}
-            currentStep={step}
-            onStepClick={(stepIndex) => {
-              if (stepIndex <= step) setStep(stepIndex);
-            }}
-          />
-        </div>
-
-        {/* Step Content */}
-        <div className="min-h-[600px] mb-8">
-          <AnimatePresence mode="wait">{renderStep()}</AnimatePresence>
-        </div>
-
-        {/* Navigation Buttons */}
-        {step < steps.length - 1 && (
-          <motion.div
-            className="flex justify-center gap-6"
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-          >
-            {step > 0 && (
-              <HolographicButton onClick={prevStep} variant="secondary" size="lg">
-                <ArrowLeft className="w-5 h-5 mr-2" />
-                Back
-              </HolographicButton>
-            )}
-
-            <HolographicButton
-              onClick={nextStep}
-              disabled={!canContinue()}
-              size="lg"
-              glowIntensity={canContinue() ? 'high' : 'low'}
-            >
-              {step === steps.length - 2 ? 'Generate' : 'Next'}
-              <ArrowRight className="w-5 h-5 ml-2" />
-            </HolographicButton>
-          </motion.div>
-        )}
+      {/* Animated background shapes */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-[40%] -left-[20%] w-[80%] h-[80%] bg-gradient-to-br from-purple-500/20 to-transparent rounded-full blur-3xl animate-slow-spin" />
+        <div className="absolute -bottom-[40%] -right-[20%] w-[80%] h-[80%] bg-gradient-to-br from-indigo-500/20 to-transparent rounded-full blur-3xl animate-slow-spin-reverse" />
       </div>
 
-      {/* Custom Styles for Enhanced Effects */}
-      <style>{`
-        .slider::-webkit-slider-thumb {
-          appearance: none;
-          height: 24px;
-          width: 24px;
-          border-radius: 50%;
-          background: linear-gradient(45deg, #00E5FF, #B400FF);
-          cursor: pointer;
-          box-shadow: 0 0 20px rgba(0,229,255,0.5);
-          border: 2px solid white;
-        }
-        
-        .slider::-moz-range-thumb {
-          height: 24px;
-          width: 24px;
-          border-radius: 50%;
-          background: linear-gradient(45deg, #00E5FF, #B400FF);
-          cursor: pointer;
-          box-shadow: 0 0 20px rgba(0,229,255,0.5);
-          border: 2px solid white;
-        }
+      {!showWelcome && <ProgressBar />}
 
-        /* Ensure images scale properly on mobile */
-        @media (max-width: 768px) {
-          .grid img {
-            object-position: center top;
-          }
-        }
-        
-        /* Improve image contrast for better visibility */
-        .workout-card-image {
-          filter: contrast(1.1) brightness(1.05);
-        }
+      <div className="relative z-10 min-h-screen flex flex-col w-full">
+        <main className="flex-1 flex items-center justify-center">
+          <div className="w-full">
+            <AnimatePresence mode="wait">{renderCurrentStep()}</AnimatePresence>
+          </div>
+        </main>
 
-        /* Fix margin spacing for level description */
-        .ml-13 {
-          margin-left: 3.25rem;
-        }
-        
-        /* Mobile-specific improvements */
-        @media (max-width: 640px) {
-          .container {
-            padding-left: 1rem;
-            padding-right: 1rem;
-          }
-          
-          /* Ensure muscle map SVGs don't overflow */
-          .muscle-map-container svg {
-            max-width: 100%;
-            height: auto;
-          }
-          
-          /* Better spacing for mobile cards */
-          .mobile-card-spacing {
-            margin-bottom: 1rem;
-          }
-          
-          /* Ensure text doesn't get cut off */
-          .text-overflow-mobile {
-            word-wrap: break-word;
-            hyphens: auto;
-          }
-        }
-      `}</style>
+        {!showWelcome && currentStep < totalSteps && (
+          <div className="sticky bottom-0 left-0 right-0 bg-black/20 backdrop-blur-sm w-full">
+            <div className="w-full flex justify-between gap-4">
+              {currentStep > 0 && (
+                <button
+                  onClick={() => setCurrentStep((s) => Math.max(0, s - 1))}
+                  className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-lg
+                    hover:from-gray-500 hover:to-gray-600 transform hover:scale-105 transition-all duration-300
+                    shadow-lg shadow-gray-500/30 hover:shadow-gray-500/50"
+                >
+                  <ChevronLeftIcon className="w-5 h-5" />
+                  Back
+                </button>
+              )}
+
+              <button
+                onClick={() => {
+                  if (currentStep === totalSteps - 1) {
+                    // Generate workout here (use `preferences`)
+                  } else {
+                    setCurrentStep((s) => Math.min(totalSteps - 1, s + 1));
+                  }
+                }}
+                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg
+                  hover:from-purple-500 hover:to-indigo-500 transform hover:scale-105 transition-all duration-300
+                  shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50 ml-auto"
+              >
+                {currentStep === totalSteps - 1 ? (
+                  'Generate My Workout'
+                ) : (
+                  <>
+                    Next
+                    <ChevronRightIcon className="w-5 h-5" />
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
