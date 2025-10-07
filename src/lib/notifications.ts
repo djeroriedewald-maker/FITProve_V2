@@ -1,6 +1,17 @@
 import { supabase } from './supabase';
 import { Notification, CreateNotificationData, NotificationType } from '../types/notification.types';
 
+// Utility: Check if a user wants a notification for a given type/channel
+export async function userWantsNotification(userId: string, notifType: 'events' | 'todos', channel: 'in_app' | 'email' | 'push'): Promise<boolean> {
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('notification_preferences')
+    .eq('id', userId)
+    .single();
+  const prefs = profile?.notification_preferences || { events: ['in_app'], todos: ['in_app'] };
+  return Array.isArray(prefs[notifType]) && prefs[notifType].includes(channel);
+}
+
 export async function getNotifications(limit: number = 20): Promise<Notification[]> {
   try {
     // Get notifications
@@ -87,7 +98,12 @@ export async function markAllNotificationsAsRead(): Promise<void> {
   }
 }
 
-export async function createNotification(data: CreateNotificationData): Promise<void> {
+// Usage: Only send notification if user wants it for the given type/channel
+export async function createNotificationWithPrefs(
+  data: CreateNotificationData & { notifType: 'events' | 'todos'; channel: 'in_app' | 'email' | 'push' }
+): Promise<void> {
+  const wants = await userWantsNotification(data.user_id, data.notifType, data.channel);
+  if (!wants) return;
   try {
     const { error } = await supabase.rpc('create_notification', {
       p_user_id: data.user_id,
@@ -99,7 +115,6 @@ export async function createNotification(data: CreateNotificationData): Promise<
       p_comment_id: data.comment_id || undefined,
       p_from_user_id: data.from_user_id || undefined
     });
-
     if (error) throw error;
   } catch (error) {
     console.error('Error creating notification:', error);

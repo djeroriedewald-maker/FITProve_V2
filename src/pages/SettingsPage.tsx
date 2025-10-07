@@ -1,12 +1,14 @@
-import React, { useState, useEffect } from 'react';
+// src/pages/SettingsPage.tsx
+import React, { useEffect, useState, Suspense } from 'react';
 import { motion } from 'framer-motion';
 import { ThemeToggle } from '../components/ui/ThemeToggle';
+import { NotificationPreferences } from '../components/ui/NotificationPreferences';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { updateUserProfile } from '../lib/api';
 import { GlassCard, GlassButton } from '../components/ui/GlassCard';
 import {
-  Settings,
+  Settings as SettingsIcon,
   Shield,
   Globe,
   MessageCircle,
@@ -16,6 +18,7 @@ import {
   Save,
   CheckCircle,
   ArrowLeft,
+  Bell,
 } from 'lucide-react';
 
 // Utility for metric system persistence
@@ -30,6 +33,12 @@ function saveMetricSystem(val: string) {
   if (typeof window !== 'undefined') localStorage.setItem(METRIC_KEY, val);
 }
 
+type SettingsSection = {
+  title: string;
+  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+  content: React.ReactNode;
+};
+
 export default function SettingsPage() {
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
@@ -37,6 +46,18 @@ export default function SettingsPage() {
 
   const navigate = useNavigate();
   const { profile, refreshProfile } = useAuth();
+
+  // Notification preferences (kept top-level so UI can control it)
+  const [notificationPrefs, setNotificationPrefs] = useState<{
+    events: Array<'in_app' | 'email' | 'push'>;
+    todos: Array<'in_app' | 'email' | 'push'>;
+  }>(() => {
+    if (profile?.notification_preferences) {
+      return profile.notification_preferences;
+    }
+    return { events: ['in_app'], todos: ['in_app'] };
+  });
+
   const [isPublic, setIsPublic] = useState(profile?.isPublic ?? false);
   const [allowFollow, setAllowFollow] = useState(profile?.allowFollow ?? false);
   const [allowDirectMessages, setAllowDirectMessages] = useState(
@@ -47,10 +68,13 @@ export default function SettingsPage() {
   const [metricSystem, setMetricSystem] = useState<string>(getSavedMetricSystem());
 
   // Keep settings in sync with profile changes
-  React.useEffect(() => {
+  useEffect(() => {
     setIsPublic(profile?.isPublic ?? false);
     setAllowFollow(profile?.allowFollow ?? false);
     setAllowDirectMessages(profile?.allowDirectMessages ?? false);
+    if (profile?.notification_preferences) {
+      setNotificationPrefs(profile.notification_preferences);
+    }
   }, [profile]);
 
   if (!profile) {
@@ -63,7 +87,7 @@ export default function SettingsPage() {
         <div className="relative z-10 flex items-center justify-center min-h-screen">
           <GlassCard className="flex items-center justify-center">
             <div className="flex items-center space-x-3">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
               <span className="text-white/80">Loading settings...</span>
             </div>
           </GlassCard>
@@ -84,18 +108,43 @@ export default function SettingsPage() {
         isPublic,
         allowFollow,
         allowDirectMessages,
+        notificationPreferences: notificationPrefs,
+        // You may later persist metricSystem server-side as well
       });
       saveMetricSystem(metricSystem);
       await refreshProfile();
       setMessage('Settings saved successfully!');
     } catch (error) {
       setMessage('Failed to save settings. Please try again.');
+      // eslint-disable-next-line no-console
       console.error('Save settings error:', error);
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
-  const settingsSections = [
+  // Sections config
+  const settingsSections: SettingsSection[] = [
+    {
+      title: 'Reminders & Notifications',
+      icon: Bell,
+      content: (
+        <div className="space-y-4">
+          <div className="mb-2">
+            <div className="text-white font-medium mb-1">
+              Choose what you want to be reminded about, and how:
+            </div>
+            <div className="text-white/60 text-sm">
+              You can receive reminders for events and to-dos via in-app, email, or push
+              notifications.
+            </div>
+          </div>
+          <Suspense fallback={<div className="text-white/60">Loading...</div>}>
+            <NotificationPreferences value={notificationPrefs} onChange={setNotificationPrefs} />
+          </Suspense>
+        </div>
+      ),
+    },
     {
       title: 'Units & Measurements',
       icon: Scale,
@@ -190,7 +239,7 @@ export default function SettingsPage() {
                 }}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary" />
             </label>
           </motion.div>
 
@@ -215,7 +264,7 @@ export default function SettingsPage() {
                 disabled={!isPublic}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-secondary disabled:cursor-not-allowed"></div>
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-secondary disabled:cursor-not-allowed" />
             </label>
           </motion.div>
 
@@ -237,7 +286,7 @@ export default function SettingsPage() {
                 onChange={(e) => setAllowDirectMessages(e.target.checked)}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent" />
             </label>
           </motion.div>
         </div>
@@ -274,7 +323,7 @@ export default function SettingsPage() {
           <GlassCard variant="hero" className="text-center">
             <div className="flex items-center justify-center mb-4">
               <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center shadow-neon-cyan">
-                <Settings className="w-8 h-8 text-white" />
+                <SettingsIcon className="w-8 h-8 text-white" />
               </div>
             </div>
             <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-white/70 bg-clip-text text-transparent mb-2">
@@ -324,7 +373,7 @@ export default function SettingsPage() {
                 <div className="flex items-center justify-center space-x-2">
                   {saving ? (
                     <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
                       <span>Saving...</span>
                     </>
                   ) : (

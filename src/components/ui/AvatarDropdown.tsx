@@ -88,9 +88,9 @@ export default function AvatarDropdown() {
     },
     {
       icon: Calendar,
-      label: 'My Calendar',
+      label: 'My Planner',
       action: () => {
-        navigate('/calendar');
+        navigate('/modules/workout/planner');
         setIsOpen(false);
       },
     },

@@ -1,9 +1,46 @@
-import { supabase } from './supabase';
-import { UserProfile } from '../types/profile.types';
-import type { Database } from '../types/database.types';
-import { SupabaseClient } from '@supabase/supabase-js';
 
-// ...other code...
+import { SupabaseClient } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabase';
+import type Database from './database.types';
+
+export interface UserProfile {
+  id: string;
+  displayName: string;
+  username: string;
+  bio: string;
+  avatarUrl: string;
+  fitnessGoals: string[];
+  gender: 'male' | 'female' | 'other';
+  memberSince: Date;
+  level: number;
+  stats: {
+    workoutsCompleted: number;
+    totalMinutes: number;
+    streakDays: number;
+    achievementsCount: number;
+    followersCount: number;
+    followingCount: number;
+  };
+  achievements: Array<{
+    id: string;
+    title: string;
+    description: string;
+    icon: string;
+    unlockedAt: Date | null;
+    progress?: { current: number; target: number };
+  }>;
+  recentWorkouts: Array<{
+    id: string;
+    type: string;
+    title: string;
+    duration: number;
+    caloriesBurned: number;
+    completedAt: Date;
+  }>;
+  allowDirectMessages?: boolean;
+  allowFollow?: boolean;
+  isPublic?: boolean;
+}
 
 interface UpdateProfileParams {
   userId: string;
@@ -17,6 +54,10 @@ interface UpdateProfileParams {
   isPublic?: boolean;
   allowFollow: boolean;
   allowDirectMessages?: boolean;
+  notificationPreferences?: {
+    events: Array<'in_app' | 'email' | 'push'>;
+    todos: Array<'in_app' | 'email' | 'push'>;
+  };
 }
 
 function updateProfile(
@@ -46,6 +87,7 @@ export async function updateUserProfile({
   isPublic,
   allowFollow,
   allowDirectMessages,
+  notificationPreferences,
 }: UpdateProfileParams): Promise<{ data: UserProfile | null; error: Error | null }> {
   try {
     // First, check if the username is already taken (excluding current user)
@@ -135,6 +177,7 @@ export async function updateUserProfile({
       ...(typeof isPublic === 'boolean' ? { is_public: isPublic } : {}),
       ...(typeof allowFollow === 'boolean' ? { allow_follow: allowFollow } : {}),
       ...(typeof allowDirectMessages === 'boolean' ? { allow_direct_messages: allowDirectMessages } : {}),
+      ...(notificationPreferences ? { notification_preferences: notificationPreferences } : {}),
     });
 
     if (updateError) {

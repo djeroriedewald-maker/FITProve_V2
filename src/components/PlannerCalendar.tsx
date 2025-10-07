@@ -1,18 +1,14 @@
 // src/components/PlannerCalendar.tsx
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, forwardRef, useImperativeHandle } from 'react';
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import moment, { Moment } from 'moment';
-import 'moment/locale/nl'; // Optioneel: NL labels voor dagen/maanden
-import {
-  FaPlus,
-  FaCheckCircle,
-  FaRegEdit,
-  FaRegTrashAlt,
-  FaRegTimesCircle,
-  FaPlay,
-} from 'react-icons/fa';
+import 'moment/locale/nl';
+import { FaCheckCircle, FaRegEdit, FaRegTrashAlt, FaRegTimesCircle, FaPlay } from 'react-icons/fa';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 /** -----------------------------
- *  Kleuren & bron -> neon mapping
+ *  Neon colors & source mapping
  *  ----------------------------- */
 const NEON_ORANGE = '#FF7A18';
 const NEON_GREEN = '#39FF14';
@@ -44,21 +40,28 @@ const WORKOUT_TYPES = [
 ] as const;
 type WorkoutType = (typeof WORKOUT_TYPES)[number];
 
-type Workout = {
+type PlannerEvent = {
   id: string;
-  date: string; // "YYYY-MM-DD"
-  name: string;
-  notes: string;
-  time: string; // "HH:mm"
-  type: WorkoutType | string;
-  completed: boolean;
-  external: boolean;
+  user_id: string;
+  date: string; // YYYY-MM-DD
+  type: 'workout' | 'rest' | string;
+  title?: string;
+  notes?: string;
+  time?: string; // HH:mm
+  duration_min?: number;
+  completed?: boolean;
+  // optional metadata for “creator/external” style workouts
+  external?: boolean;
   hero_image_url?: string;
   tags?: string[];
-  creator_id?: string; // indien 'creator' workout
+  creator_id?: string;
   exercises?: any[];
-  duration?: number; // minuten
   source?: WorkoutSource;
+  workout_type?: WorkoutType | string; // for display
+  recurrence_rule?: string | null;
+  recurrence_end?: string | null; // YYYY-MM-DD
+  color?: string | null; // HEX or color name
+  reminder_minutes_before?: number | null;
 };
 
 type ExternalForm = {
@@ -71,89 +74,76 @@ type ExternalForm = {
   creator_id?: string;
   exercises: any[];
   duration: number;
+  recurrence_rule?: string | null;
+  recurrence_end?: string | null; // YYYY-MM-DD
+  color?: string | null; // HEX or color name
+  reminder_minutes_before?: number | null;
 };
 
 type AddModalState = { open: boolean; date: string };
 type AddTypeModalState = { open: boolean; date: string; type: 'Creator' | 'External' | '' };
 type EditModalState = { open: boolean; workoutId: string | null };
-type DetailModalState = { open: boolean; workout: Workout | null };
+type DetailModalState = { open: boolean; workout: PlannerEvent | null };
 
 /** -----------------------------
  *  Utils
  *  ----------------------------- */
 const isBrowser = typeof window !== 'undefined';
 
-const makeId = (len = 10) =>
-  Array.from({ length: len }, () => Math.floor(Math.random() * 36).toString(36)).join('');
-
 const getWeekDates = (date: Moment) => {
   const start = moment(date).startOf('isoWeek');
   return Array.from({ length: 7 }, (_, i) => moment(start).add(i, 'days'));
 };
 
+// Normalize any free-form string to a valid WorkoutType
+const normalizeWorkoutType = (t: unknown): WorkoutType => {
+  const s = String(t || '').trim();
+  return (WORKOUT_TYPES as readonly string[]).includes(s) ? (s as WorkoutType) : 'Other';
+};
+
 /** -----------------------------
  *  Component
  *  ----------------------------- */
-const PlannerCalendar: React.FC = () => {
-  // Stap 2: User ID ophalen (dummy, vervang door echte auth als beschikbaar)
-  const userId = (() => {
-    // Voorbeeld: haal uit localStorage of context
-    return localStorage.getItem('fitprove_user_id') || 'demo-user';
-  })();
 
-  // Persistent storage helpers
-  const STORAGE_KEY = `planner_workouts_${userId}`;
-  const loadWorkouts = (): Workout[] => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      return raw ? JSON.parse(raw) : [];
-    } catch {
-      return [];
-    }
-  };
-  const saveWorkouts = (ws: Workout[]) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(ws));
-  };
+export type PlannerCalendarHandle = {
+  openAddModalForToday: () => void;
+};
 
-  // Workouts state initialiseren vanuit storage
-  const [workouts, setWorkouts] = useState<Workout[]>(loadWorkouts());
-
-  // Workouts opslaan bij elke wijziging
-  useEffect(() => {
-    saveWorkouts(workouts);
-  }, [workouts]);
-  // Stap 1: Router state checken voor plannerAddWorkout (vanuit generator)
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const nav = window.history.state;
-    // React Router v6: location.state zit in nav.usr
-    const plannerAddWorkout = nav?.usr?.plannerAddWorkout;
-    if (plannerAddWorkout) {
-      setAddTypeModal({ open: true, date: moment().format('YYYY-MM-DD'), type: 'Creator' });
-      setExternalForm({
-        name: plannerAddWorkout.name || 'Generated Workout',
-        notes: plannerAddWorkout.description || '',
-        time: '07:00',
-        types: [plannerAddWorkout.trainingType || 'Other'],
-        hero_image_url: plannerAddWorkout.hero_image_url || '',
-        tags: plannerAddWorkout.tags || [],
-        creator_id: undefined,
-        exercises: plannerAddWorkout.exercises || [],
-        duration: plannerAddWorkout.duration || 0,
-      });
-      // Verwijder state zodat modal niet steeds opent bij navigatie
-      window.history.replaceState(
-        { ...nav, usr: { ...nav.usr, plannerAddWorkout: undefined } },
-        ''
-      );
-    }
-  }, []);
+const PlannerCalendar = forwardRef<PlannerCalendarHandle>((_, ref) => {
   moment.locale('nl');
+  const { user } = useAuth();
 
-  // State
+  // Core state
   const [currentWeek, setCurrentWeek] = useState<Moment>(moment());
-  const [restDays, setRestDays] = useState<Record<string, boolean>>({});
+  const [currentDay, setCurrentDay] = useState<Moment>(moment());
+  const [plannerEvents, setPlannerEvents] = useState<PlannerEvent[]>([]);
+  const [viewMode, setViewMode] = useState<'Week' | 'Month' | 'Day'>('Week');
 
+  // Month view state (mirrors selected week when switching)
+  const [currentMonth, setCurrentMonth] = useState<Moment>(moment());
+  useEffect(() => {
+    if (viewMode === 'Month') {
+      setCurrentMonth(currentWeek.clone());
+    }
+  }, [viewMode, currentWeek]);
+
+  // Month grid (Mon-Sun rows spanning first/last partial weeks)
+  const getMonthGrid = (month: Moment) => {
+    const start = month.clone().startOf('month').startOf('isoWeek');
+    const end = month.clone().endOf('month').endOf('isoWeek');
+    const days: Moment[] = [];
+    let day = start.clone();
+    while (day.isSameOrBefore(end, 'day')) {
+      days.push(day.clone());
+      day.add(1, 'day');
+    }
+    return days;
+  };
+
+  const monthDays = useMemo(() => getMonthGrid(currentMonth), [currentMonth]);
+  const monthLabel = useMemo(() => currentMonth.format('MMMM YYYY'), [currentMonth]);
+
+  // UI state
   const [addModal, setAddModal] = useState<AddModalState>({ open: false, date: '' });
   const [addTypeModal, setAddTypeModal] = useState<AddTypeModalState>({
     open: false,
@@ -161,11 +151,9 @@ const PlannerCalendar: React.FC = () => {
     type: '',
   });
   const [editModal, setEditModal] = useState<EditModalState>({ open: false, workoutId: null });
-  const [detailModal, setDetailModal] = useState<DetailModalState>({
-    open: false,
-    workout: null,
-  });
+  const [detailModal, setDetailModal] = useState<DetailModalState>({ open: false, workout: null });
 
+  // External/Creator form
   const [externalForm, setExternalForm] = useState<ExternalForm>({
     name: '',
     notes: '',
@@ -176,50 +164,266 @@ const PlannerCalendar: React.FC = () => {
     creator_id: undefined,
     exercises: [],
     duration: 0,
+    recurrence_rule: null,
+    recurrence_end: null,
+    color: '#FF7A18',
+    reminder_minutes_before: null,
   });
 
-  // Afgeleiden
+  // Expose imperative handle for parent to trigger Add modal
+  useImperativeHandle(ref, () => ({
+    openAddModalForToday: () => {
+      setAddModal({ open: true, date: moment().format('YYYY-MM-DD') });
+    },
+  }));
+
+  /** -----------------------------
+   *  Derived values
+   *  ----------------------------- */
   const weekDates = useMemo(() => getWeekDates(currentWeek), [currentWeek]);
   const weekNumber = useMemo(() => currentWeek.isoWeek(), [currentWeek]);
 
-  const completedCount = useMemo(() => workouts.filter((w) => w.completed).length, [workouts]);
+  // Helper: expand recurring events for a given date range
+  function expandRecurringEvents(events: PlannerEvent[], range: Moment[]) {
+    const result: PlannerEvent[] = [];
+    for (const e of events) {
+      if (!e.recurrence_rule) {
+        result.push(e);
+        continue;
+      }
+      // Only support simple RRULEs: DAILY, WEEKLY, MONTHLY
+      const start = moment(e.date);
+      const end = e.recurrence_end ? moment(e.recurrence_end) : range[range.length - 1];
+      let freq = '';
+      if (e.recurrence_rule.includes('FREQ=DAILY')) freq = 'DAILY';
+      else if (e.recurrence_rule.includes('FREQ=WEEKLY')) freq = 'WEEKLY';
+      else if (e.recurrence_rule.includes('FREQ=MONTHLY')) freq = 'MONTHLY';
+      else {
+        result.push(e); // fallback: treat as single event
+        continue;
+      }
+      for (const d of range) {
+        if (d.isBefore(start, 'day') || d.isAfter(end, 'day')) continue;
+        if (
+          freq === 'DAILY' ||
+          (freq === 'WEEKLY' && d.isoWeekday() === start.isoWeekday()) ||
+          (freq === 'MONTHLY' && d.date() === start.date())
+        ) {
+          // Clone event for this date
+          result.push({ ...e, date: d.format('YYYY-MM-DD') });
+        }
+      }
+    }
+    return result;
+  }
 
+  // Map date string to events for DnD (Week view, with recurrence)
+  // Events for current day (Day view)
+  const eventsForCurrentDay = useMemo(() => {
+    const dateStr = currentDay.format('YYYY-MM-DD');
+    // Expand recurring events for this day only
+    const expanded = expandRecurringEvents(plannerEvents, [currentDay]);
+    return expanded.filter(e => e.date === dateStr);
+  }, [plannerEvents, currentDay]);
+  const eventsByDate = useMemo(() => {
+    const map: Record<string, PlannerEvent[]> = {};
+    weekDates.forEach((d) => {
+      map[d.format('YYYY-MM-DD')] = [];
+    });
+    const expanded = expandRecurringEvents(plannerEvents, weekDates);
+    expanded.forEach((e) => {
+      if (map[e.date]) map[e.date].push(e);
+    });
+    return map;
+  }, [plannerEvents, weekDates]);
+
+  // Map date string to events for the whole month (Month view, with recurrence)
+  const eventsByDateMonth = useMemo(() => {
+    const map: Record<string, PlannerEvent[]> = {};
+    monthDays.forEach((d) => {
+      map[d.format('YYYY-MM-DD')] = [];
+    });
+    const expanded = expandRecurringEvents(plannerEvents, monthDays);
+    expanded.forEach((e) => {
+      if (map[e.date]) map[e.date].push(e);
+    });
+    return map;
+  }, [plannerEvents, monthDays]);
+
+  // KPIs
+  const completedCount = useMemo(
+    () => plannerEvents.filter((e) => e.completed && e.type === 'workout').length,
+    [plannerEvents]
+  );
   const futureCount = useMemo(() => {
     const todayStr = moment().format('YYYY-MM-DD');
-    return workouts.filter((w) => w.date > todayStr).length;
-  }, [workouts]);
-
+    return plannerEvents.filter((e) => e.type === 'workout' && e.date > todayStr).length;
+  }, [plannerEvents]);
   const totalMinutes = useMemo(
     () =>
-      workouts.reduce((sum, w) => {
-        const d = Number(w.duration || 0);
-        return sum + (isFinite(d) ? d : 0);
+      plannerEvents.reduce((sum, e) => {
+        const d = Number(e.duration_min || 0);
+        return sum + (Number.isFinite(d) ? d : 0);
       }, 0),
-    [workouts]
+    [plannerEvents]
   );
 
   /** -----------------------------
-   *  Week navigatie
+   *  Fetch events (range depends on view)
+   *  ----------------------------- */
+  useEffect(() => {
+    if (!user) return;
+
+    const { start, end } =
+      viewMode === 'Month'
+        ? {
+            start: currentMonth.clone().startOf('month').startOf('isoWeek').format('YYYY-MM-DD'),
+            end: currentMonth.clone().endOf('month').endOf('isoWeek').format('YYYY-MM-DD'),
+          }
+        : {
+            start: currentWeek.clone().startOf('isoWeek').format('YYYY-MM-DD'),
+            end: currentWeek.clone().endOf('isoWeek').format('YYYY-MM-DD'),
+          };
+
+    (async () => {
+      const { data, error } = await supabase
+        .from('planner_events')
+        .select('*')
+        .eq('user_id', user.id)
+        .gte('date', start)
+        .lte('date', end)
+        .order('date', { ascending: true });
+
+      if (error) {
+        // eslint-disable-next-line no-console
+        console.error('Failed to load planner_events:', error);
+        return;
+      }
+      setPlannerEvents((data || []) as PlannerEvent[]);
+    })();
+  }, [user, viewMode, currentWeek, currentMonth]);
+
+  /** -----------------------------
+   *  Check router state: plannerAddWorkout (from generator)
+   *  ----------------------------- */
+  useEffect(() => {
+    if (!isBrowser) return;
+    const nav = (window.history.state || {}) as any;
+    const plannerAddWorkout = nav?.usr?.plannerAddWorkout;
+    if (plannerAddWorkout) {
+      const today = moment().format('YYYY-MM-DD');
+      setAddTypeModal({ open: true, date: today, type: 'Creator' });
+
+      // Normalize inbound fields to satisfy TS and UI constraints
+      const normalizedType = normalizeWorkoutType(plannerAddWorkout.trainingType);
+      const normalizedTypes: WorkoutType[] = [normalizedType];
+
+      setExternalForm((prev) => ({
+        ...prev,
+        name: plannerAddWorkout.name || 'Generated Workout',
+        notes: plannerAddWorkout.description || '',
+        time: '07:00',
+        types: normalizedTypes,
+        hero_image_url: plannerAddWorkout.hero_image_url || '',
+        tags: Array.isArray(plannerAddWorkout.tags) ? plannerAddWorkout.tags : [],
+        creator_id: undefined,
+        exercises: Array.isArray(plannerAddWorkout.exercises) ? plannerAddWorkout.exercises : [],
+        duration: Number(plannerAddWorkout.duration || 0),
+      }));
+      // Clear the state so it won't reopen
+      window.history.replaceState(
+        { ...nav, usr: { ...nav?.usr, plannerAddWorkout: undefined } },
+        ''
+      );
+    }
+  }, []);
+
+  /** -----------------------------
+   *  Week navigation
    *  ----------------------------- */
   const handlePrevWeek = () => setCurrentWeek((w) => moment(w).subtract(1, 'week'));
   const handleNextWeek = () => setCurrentWeek((w) => moment(w).add(1, 'week'));
 
   /** -----------------------------
-   *  CTA's
+   *  Drag-and-drop
+   *  ----------------------------- */
+  const onDragEnd = async (result: DropResult) => {
+    if (!result.destination) return;
+    const { source, destination, draggableId } = result;
+    const srcDate = source.droppableId;
+    const destDate = destination.droppableId;
+    if (srcDate === destDate) return;
+
+    const event = plannerEvents.find((e) => e.id === draggableId);
+    if (!event) return;
+
+    const { data, error } = await supabase
+      .from('planner_events')
+      .update({ date: destDate })
+      .eq('id', event.id)
+      .select()
+      .single();
+
+    if (error) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to move workout:', error);
+      return;
+    }
+
+    if (data) {
+      setPlannerEvents((prev) =>
+        prev.map((e) => (e.id === event.id ? { ...e, date: destDate } : e))
+      );
+    }
+  };
+
+  /** -----------------------------
+   *  CTA: Add & Rest Day
    *  ----------------------------- */
   const handleAddWorkoutClick = (date: string) => {
     setAddModal({ open: true, date });
   };
 
-  const handleRestDayClick = (date: string) => {
-    setRestDays((prev) => ({ ...prev, [date]: !prev[date] }));
+  const handleRestDayClick = async (date: string) => {
+    if (!user) return;
+    const existing = plannerEvents.find((e) => e.date === date && e.type === 'rest');
+    if (existing) {
+      const { error } = await supabase.from('planner_events').delete().eq('id', existing.id);
+      if (error) {
+        // eslint-disable-next-line no-console
+        console.error('Failed to delete rest day:', error);
+      }
+      setPlannerEvents((events) => events.filter((e) => e.id !== existing.id));
+    } else {
+      const { data, error } = await supabase
+        .from('planner_events')
+        .insert({
+          user_id: user.id,
+          date,
+          type: 'rest',
+          title: 'Rest Day',
+        })
+        .select()
+        .single();
+
+      if (error) {
+        // eslint-disable-next-line no-console
+        console.error('Failed to insert rest day:', error);
+      }
+
+      if (data) {
+        setPlannerEvents((events) => [...events, data as PlannerEvent]);
+      }
+    }
   };
 
   /** -----------------------------
-   *  Workout aanmaken / selecteren
+   *  Add flow: choose type
    *  ----------------------------- */
-  const handleWorkoutTypeSelect = (type: string) => {
-    if (type === 'External') {
+  const handleWorkoutTypeSelect = async (choice: string) => {
+    if (!user) return;
+
+    if (choice === 'External') {
       setAddModal({ open: false, date: addModal.date });
       setAddTypeModal({ open: true, date: addModal.date, type: 'External' });
       setExternalForm({
@@ -232,44 +436,54 @@ const PlannerCalendar: React.FC = () => {
         creator_id: undefined,
         exercises: [],
         duration: 0,
+        recurrence_rule: null,
+        recurrence_end: null,
+        color: '#FF7A18',
+        reminder_minutes_before: null,
       });
       return;
     }
-    if (type === 'Workout Generator') {
+
+    if (choice === 'Workout Generator') {
       if (isBrowser) window.location.href = '/workout-generator';
       return;
     }
-    if (type === 'Workout Creator') {
+
+    if (choice === 'Workout Creator') {
       if (isBrowser) window.location.href = '/modules/workout/workout-creator';
       return;
     }
-    // Fallback: snelle toevoeging op basis van type
-    setWorkouts((prev) => [
-      ...prev,
-      {
-        id: makeId(),
+
+    // Quick add placeholder workout event
+    const { data, error } = await supabase
+      .from('planner_events')
+      .insert({
+        user_id: user.id,
         date: addModal.date,
-        name: `${type} Workout`,
-        notes: '',
-        time: '07:00',
-        type,
+        type: 'workout',
+        title: `${choice}`,
         completed: false,
-        external: false,
-        duration: 0,
-        source: 'other',
-      },
-    ]);
+      })
+      .select()
+      .single();
+
+    if (error) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to quick insert workout:', error);
+    }
+
+    if (data) setPlannerEvents((events) => [...events, data as PlannerEvent]);
     setAddModal({ open: false, date: '' });
   };
 
+  /** -----------------------------
+   *  External/Creator form helpers
+   *  ----------------------------- */
   const handleExternalFormChange = <K extends keyof ExternalForm>(
     field: K,
     value: ExternalForm[K]
-  ) => {
-    setExternalForm((prev) => ({ ...prev, [field]: value }));
-  };
+  ) => setExternalForm((prev) => ({ ...prev, [field]: value }));
 
-  // Toggle workout type (max 3)
   const handleTypeToggle = (type: WorkoutType) => {
     setExternalForm((prev) => {
       const exists = prev.types.includes(type);
@@ -282,176 +496,174 @@ const PlannerCalendar: React.FC = () => {
     });
   };
 
-  // Submit external/creator workout
-  const handleExternalFormSubmit = () => {
-    if (!addTypeModal.date) return;
-    setWorkouts((prev) => [
-      ...prev,
-      {
-        id: makeId(),
-        date: addTypeModal.date,
-        name: externalForm.name || 'Workout',
-        notes: externalForm.notes,
-        time: externalForm.time,
-        type: externalForm.types[0] || 'Other',
-        completed: false,
-        external: true,
-        hero_image_url: externalForm.hero_image_url || undefined,
-        tags: externalForm.tags?.length ? externalForm.tags : undefined,
-        creator_id: externalForm.creator_id,
-        exercises: externalForm.exercises?.length ? externalForm.exercises : undefined,
-        duration: Number(externalForm.duration) || 0,
-        source: externalForm.creator_id ? 'creator' : 'external',
-      },
-    ]);
-    setAddTypeModal({ open: false, date: '', type: '' });
-    setExternalForm({
-      name: '',
-      notes: '',
-      time: '07:00',
-      types: [],
-      hero_image_url: '',
-      tags: [],
-      creator_id: undefined,
-      exercises: [],
-      duration: 0,
-    });
-    setWorkouts((prev) => {
-      const next = [
-        ...prev,
-        {
-          id: makeId(),
-          date: addTypeModal.date,
-          name: externalForm.name || 'Workout',
-          notes: externalForm.notes,
-          time: externalForm.time,
-          type: externalForm.types[0] || 'Other',
-          completed: false,
-          external: true,
-          hero_image_url: externalForm.hero_image_url || undefined,
-          tags: externalForm.tags?.length ? externalForm.tags : undefined,
-          creator_id: externalForm.creator_id,
-          exercises: externalForm.exercises?.length ? externalForm.exercises : undefined,
-          duration: Number(externalForm.duration) || 0,
-          source: externalForm.creator_id
-            ? 'creator'
-            : addTypeModal.type === 'Creator'
-              ? 'generator'
-              : 'external',
-        },
-      ];
-      saveWorkouts(next);
-      return next;
-    });
-    setAddTypeModal({ open: false, date: '', type: '' });
-    setExternalForm({
-      name: '',
-      notes: '',
-      time: '07:00',
-      types: [],
-      hero_image_url: '',
-      tags: [],
-      creator_id: undefined,
-      exercises: [],
-      duration: 0,
-    });
+  const handleExternalFormSubmit = async () => {
+    if (!user || !addTypeModal.date) return;
+
+    const payload: any = {
+      user_id: user.id,
+      date: addTypeModal.date,
+      type: 'workout' as const,
+      title: externalForm.name || 'Workout',
+      notes: externalForm.notes || '',
+      duration_min: Number(externalForm.duration || 0),
+      completed: false,
+      external: addTypeModal.type === 'External',
+      hero_image_url: externalForm.hero_image_url || null,
+      tags: externalForm.tags?.length ? externalForm.tags : null,
+      creator_id: externalForm.creator_id || null,
+      exercises: externalForm.exercises?.length ? externalForm.exercises : null,
+      workout_type: externalForm.types?.[0] || 'Other',
+      source: (addTypeModal.type === 'External' ? 'external' : 'creator') as WorkoutSource,
+      recurrence_rule: externalForm.recurrence_rule || null,
+      recurrence_end: externalForm.recurrence_end || null,
+      color: externalForm.color || null,
+      reminder_minutes_before: externalForm.reminder_minutes_before ?? null,
+      time: externalForm.time || null,
+    };
+
+    const { data, error } = await supabase.from('planner_events').insert(payload).select().single();
+    if (error) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to insert external/creator workout:', error);
+    }
+    if (data) {
+      setPlannerEvents((events) => [...events, data as PlannerEvent]);
+      setAddTypeModal({ open: false, date: '', type: '' });
+      setExternalForm({
+        name: '',
+        notes: '',
+        time: '07:00',
+        types: [],
+        hero_image_url: '',
+        tags: [],
+        creator_id: undefined,
+        exercises: [],
+        duration: 0,
+        recurrence_rule: null,
+        recurrence_end: null,
+        color: '#FF7A18',
+        reminder_minutes_before: null,
+      });
+    }
   };
 
   /** -----------------------------
-   *  Edit/Delete/Complete
+   *  Edit / Complete / Delete
    *  ----------------------------- */
-  const handleEditWorkout = (id: string) => {
-    const workout = workouts.find((w) => w.id === id);
-    if (!workout) return;
+  const openEditFor = (id: string) => {
+    const ev = plannerEvents.find((e) => e.id === id);
+    if (!ev) return;
+
+    setExternalForm((prev) => ({
+      ...prev,
+      name: ev.title || '',
+      notes: ev.notes || '',
+      time: ev.time || '07:00',
+      types: ev.workout_type ? [normalizeWorkoutType(ev.workout_type)] : [],
+      hero_image_url: ev.hero_image_url || '',
+      tags: ev.tags || [],
+      creator_id: ev.creator_id,
+      exercises: ev.exercises || [],
+      duration: Number(ev.duration_min || 0),
+      recurrence_rule: ev.recurrence_rule ?? null,
+      recurrence_end: ev.recurrence_end ?? null,
+      color: ev.color ?? '#FF7A18',
+      reminder_minutes_before: ev.reminder_minutes_before ?? null,
+    }));
+
     setEditModal({ open: true, workoutId: id });
-    setExternalForm({
-      name: workout.name,
-      notes: workout.notes,
-      time: workout.time,
-      types: [workout.type as WorkoutType],
-      hero_image_url: workout.hero_image_url || '',
-      tags: workout.tags || [],
-      creator_id: workout.creator_id,
-      exercises: workout.exercises || [],
-      duration: workout.duration || 0,
-    });
   };
 
-  const handleEditFormSubmit = () => {
+  const handleEditFormSubmit = async () => {
     if (!editModal.workoutId) return;
-    setWorkouts((prev) =>
-      prev.map((w) =>
-        w.id === editModal.workoutId
-          ? {
-              ...w,
-              name: externalForm.name || w.name,
-              notes: externalForm.notes,
-              time: externalForm.time,
-              type: externalForm.types[0] || (w.type as WorkoutType),
-              hero_image_url: externalForm.hero_image_url || undefined,
-              tags: externalForm.tags?.length ? externalForm.tags : undefined,
-              creator_id: externalForm.creator_id,
-              exercises: externalForm.exercises?.length ? externalForm.exercises : undefined,
-              duration: Number(externalForm.duration) || 0,
-            }
-          : w
-      )
-    );
-    setEditModal({ open: false, workoutId: null });
-    setWorkouts((prev) => {
-      const next = prev.map((w) =>
-        w.id === editModal.workoutId
-          ? {
-              ...w,
-              name: externalForm.name || w.name,
-              notes: externalForm.notes,
-              time: externalForm.time,
-              type: externalForm.types[0] || (w.type as WorkoutType),
-              hero_image_url: externalForm.hero_image_url || undefined,
-              tags: externalForm.tags?.length ? externalForm.tags : undefined,
-              creator_id: externalForm.creator_id,
-              exercises: externalForm.exercises || [],
-              duration: externalForm.duration || 0,
-            }
-          : w
-      );
-      saveWorkouts(next);
-      return next;
-    });
-    setEditModal({ open: false, workoutId: null });
-  };
 
-  const handleDeleteWorkout = (id: string) => {
-    if (!isBrowser) return;
-    // eslint-disable-next-line no-alert
-    if (window.confirm('Are you sure you want to delete this workout from the planner?')) {
-      setWorkouts((prev) => {
-        const next = prev.filter((w) => w.id !== id);
-        saveWorkouts(next);
-        return next;
-      });
+    const payload: any = {
+      title: externalForm.name || 'Workout',
+      notes: externalForm.notes || '',
+      duration_min: Number(externalForm.duration || 0),
+      workout_type: externalForm.types?.[0] || 'Other',
+      hero_image_url: externalForm.hero_image_url || null,
+      tags: externalForm.tags?.length ? externalForm.tags : null,
+      exercises: externalForm.exercises?.length ? externalForm.exercises : null,
+      creator_id: externalForm.creator_id || null,
+      recurrence_rule: externalForm.recurrence_rule || null,
+      recurrence_end: externalForm.recurrence_end || null,
+      color: externalForm.color || null,
+      reminder_minutes_before: externalForm.reminder_minutes_before ?? null,
+      time: externalForm.time || null,
+    };
+
+    const { data, error } = await supabase
+      .from('planner_events')
+      .update(payload)
+      .eq('id', editModal.workoutId)
+      .select()
+      .single();
+
+    if (error) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to update workout:', error);
+    }
+
+    if (data) {
+      setPlannerEvents((events) =>
+        events.map((e) => (e.id === editModal.workoutId ? (data as PlannerEvent) : e))
+      );
       setEditModal({ open: false, workoutId: null });
     }
   };
 
-  const handleCompleteWorkout = (id: string) => {
-    setWorkouts((prev) => {
-      const next = prev.map((w) => (w.id === id ? { ...w, completed: !w.completed } : w));
-      saveWorkouts(next);
-      return next;
-    });
+  const handleDeleteWorkout = async (id: string) => {
+    const { error } = await supabase.from('planner_events').delete().eq('id', id);
+    if (error) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to delete workout:', error);
+    }
+    setPlannerEvents((events) => events.filter((e) => e.id !== id));
+    if (editModal.open && editModal.workoutId === id) {
+      setEditModal({ open: false, workoutId: null });
+    }
+    // Close detail panel if that item was open
+    if (detailModal.open && detailModal.workout?.id === id) {
+      setDetailModal({ open: false, workout: null });
+    }
   };
 
-  // Run workout handler (for creator workouts)
+  const handleCompleteWorkout = async (id: string) => {
+    const event = plannerEvents.find((e) => e.id === id);
+    if (!event) return;
+
+    const { data, error } = await supabase
+      .from('planner_events')
+      .update({ completed: !event.completed })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to toggle complete:', error);
+    }
+
+    if (data) {
+      setPlannerEvents((events) => events.map((e) => (e.id === id ? (data as PlannerEvent) : e)));
+      // sync the detail drawer if it is showing this workout
+      if (detailModal.open && detailModal.workout?.id === id) {
+        setDetailModal({ open: true, workout: data as PlannerEvent });
+      }
+    }
+  };
+
   const handleRunWorkout = (creatorId: string) => {
     if (!isBrowser) return;
+    // In the future: navigate(`/modules/workouts/execute?id=${creatorId}`)
+    // For now:
     // eslint-disable-next-line no-alert
     alert('Start workout: ' + creatorId);
-    // eventueel: navigate('/modules/workouts/execute?id=' + creatorId)
   };
 
   /** -----------------------------
-   *  Background overlay effect (SSR-safe)
+   *  Background overlay (SSR-safe)
    *  ----------------------------- */
   useEffect(() => {
     if (!isBrowser || !document?.body) return;
@@ -507,474 +719,740 @@ const PlannerCalendar: React.FC = () => {
    *  Render
    *  ----------------------------- */
   return (
-    <div style={{ position: 'relative', zIndex: 1 }}>
-      {/* KPIs */}
-      <div className="flex gap-4 mb-6 justify-center">
-        <div
-          style={{
-            background: '#181A1B',
-            borderRadius: 12,
-            padding: 16,
-            minWidth: 110,
-            textAlign: 'center',
-            border: `2px solid ${NEON_GREEN}`,
-          }}
-        >
-          <div style={{ color: NEON_GREEN, fontWeight: 700, fontSize: 28 }}>{completedCount}</div>
-          <div style={{ color: NEON_GREEN, fontSize: 13 }}>Workouts voltooid</div>
+    <div className="w-full max-w-full px-1 sm:px-4" style={{ position: 'relative', zIndex: 1 }}>
+      {/* KPIs at the very top for instant visibility */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 mb-6 mt-2">
+        <div className="rounded-xl border border-cyan-700 bg-black/60 p-4 flex flex-col items-center">
+          <span className="text-3xl font-bold text-cyan-400">{completedCount}</span>
+          <span className="text-white/80 text-sm mt-1">Workouts voltooid</span>
         </div>
-        <div
-          style={{
-            background: '#181A1B',
-            borderRadius: 12,
-            padding: 16,
-            minWidth: 110,
-            textAlign: 'center',
-            border: `2px solid ${NEON_BLUE}`,
-          }}
-        >
-          <div style={{ color: NEON_BLUE, fontWeight: 700, fontSize: 28 }}>{futureCount}</div>
-          <div style={{ color: NEON_BLUE, fontSize: 13 }}>Toekomstig gepland</div>
+        <div className="rounded-xl border border-cyan-700 bg-black/60 p-4 flex flex-col items-center">
+          <span className="text-3xl font-bold text-cyan-400">{futureCount}</span>
+          <span className="text-white/80 text-sm mt-1">Toekomstig gepland</span>
         </div>
-        <div
-          style={{
-            background: '#181A1B',
-            borderRadius: 12,
-            padding: 16,
-            minWidth: 110,
-            textAlign: 'center',
-            border: `2px solid ${NEON_YELLOW}`,
-          }}
-        >
-          <div style={{ color: NEON_YELLOW, fontWeight: 700, fontSize: 28 }}>{totalMinutes}</div>
-          <div style={{ color: NEON_YELLOW, fontSize: 13 }}>Minuten getraind</div>
+        <div className="rounded-xl border border-yellow-600 bg-black/60 p-4 flex flex-col items-center">
+          <span className="text-3xl font-bold text-yellow-400">{totalMinutes}</span>
+          <span className="text-white/80 text-sm mt-1">Minuten getraind</span>
         </div>
       </div>
 
-      {/* Week navigation */}
-      <div className="flex items-center justify-between mb-4">
-        <button
-          onClick={handlePrevWeek}
-          className="rounded-full p-2 bg-transparent"
-          style={{ color: NEON_ORANGE, border: `1.5px solid ${NEON_ORANGE}` }}
-          aria-label="Previous week"
-        >
-          {'<'}
-        </button>
-        <span className="font-bold text-lg" style={{ color: NEON_ORANGE }}>
-          {weekDates[0].format('D MMM')} - {weekDates[6].format('D MMM YYYY')}
-        </span>
-        <button
-          onClick={handleNextWeek}
-          className="rounded-full p-2 bg-transparent"
-          style={{ color: NEON_ORANGE, border: `1.5px solid ${NEON_ORANGE}` }}
-          aria-label="Next week"
-        >
-          {'>'}
-        </button>
+      {/* View Switcher - mobile friendly */}
+      <div className="flex gap-2 mb-6 flex-wrap">
+        {['Week', 'Month', 'Day'].map((view) => (
+          <button
+            key={view}
+            className={`w-full xs:w-auto px-4 py-3 rounded-full font-semibold transition border-2 text-base focus:outline-none focus:ring-2 focus:ring-cyan-400/60
+              ${
+                viewMode === view
+                  ? 'bg-cyan-500 border-cyan-400 text-white shadow'
+                  : 'bg-black/40 border-cyan-700 text-cyan-300 hover:bg-cyan-900/30'
+              }`}
+            style={{ minWidth: 90, marginBottom: 4 }}
+            onClick={() => setViewMode(view as 'Week' | 'Month' | 'Day')}
+            aria-pressed={viewMode === view}
+          >
+            {view}
+          </button>
+        ))}
       </div>
 
-      {/* Planner grid: days */}
-      <div className="flex flex-col gap-3 px-2">
-        {weekDates.map((date) => {
-          const dateStr = date.format('YYYY-MM-DD');
-          const dayWorkouts = workouts.filter((w) => w.date === dateStr);
-          const isRest = !!restDays[dateStr];
+      {/* WEEK VIEW */}
+      {viewMode === 'Week' && (
+        <>
 
-          return (
-            <div
-              key={dateStr}
-              className="rounded-xl p-3 mb-1"
-              style={{
-                background: 'transparent',
-                border: `1.5px solid ${NEON_ORANGE}`,
-                opacity: isRest ? 0.7 : 1,
-                position: 'relative',
-                backdropFilter: 'blur(16px)',
-                WebkitBackdropFilter: 'blur(16px)',
-                transition: 'background 0.3s, box-shadow 0.3s',
-              }}
+          {/* Week navigation */}
+          <div className="flex flex-col xs:flex-row items-center justify-between gap-2 mb-2 sm:mb-4">
+            <button
+              onClick={handlePrevWeek}
+              className="text-cyan-400 hover:text-cyan-200 text-2xl font-bold px-2"
+              aria-label="Previous week"
             >
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <span className="font-bold" style={{ color: NEON_ORANGE }}>
-                    {date.format('dddd D MMM')}
-                  </span>
-                  <span
-                    className="text-xs px-2 py-0.5 rounded cursor-pointer"
-                    style={{
-                      background: 'transparent',
-                      color: NEON_ORANGE,
-                      border: `1px solid ${NEON_ORANGE}`,
-                    }}
-                    onClick={() => handleRestDayClick(dateStr)}
-                    title="Markeer rustdag"
-                  >
-                    {isRest ? 'Restday ✓' : 'Set Restday'}
-                  </span>
-                </div>
-                <div
-                  className="text-sm font-semibold"
-                  style={{ color: NEON_ORANGE }}
-                  title="ISO weeknummer"
-                >
-                  Week {weekNumber}
-                </div>
-              </div>
+              {'<'}
+            </button>
+            <span className="text-lg font-semibold text-white/90">
+              {weekDates[0].format('D MMM')} - {weekDates[6].format('D MMM YYYY')}{' '}
+              <span className="text-cyan-400 font-normal ml-2">Week {weekNumber}</span>
+            </span>
+            <button
+              onClick={handleNextWeek}
+              className="text-cyan-400 hover:text-cyan-200 text-2xl font-bold px-2"
+              aria-label="Next week"
+            >
+              {'>'}
+            </button>
+          </div>
 
-              {/* Workouts */}
-              {dayWorkouts.length > 0 &&
-                dayWorkouts.map((w) => {
-                  const neon = (w.source && SOURCE_NEON[w.source]) ?? NEON_ORANGE;
-
-                  return (
-                    <div
-                      key={w.id}
-                      className={
-                        w.creator_id
-                          ? 'flex flex-col gap-2 p-3 rounded-lg mb-2 cursor-pointer'
-                          : 'flex flex-col gap-1 p-2 rounded-lg mb-2 cursor-pointer'
-                      }
-                      style={{
-                        background: w.creator_id ? '#181A1B' : 'transparent',
-                        border: `2px solid ${neon}`,
-                        position: 'relative',
-                        boxShadow: w.creator_id ? `0 2px 12px ${neon}22` : undefined,
-                      }}
-                      onClick={() => setDetailModal({ open: true, workout: w })}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          setDetailModal({ open: true, workout: w });
-                        }
-                      }}
-                    >
-                      {w.creator_id ? (
-                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-                          {w.hero_image_url && (
-                            <img
-                              src={w.hero_image_url}
-                              alt={w.name}
-                              style={{
-                                width: 48,
-                                height: 48,
-                                objectFit: 'cover',
-                                borderRadius: 6,
-                                marginRight: 8,
-                                border: `1.5px solid ${neon}`,
-                                background: '#222',
-                              }}
-                            />
-                          )}
-                          <div style={{ flex: 1 }}>
-                            <div className="flex items-center justify-between">
-                              <span className="font-bold" style={{ color: '#fff' }}>
-                                {w.name}
-                              </span>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (w.creator_id) handleRunWorkout(w.creator_id);
-                                }}
-                                className="flex items-center gap-1 px-3 py-1 rounded-full font-semibold"
-                                style={{
-                                  background: neon,
-                                  color: '#181A1B',
-                                  border: `1.5px solid ${neon}`,
-                                }}
-                              >
-                                <FaPlay /> Run workout
-                              </button>
-                            </div>
-                            <div className="flex flex-wrap gap-2 mt-1">
-                              {w.tags?.map((tag) => (
-                                <span
-                                  key={tag}
-                                  className="text-xs px-2 py-0.5 rounded"
-                                  style={{
-                                    background: 'transparent',
-                                    color: neon,
-                                    border: `1px solid ${neon}`,
-                                  }}
-                                >
-                                  {tag}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <span className="font-bold" style={{ color: '#fff' }}>
-                              {w.name}
+          {/* Calendar days with drag-and-drop */}
+          <DragDropContext onDragEnd={onDragEnd}>
+            <div className="grid grid-cols-1 gap-2 sm:gap-4">
+              {weekDates.map((dateObj) => {
+                const dateStr = dateObj.format('YYYY-MM-DD');
+                const dayEvents = eventsByDate[dateStr] || [];
+                const isRestDay = dayEvents.some((e) => e.type === 'rest');
+                return (
+                  <Droppable droppableId={dateStr} key={dateStr} direction="vertical">
+                    {(provided, snapshot) => (
+                      <div ref={provided.innerRef} {...provided.droppableProps}>
+                        <div
+                          className={`rounded-xl border ${
+                            isRestDay ? 'border-yellow-600' : 'border-cyan-700'
+                          } bg-black/50 p-4 flex flex-col gap-2 relative ${
+                            snapshot.isDraggingOver ? 'ring-2 ring-cyan-400' : ''
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-lg font-bold text-white/90">
+                              {dateObj.format('dddd D MMMM')}
                             </span>
-                            <span
-                              className="ml-2 text-xs px-2 py-0.5 rounded"
-                              style={{
-                                background: 'transparent',
-                                color: neon,
-                                border: `1px solid ${neon}`,
-                                marginLeft: 8,
-                              }}
+                            <span className="text-xs text-cyan-300">Week {weekNumber}</span>
+                          </div>
+                          <div className="flex gap-2 mb-2">
+                            <button
+                              onClick={() => handleRestDayClick(dateStr)}
+                              className={`text-xs px-2 py-1 rounded-full border ${
+                                isRestDay
+                                  ? 'border-yellow-400 text-yellow-400'
+                                  : 'border-cyan-400 text-cyan-400'
+                              } bg-transparent hover:bg-cyan-900/30 transition`}
                             >
-                              {w.type}
-                            </span>
+                              {isRestDay ? 'Unset Restday' : 'Set Restday'}
+                            </button>
+                            <button
+                              onClick={() => handleAddWorkoutClick(dateStr)}
+                              className="text-xs px-2 py-1 rounded-full border border-cyan-400 text-cyan-400 bg-transparent hover:bg-cyan-900/30 transition"
+                            >
+                              + Add Workout
+                            </button>
                           </div>
-                          <div className="flex flex-col items-end gap-1">
-                            <div className="flex items-center gap-3">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleEditWorkout(w.id);
-                                }}
-                                className="text-gray-400"
-                                title="Edit"
-                                style={{
-                                  color: neon,
-                                  fontSize: 22,
-                                  padding: 8,
-                                  borderRadius: 8,
-                                  background: '#232323',
-                                  border: `1.5px solid ${neon}`,
-                                }}
-                                aria-label="Edit workout"
-                              >
-                                <FaRegEdit />
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleCompleteWorkout(w.id);
-                                }}
-                                className="text-gray-400"
-                                title="Mark as complete"
-                                style={{
-                                  color: w.completed ? neon : '#888',
-                                  fontSize: 22,
-                                  padding: 8,
-                                  borderRadius: 8,
-                                  background: '#232323',
-                                  border: `1.5px solid ${neon}`,
-                                }}
-                                aria-label="Toggle complete"
-                              >
-                                <FaCheckCircle />
-                              </button>
-                            </div>
-                            {/* START alleen voor creator/external workouts */}
-                            {w.external && (
-                              <button
-                                className="flex items-center gap-1 px-3 py-1 mt-1 rounded-full font-semibold"
-                                style={{
-                                  background: neon,
-                                  color: '#181A1B',
-                                  border: `1.5px solid ${neon}`,
-                                }}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (w.creator_id) handleRunWorkout(w.creator_id);
-                                }}
-                                title="Start deze workout"
-                                aria-label="Start workout"
-                              >
-                                <FaPlay /> Start
-                              </button>
-                            )}
+                          {/* Render events for this day with DnD */}
+                          <div className="flex flex-col gap-2 min-h-[32px]">
+                            {dayEvents.filter((e) => e.type === 'workout').length === 0 &&
+                              !isRestDay && (
+                                <span className="text-sm text-gray-400">No workouts planned.</span>
+                              )}
+                            {dayEvents
+                              .filter((e) => e.type === 'workout')
+                              .map((event, idx) => {
+                                // Use event.color if present, otherwise fallback to neon logic
+                                let color = event.color ?? undefined;
+                                if (!color) {
+                                  color = NEON_ORANGE;
+                                  if (event.type === 'rest') color = NEON_YELLOW;
+                                  else if (event.workout_type) {
+                                    const t = normalizeWorkoutType(event.workout_type);
+                                    if (t === 'Run') color = NEON_GREEN;
+                                    else if (t === 'Strength') color = NEON_ORANGE;
+                                    else if (t === 'Hybrid') color = NEON_PURPLE;
+                                    else if (t === 'Cardio') color = NEON_BLUE;
+                                    else if (t === 'Mobility' || t === 'Stretching' || t === 'Zen')
+                                      color = NEON_YELLOW;
+                                  } else if (
+                                    event.source &&
+                                    SOURCE_NEON[event.source as WorkoutSource]
+                                  ) {
+                                    color = SOURCE_NEON[event.source as WorkoutSource];
+                                  }
+                                }
+                                return (
+                                  <Draggable draggableId={event.id} index={idx} key={event.id}>
+                                    {(dragProvided, dragSnapshot) => (
+                                      <div
+                                        ref={dragProvided.innerRef}
+                                        {...dragProvided.draggableProps}
+                                        {...dragProvided.dragHandleProps}
+                                        className="rounded-lg border p-3 flex items-center justify-between cursor-pointer bg-opacity-90"
+                                        style={{
+                                          borderColor: color,
+                                          background: dragSnapshot.isDragging
+                                            ? `${color}22`
+                                            : `${color}12`,
+                                          ...dragProvided.draggableProps.style,
+                                        }}
+                                        onClick={() => openEditFor(event.id)}
+                                        role="button"
+                                        tabIndex={0}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter' || e.key === ' ') {
+                                            openEditFor(event.id);
+                                          }
+                                        }}
+                                      >
+                                        <div className="min-w-0">
+                                          <span className="text-white font-semibold break-words">
+                                            {event.title || 'Workout'}
+                                          </span>
+                                          {event.duration_min ? (
+                                            <span className="ml-2 text-xs text-yellow-400">
+                                              {event.duration_min} min
+                                            </span>
+                                          ) : null}
+                                          <div className="flex gap-2 mt-1 text-xs text-gray-400 flex-wrap">
+                                            {event.notes && (
+                                              <span className="truncate max-w-[240px]">
+                                                {event.notes}
+                                              </span>
+                                            )}
+                                            <span>
+                                              {moment(event.date).format('ddd D MMM YYYY')}
+                                            </span>
+                                            {event.time && <span>{event.time}</span>}
+                                            {event.workout_type && (
+                                              <span
+                                                className="px-2 py-0.5 rounded border"
+                                                style={{ borderColor: color, color: color }}
+                                              >
+                                                {event.workout_type}
+                                              </span>
+                                            )}
+                                          </div>
+                                        </div>
+                                        <div
+                                          className="flex flex-wrap gap-3 shrink-0 mt-2 md:mt-0"
+                                          onClick={(e) => e.stopPropagation()}
+                                        >
+                                          <button
+                                            onClick={() => openEditFor(event.id)}
+                                            className="rounded-full bg-cyan-900/30 text-cyan-400 hover:bg-cyan-700 hover:text-white p-3 text-xl flex items-center justify-center"
+                                            aria-label="Edit"
+                                            title="Edit"
+                                            style={{ minWidth: 44, minHeight: 44 }}
+                                          >
+                                            <FaRegEdit />
+                                          </button>
+                                          <button
+                                            onClick={() => handleCompleteWorkout(event.id)}
+                                            className={`rounded-full bg-green-900/20 ${event.completed ? 'text-green-400' : 'text-gray-400'} hover:bg-green-700 hover:text-white p-3 text-xl flex items-center justify-center`}
+                                            aria-label="Toggle complete"
+                                            title="Mark as complete"
+                                            style={{ minWidth: 44, minHeight: 44 }}
+                                          >
+                                            <FaCheckCircle />
+                                          </button>
+                                          <button
+                                            onClick={() => handleDeleteWorkout(event.id)}
+                                            className="rounded-full bg-red-900/20 text-red-400 hover:bg-red-700 hover:text-white p-3 text-xl flex items-center justify-center"
+                                            aria-label="Delete"
+                                            title="Delete"
+                                            style={{ minWidth: 44, minHeight: 44 }}
+                                          >
+                                            <FaRegTrashAlt />
+                                          </button>
+                                          {event.external && (
+                                            <button
+                                              onClick={() =>
+                                                event.creator_id &&
+                                                handleRunWorkout(event.creator_id)
+                                              }
+                                              className="rounded-full bg-purple-700 text-white font-semibold px-5 py-3 text-lg flex items-center gap-2 ml-1"
+                                              style={{ minWidth: 80 }}
+                                              aria-label="Start workout"
+                                              title="Start"
+                                            >
+                                              <FaPlay /> Start
+                                            </button>
+                                          )}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </Draggable>
+                                );
+                              })}
+                            {provided.placeholder}
                           </div>
                         </div>
-                      )}
-                      <div className="flex gap-2 mt-2 text-xs text-gray-400">
-                        {w.notes && <span>{w.notes}</span>}
-                        <span>{moment(w.date).format('ddd D MMM YYYY')}</span>
-                        <span>{w.time}</span>
-                        {w.duration ? (
-                          <>
-                            <span>•</span>
-                            <span>{w.duration} min</span>
-                          </>
-                        ) : null}
+                      </div>
+                    )}
+                  </Droppable>
+                );
+              })}
+            </div>
+          </DragDropContext>
+        </>
+      )}
+
+      {/* MONTH VIEW */}
+      {viewMode === 'Month' && (
+        <>
+          <div className="flex flex-col xs:flex-row items-center justify-between gap-2 mb-2 sm:mb-4">
+            <button
+              onClick={() => setCurrentMonth((m) => m.clone().subtract(1, 'month'))}
+              className="text-cyan-400 hover:text-cyan-200 text-2xl font-bold px-2"
+              aria-label="Previous month"
+            >
+              {'<'}
+            </button>
+            <span className="text-lg font-semibold text-white/90">{monthLabel}</span>
+            <button
+              onClick={() => setCurrentMonth((m) => m.clone().add(1, 'month'))}
+              className="text-cyan-400 hover:text-cyan-200 text-2xl font-bold px-2"
+              aria-label="Next month"
+            >
+              {'>'}
+            </button>
+          </div>
+
+          <div className="grid grid-cols-7 gap-0.5 sm:gap-1 bg-black/40 rounded-xl overflow-hidden text-xs sm:text-base">
+            {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => (
+              <div key={d} className="text-cyan-300 text-center py-2 font-semibold bg-black/60">
+                {d}
+              </div>
+            ))}
+
+            {monthDays.map((day) => {
+              const dateStr = day.format('YYYY-MM-DD');
+              const isCurrentMonth = day.month() === currentMonth.month();
+              const isToday = day.isSame(moment(), 'day');
+              const events = eventsByDateMonth[dateStr] || [];
+              return (
+                <div
+                  key={dateStr}
+                  className={`min-h-[56px] sm:min-h-[80px] p-0.5 sm:p-1 border border-black/30 flex flex-col rounded-lg cursor-pointer transition group
+                      ${isCurrentMonth ? 'bg-black/70' : 'bg-black/30 opacity-60'}
+                      ${isToday ? 'ring-2 ring-cyan-400' : ''}`}
+                  onClick={() => setAddModal({ open: true, date: dateStr })}
+                  onDoubleClick={() => setAddModal({ open: true, date: dateStr })}
+                  tabIndex={0}
+                  aria-label={`Add or view events for ${day.format('dddd, D MMMM YYYY')}`}
+                >
+                  <div className="text-[10px] sm:text-xs text-cyan-200 font-bold mb-0.5 sm:mb-1 text-right pr-0.5 sm:pr-1">
+                    {day.date()}
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    {events.map((event) => {
+                      const color = event.color || NEON_ORANGE;
+                      return (
+                        <div
+                          key={event.id}
+                          className="truncate text-[10px] sm:text-xs px-1 sm:px-2 py-0.5 rounded mb-0.5 font-semibold"
+                          style={{
+                            background: `${color}22`,
+                            color: color,
+                            border: `1px solid ${color}`,
+                          }}
+                          title={event.title || 'Workout'}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openEditFor(event.id);
+                          }}
+                        >
+                          {event.title || event.workout_type || 'Workout'}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {/* DAY VIEW */}
+      {viewMode === 'Day' && (
+        <div className="w-full max-w-2xl mx-auto flex flex-col gap-6 items-center py-6">
+          <div className="flex items-center gap-4 mb-4">
+            <button
+              className="text-cyan-400 hover:text-cyan-200 text-2xl font-bold px-2"
+              aria-label="Previous day"
+              onClick={() => setCurrentDay((d) => d.clone().subtract(1, 'day'))}
+            >
+              {'<'}
+            </button>
+            <input
+              type="date"
+              className="bg-black/60 border border-cyan-700 rounded-lg px-3 py-1 text-cyan-200 text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-cyan-400"
+              value={currentDay.format('YYYY-MM-DD')}
+              onChange={e => setCurrentDay(moment(e.target.value))}
+              style={{ minWidth: 160 }}
+            />
+            <button
+              className="text-cyan-400 hover:text-cyan-200 text-2xl font-bold px-2"
+              aria-label="Next day"
+              onClick={() => setCurrentDay((d) => d.clone().add(1, 'day'))}
+            >
+              {'>'}
+            </button>
+          </div>
+          <div className="w-full flex flex-col gap-4">
+            {eventsForCurrentDay.length === 0 ? (
+              <div className="text-gray-400 text-center text-base">No workouts or events planned for this day.</div>
+            ) : (
+              eventsForCurrentDay.map((event, idx) => {
+                let color = event.color;
+                if (!color) {
+                  color = NEON_ORANGE;
+                  if (event.type === 'rest') color = NEON_YELLOW;
+                  else if (event.workout_type) {
+                    const t = normalizeWorkoutType(event.workout_type);
+                    if (t === 'Run') color = NEON_GREEN;
+                    else if (t === 'Strength') color = NEON_ORANGE;
+                    else if (t === 'Hybrid') color = NEON_PURPLE;
+                    else if (t === 'Cardio') color = NEON_BLUE;
+                    else if (t === 'Mobility' || t === 'Stretching' || t === 'Zen')
+                      color = NEON_YELLOW;
+                  } else if (event.source && SOURCE_NEON[event.source as WorkoutSource]) {
+                    color = SOURCE_NEON[event.source as WorkoutSource];
+                  }
+                }
+                return (
+                  <div
+                    key={event.id}
+                    className="rounded-lg border p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 cursor-pointer bg-opacity-90"
+                    style={{
+                      borderColor: color,
+                      background: `${color}12`,
+                    }}
+                    onClick={() => openEditFor(event.id)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        openEditFor(event.id);
+                      }
+                    }}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <span className="text-white font-semibold text-lg break-words">
+                        {event.title || 'Workout'}
+                      </span>
+                      {event.duration_min ? (
+                        <span className="ml-2 text-xs text-yellow-400">
+                          {event.duration_min} min
+                        </span>
+                      ) : null}
+                      <div className="flex gap-2 mt-1 text-xs text-gray-400 flex-wrap">
+                        {event.notes && (
+                          <span className="truncate max-w-[240px]">
+                            {event.notes}
+                          </span>
+                        )}
+                        <span>{moment(event.date).format('ddd D MMM YYYY')}</span>
+                        {event.time && <span>{event.time}</span>}
+                        {event.workout_type && (
+                          <span
+                            className="px-2 py-0.5 rounded border"
+                            style={{ borderColor: color, color: color }}
+                          >
+                            {event.workout_type}
+                          </span>
+                        )}
                       </div>
                     </div>
-                  );
-                })}
+                    <div className="flex flex-wrap gap-3 shrink-0 self-end sm:self-center mt-2 md:mt-0">
+                      <button
+                        onClick={e => {
+                          e.stopPropagation();
+                          openEditFor(event.id);
+                        }}
+                        className="rounded-full bg-cyan-900/30 text-cyan-400 hover:bg-cyan-700 hover:text-white p-3 text-xl flex items-center justify-center"
+                        aria-label="Edit"
+                        title="Edit"
+                        style={{ minWidth: 44, minHeight: 44 }}
+                      >
+                        <FaRegEdit />
+                      </button>
+                      <button
+                        onClick={e => {
+                          e.stopPropagation();
+                          handleCompleteWorkout(event.id);
+                        }}
+                        className={`rounded-full bg-green-900/20 ${event.completed ? 'text-green-400' : 'text-gray-400'} hover:bg-green-700 hover:text-white p-3 text-xl flex items-center justify-center`}
+                        aria-label="Toggle complete"
+                        title="Mark as complete"
+                        style={{ minWidth: 44, minHeight: 44 }}
+                      >
+                        <FaCheckCircle />
+                      </button>
+                      <button
+                        onClick={e => {
+                          e.stopPropagation();
+                          handleDeleteWorkout(event.id);
+                        }}
+                        className="rounded-full bg-red-900/20 text-red-400 hover:bg-red-700 hover:text-white p-3 text-xl flex items-center justify-center"
+                        aria-label="Delete"
+                        title="Delete"
+                        style={{ minWidth: 44, minHeight: 44 }}
+                      >
+                        <FaRegTrashAlt />
+                      </button>
+                      {event.external && (
+                        <button
+                          onClick={e => {
+                            e.stopPropagation();
+                            event.creator_id && handleRunWorkout(event.creator_id);
+                          }}
+                          className="rounded-full bg-purple-700 text-white font-semibold px-5 py-3 text-lg flex items-center gap-2 ml-1"
+                          style={{ minWidth: 80 }}
+                          aria-label="Start workout"
+                          title="Start"
+                        >
+                          <FaPlay /> Start
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
 
-              {/* Add workout / Restday CTA */}
-              {!isRest ? (
-                <button
-                  className="w-full flex items-center justify-center gap-2 mt-1 py-2 rounded-lg font-semibold"
-                  style={{
-                    background: 'transparent',
-                    color: NEON_ORANGE,
-                    border: `1.5px solid ${NEON_ORANGE}`,
-                    boxShadow: 'none',
-                  }}
-                  onClick={() => handleAddWorkoutClick(dateStr)}
-                >
-                  <FaPlus />+ ADD WORKOUT
-                </button>
-              ) : null}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Add Workout Modal */}
+      {/* Add Workout Modal - mobile friendly buttons */}
       {addModal.open && (
         <Modal onClose={() => setAddModal({ open: false, date: '' })}>
-          <div className="flex flex-col gap-4">
-            <h2 className="font-bold text-lg mb-2" style={{ color: '#fff' }}>
-              Add Workout
+          <div className="flex flex-col gap-4 sm:gap-6 p-2 sm:p-0">
+            <h2 className="font-extrabold text-lg sm:text-2xl mb-2 text-cyan-300 flex items-center gap-2">
+              <FaRegEdit className="text-cyan-400" /> Plan a New Workout
             </h2>
-            <div className="flex flex-col gap-2">
+            <div className="grid grid-cols-1 gap-3">
               <button
-                className="w-full py-2 rounded"
-                style={{
-                  background: 'transparent',
-                  color: NEON_GREEN,
-                  border: `1.5px solid ${NEON_GREEN}`,
-                }}
+                className="w-full py-4 rounded-2xl font-semibold shadow-md border-2 border-cyan-400 bg-black/40 hover:bg-cyan-900/30 transition flex flex-row items-center gap-3 text-lg"
                 onClick={() => handleWorkoutTypeSelect('Workout Library')}
+                aria-label="Add from Workout Library"
               >
-                Workout Library
+                <span className="text-cyan-300 text-2xl">🏋️‍♂️</span>
+                <span>Workout Library</span>
               </button>
               <button
-                className="w-full py-2 rounded"
-                style={{
-                  background: 'transparent',
-                  color: NEON_YELLOW,
-                  border: `1.5px solid ${NEON_YELLOW}`,
-                }}
+                className="w-full py-4 rounded-2xl font-semibold shadow-md border-2 border-yellow-400 bg-black/40 hover:bg-yellow-900/20 transition flex flex-row items-center gap-3 text-lg"
                 onClick={() => handleWorkoutTypeSelect('Community Workouts')}
+                aria-label="Add Community Workout"
               >
-                Community Workouts
+                <span className="text-yellow-300 text-2xl">🤝</span>
+                <span>Community</span>
               </button>
               <button
-                className="w-full py-2 rounded"
-                style={{
-                  background: 'transparent',
-                  color: NEON_PURPLE,
-                  border: `1.5px solid ${NEON_PURPLE}`,
-                }}
+                className="w-full py-4 rounded-2xl font-semibold shadow-md border-2 border-purple-400 bg-black/40 hover:bg-purple-900/20 transition flex flex-row items-center gap-3 text-lg"
                 onClick={() => handleWorkoutTypeSelect('Workout Creator')}
+                aria-label="Create Custom Workout"
               >
-                Workout Creator
+                <span className="text-purple-300 text-2xl">🛠️</span>
+                <span>Creator</span>
               </button>
               <button
-                className="w-full py-2 rounded"
-                style={{
-                  background: 'transparent',
-                  color: NEON_ORANGE,
-                  border: `1.5px solid ${NEON_ORANGE}`,
-                }}
+                className="w-full py-4 rounded-2xl font-semibold shadow-md border-2 border-orange-400 bg-black/40 hover:bg-orange-900/20 transition flex flex-row items-center gap-3 text-lg"
                 onClick={() => handleWorkoutTypeSelect('Workout Generator')}
+                aria-label="Generate Workout"
               >
-                Workout Generator
+                <span className="text-orange-300 text-2xl">⚡</span>
+                <span>Generator</span>
               </button>
               <button
-                className="w-full py-2 rounded"
-                style={{
-                  background: 'transparent',
-                  color: NEON_BLUE,
-                  border: `1.5px solid ${NEON_BLUE}`,
-                }}
+                className="w-full py-4 rounded-2xl font-semibold shadow-md border-2 border-blue-400 bg-black/40 hover:bg-blue-900/20 transition flex flex-row items-center gap-3 text-lg"
                 onClick={() => handleWorkoutTypeSelect('External')}
+                aria-label="Add External Workout"
               >
-                External Workout
+                <span className="text-blue-300 text-2xl">🌐</span>
+                <span>External Workout</span>
+              </button>
+            </div>
+            <div className="text-base text-gray-400 mt-2 text-center">
+              Choose a source to start planning your workout for{' '}
+              <span className="text-cyan-200 font-semibold">{addModal.date}</span>.
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* AddTypeModal (Creator/External) */}
+      {addTypeModal.open && (
+        <Modal onClose={() => setAddTypeModal({ open: false, date: '', type: '' })}>
+          <div className="flex flex-col gap-4 sm:gap-6 p-2 sm:p-0">
+            <h2
+              className="font-extrabold text-lg sm:text-2xl mb-2 flex items-center gap-2"
+              style={{ color: addTypeModal.type === 'External' ? NEON_BLUE : NEON_ORANGE }}
+            >
+              {addTypeModal.type === 'Creator' ? (
+                <>
+                  <FaRegEdit className="text-orange-400" /> Plan Custom Workout
+                </>
+              ) : (
+                <>
+                  <FaRegEdit className="text-blue-400" /> Add External Workout
+                </>
+              )}
+            </h2>
+            <div className="grid grid-cols-1 gap-3 sm:gap-4">
+              {/* Color Picker */}
+              <div className="flex flex-col gap-2">
+                <label className="font-semibold">Event Color</label>
+                <input
+                  type="color"
+                  className="w-12 h-8 p-0 border-2 rounded"
+                  value={externalForm.color || '#FF7A18'}
+                  onChange={(e) => handleExternalFormChange('color', e.target.value)}
+                  aria-label="Pick event color"
+                />
+              </div>
+              {/* Reminder Picker */}
+              <div className="flex flex-col gap-2">
+                <label className="font-semibold">Reminder</label>
+                <select
+                  className="rounded p-2 border-2 focus:outline-none focus:ring-2 focus:ring-cyan-400 bg-black/40 text-white"
+                  value={externalForm.reminder_minutes_before ?? ''}
+                  onChange={(e) =>
+                    handleExternalFormChange(
+                      'reminder_minutes_before',
+                      e.target.value ? Number(e.target.value) : null
+                    )
+                  }
+                >
+                  <option value="">No reminder</option>
+                  <option value="5">5 minutes before</option>
+                  <option value="10">10 minutes before</option>
+                  <option value="30">30 minutes before</option>
+                  <option value="60">1 hour before</option>
+                  <option value="1440">1 day before</option>
+                </select>
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="font-semibold">Name</label>
+                <input
+                  className="rounded p-2 border-2 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                  style={{
+                    background: 'transparent',
+                    color: '#fff',
+                    borderColor: addTypeModal.type === 'External' ? NEON_BLUE : NEON_ORANGE,
+                  }}
+                  value={externalForm.name}
+                  onChange={(e) => handleExternalFormChange('name', e.target.value)}
+                  placeholder="Workout name"
+                  required
+                  maxLength={60}
+                />
+              </div>
+              {/* Additional fields can be added here as needed */}
+              <button
+                className="w-full py-3 mt-2 rounded-xl font-bold shadow-md text-lg tracking-wide"
+                style={{
+                  background: addTypeModal.type === 'External' ? NEON_BLUE : NEON_ORANGE,
+                  color: '#181A1B',
+                  fontSize: 18,
+                }}
+                onClick={handleExternalFormSubmit}
+              >
+                SCHEDULE
               </button>
             </div>
           </div>
         </Modal>
       )}
 
-      {/* AddTypeModal (creator/external) */}
-      {addTypeModal.open && (
-        <Modal onClose={() => setAddTypeModal({ open: false, date: '', type: '' })}>
-          <div className="flex flex-col gap-4">
+      {/* Edit Workout Modal */}
+      {editModal.open && (
+        <Modal onClose={() => setEditModal({ open: false, workoutId: null })}>
+          <div className="flex flex-col gap-4 sm:gap-6 p-2 sm:p-0">
             <h2
-              className="font-bold text-lg mb-2"
-              style={{ color: addTypeModal.type === 'External' ? '#fff' : NEON_ORANGE }}
+              className="font-extrabold text-lg sm:text-2xl mb-2 flex items-center gap-2"
+              style={{ color: NEON_ORANGE }}
             >
-              {addTypeModal.type === 'Creator' ? 'Plan Workout' : 'External Workout'}
+              <FaRegEdit className="text-orange-400" /> Edit Workout
             </h2>
-
-            <label className="font-semibold">Name</label>
-            <input
-              className="rounded p-2"
-              style={{
-                background: 'transparent',
-                color: '#fff',
-                border: `1.5px solid ${addTypeModal.type === 'External' ? NEON_BLUE : NEON_ORANGE}`,
-              }}
-              value={externalForm.name}
-              onChange={(e) => handleExternalFormChange('name', e.target.value)}
-              placeholder="Workout name"
-            />
-
-            <label className="font-semibold">Notes</label>
-            <textarea
-              className="rounded p-2"
-              style={{
-                background: 'transparent',
-                color: '#fff',
-                border: `1.5px solid ${addTypeModal.type === 'External' ? NEON_BLUE : NEON_ORANGE}`,
-              }}
-              value={externalForm.notes}
-              onChange={(e) => handleExternalFormChange('notes', e.target.value)}
-              placeholder="Notes"
-            />
-
-            <label className="font-semibold">Date</label>
-            <input
-              type="date"
-              className="rounded p-2"
-              style={{
-                background: 'transparent',
-                color: '#fff',
-                border: `1.5px solid ${addTypeModal.type === 'External' ? NEON_BLUE : NEON_ORANGE}`,
-              }}
-              value={addTypeModal.date}
-              onChange={(e) => setAddTypeModal((prev) => ({ ...prev, date: e.target.value }))}
-            />
-
-            <label className="font-semibold">Time</label>
-            <input
-              type="time"
-              className="rounded p-2"
-              style={{
-                background: 'transparent',
-                color: '#fff',
-                border: `1.5px solid ${addTypeModal.type === 'External' ? NEON_BLUE : NEON_ORANGE}`,
-              }}
-              value={externalForm.time}
-              onChange={(e) => handleExternalFormChange('time', e.target.value)}
-            />
-
-            <label className="font-semibold">Duur (minuten)</label>
-            <input
-              type="number"
-              min={0}
-              className="rounded p-2"
-              style={{
-                background: 'transparent',
-                color: '#fff',
-                border: `1.5px solid ${addTypeModal.type === 'External' ? NEON_BLUE : NEON_ORANGE}`,
-              }}
-              value={externalForm.duration}
-              onChange={(e) => handleExternalFormChange('duration', Number(e.target.value || 0))}
-              placeholder="Bijv. 45"
-            />
-
-            {/* Type alleen tonen als het geen creator workout is */}
-            {!externalForm.creator_id && (
-              <>
+            <div className="grid grid-cols-1 gap-3 sm:gap-4">
+              {/* Color Picker */}
+              <div className="flex flex-col gap-2">
+                <label className="font-semibold">Event Color</label>
+                <input
+                  type="color"
+                  className="w-12 h-8 p-0 border-2 rounded"
+                  value={externalForm.color || '#FF7A18'}
+                  onChange={(e) => handleExternalFormChange('color', e.target.value)}
+                  aria-label="Pick event color"
+                />
+              </div>
+              {/* Reminder Picker */}
+              <div className="flex flex-col gap-2">
+                <label className="font-semibold">Reminder</label>
+                <select
+                  className="rounded p-2 border-2 focus:outline-none focus:ring-2 focus:ring-orange-400 bg-black/40 text-white"
+                  value={externalForm.reminder_minutes_before ?? ''}
+                  onChange={(e) =>
+                    handleExternalFormChange(
+                      'reminder_minutes_before',
+                      e.target.value ? Number(e.target.value) : null
+                    )
+                  }
+                >
+                  <option value="">No reminder</option>
+                  <option value="5">5 minutes before</option>
+                  <option value="10">10 minutes before</option>
+                  <option value="30">30 minutes before</option>
+                  <option value="60">1 hour before</option>
+                  <option value="1440">1 day before</option>
+                </select>
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="font-semibold">Name</label>
+                <input
+                  className="rounded p-2 border-2 focus:outline-none focus:ring-2 focus:ring-orange-400"
+                  style={{
+                    background: 'transparent',
+                    color: '#fff',
+                    borderColor: NEON_ORANGE,
+                  }}
+                  value={externalForm.name}
+                  onChange={(e) => handleExternalFormChange('name', e.target.value)}
+                  placeholder="Workout name"
+                  required
+                  maxLength={60}
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="font-semibold">Notes</label>
+                <textarea
+                  className="rounded p-2 border-2 focus:outline-none focus:ring-2 focus:ring-orange-400"
+                  style={{
+                    background: 'transparent',
+                    color: '#fff',
+                    borderColor: NEON_ORANGE,
+                  }}
+                  value={externalForm.notes}
+                  onChange={(e) => handleExternalFormChange('notes', e.target.value)}
+                  placeholder="Notes"
+                  maxLength={200}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-2">
+                  <label className="font-semibold">Time</label>
+                  <input
+                    type="time"
+                    className="rounded p-2 border-2 focus:outline-none focus:ring-2 focus:ring-orange-400"
+                    style={{
+                      background: 'transparent',
+                      color: '#fff',
+                      borderColor: NEON_ORANGE,
+                    }}
+                    value={externalForm.time}
+                    onChange={(e) => handleExternalFormChange('time', e.target.value)}
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="font-semibold">Duration (min)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    className="rounded p-2 border-2 focus:outline-none focus:ring-2 focus:ring-orange-400"
+                    style={{
+                      background: 'transparent',
+                      color: '#fff',
+                      borderColor: NEON_ORANGE,
+                    }}
+                    value={externalForm.duration}
+                    onChange={(e) =>
+                      handleExternalFormChange('duration', Number(e.target.value || 0))
+                    }
+                    placeholder="e.g. 45"
+                  />
+                </div>
+              </div>
+              <div className="flex flex-col gap-2">
                 <label className="font-semibold">Type</label>
                 <div className="flex gap-2 overflow-x-auto">
                   {WORKOUT_TYPES.map((type) => {
                     const selected = externalForm.types.includes(type);
                     const disabled = !selected && externalForm.types.length >= 3;
-                    const activeColor = addTypeModal.type === 'External' ? NEON_BLUE : NEON_ORANGE;
                     return (
                       <button
                         key={type}
@@ -982,9 +1460,9 @@ const PlannerCalendar: React.FC = () => {
                           selected ? 'border-2' : 'border'
                         }`}
                         style={{
-                          background: selected ? activeColor : 'transparent',
-                          color: selected ? '#181A1B' : activeColor,
-                          borderColor: activeColor,
+                          background: selected ? NEON_ORANGE : 'transparent',
+                          color: selected ? '#181A1B' : NEON_ORANGE,
+                          borderColor: NEON_ORANGE,
                           minWidth: 110,
                           maxWidth: 140,
                           textAlign: 'center',
@@ -994,298 +1472,79 @@ const PlannerCalendar: React.FC = () => {
                         onClick={() => handleTypeToggle(type)}
                         type="button"
                         disabled={disabled}
-                        title={
-                          selected
-                            ? 'Verwijder preset'
-                            : disabled
-                              ? 'Maximaal 3 presets'
-                              : 'Selecteer preset'
-                        }
+                        title={selected ? 'Remove type' : disabled ? 'Max 3 types' : 'Select type'}
                       >
-                        <span
-                          style={{
-                            width: '100%',
-                            textAlign: 'center',
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
+                        <span style={{ width: '100%', textAlign: 'center', whiteSpace: 'nowrap' }}>
                           {type}
                         </span>
                       </button>
                     );
                   })}
                 </div>
-              </>
-            )}
-
-            <button
-              className="w-full py-2 mt-2 rounded font-bold"
-              style={{
-                background: addTypeModal.type === 'External' ? NEON_BLUE : NEON_ORANGE,
-                color: '#181A1B',
-                fontSize: 18,
-              }}
-              onClick={handleExternalFormSubmit}
-            >
-              SCHEDULE
-            </button>
-          </div>
-        </Modal>
-      )}
-
-      {/* Edit Workout Modal */}
-      {editModal.open && (
-        <Modal onClose={() => setEditModal({ open: false, workoutId: null })}>
-          <div className="flex flex-col gap-4">
-            <h2 className="font-bold text-lg mb-2" style={{ color: NEON_ORANGE }}>
-              Edit Workout
-            </h2>
-
-            <label className="font-semibold">Name</label>
-            <input
-              className="rounded p-2"
-              style={{
-                background: 'transparent',
-                color: '#fff',
-                border: `1.5px solid ${NEON_ORANGE}`,
-              }}
-              value={externalForm.name}
-              onChange={(e) => handleExternalFormChange('name', e.target.value)}
-              placeholder="Workout name"
-            />
-
-            <label className="font-semibold">Notes</label>
-            <textarea
-              className="rounded p-2"
-              style={{
-                background: 'transparent',
-                color: '#fff',
-                border: `1.5px solid ${NEON_ORANGE}`,
-              }}
-              value={externalForm.notes}
-              onChange={(e) => handleExternalFormChange('notes', e.target.value)}
-              placeholder="Notes"
-            />
-
-            <label className="font-semibold">Time</label>
-            <input
-              type="time"
-              className="rounded p-2"
-              style={{
-                background: 'transparent',
-                color: '#fff',
-                border: `1.5px solid ${NEON_ORANGE}`,
-              }}
-              value={externalForm.time}
-              onChange={(e) => handleExternalFormChange('time', e.target.value)}
-            />
-
-            <label className="font-semibold">Duur (minuten)</label>
-            <input
-              type="number"
-              min={0}
-              className="rounded p-2"
-              style={{
-                background: 'transparent',
-                color: '#fff',
-                border: `1.5px solid ${NEON_ORANGE}`,
-              }}
-              value={externalForm.duration}
-              onChange={(e) => handleExternalFormChange('duration', Number(e.target.value || 0))}
-              placeholder="Bijv. 45"
-            />
-
-            <label className="font-semibold">Type</label>
-            <div className="flex gap-2 overflow-x-auto">
-              {WORKOUT_TYPES.map((type) => {
-                const selected = externalForm.types.includes(type);
-                const disabled = !selected && externalForm.types.length >= 3;
-                return (
-                  <button
-                    key={type}
-                    className={`px-4 py-1 rounded-full font-semibold whitespace-nowrap flex items-center justify-center ${
-                      selected ? 'border-2' : 'border'
-                    }`}
-                    style={{
-                      background: selected ? NEON_ORANGE : 'transparent',
-                      color: selected ? '#181A1B' : NEON_ORANGE,
-                      borderColor: NEON_ORANGE,
-                      minWidth: 110,
-                      maxWidth: 140,
-                      textAlign: 'center',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
-                    onClick={() => handleTypeToggle(type)}
-                    type="button"
-                    disabled={disabled}
-                    title={
-                      selected
-                        ? 'Verwijder preset'
-                        : disabled
-                          ? 'Maximaal 3 presets'
-                          : 'Selecteer preset'
-                    }
-                  >
-                    <span style={{ width: '100%', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                      {type}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="flex gap-2 mt-2">
-              <button
-                className="w-full py-2 rounded font-bold"
-                style={{ background: NEON_ORANGE, color: '#181A1B', fontSize: 18 }}
-                onClick={handleEditFormSubmit}
-              >
-                UPDATE
-              </button>
-              <button
-                className="w-full py-2 rounded font-bold"
-                style={{
-                  background: 'transparent',
-                  color: NEON_ORANGE,
-                  border: `1.5px solid ${NEON_ORANGE}`,
-                  fontSize: 18,
-                }}
-                onClick={() => editModal.workoutId && handleDeleteWorkout(editModal.workoutId)}
-              >
-                <FaRegTrashAlt className="inline mr-1" />
-                DELETE
-              </button>
-            </div>
-
-            <button
-              className="w-full py-2 rounded font-bold mt-2"
-              style={{
-                background: 'transparent',
-                color: NEON_ORANGE,
-                border: `1.5px solid ${NEON_ORANGE}`,
-                fontSize: 18,
-              }}
-              onClick={() => editModal.workoutId && handleCompleteWorkout(editModal.workoutId)}
-            >
-              {workouts.find((w) => w.id === editModal.workoutId)?.completed ? (
-                <>
-                  <FaCheckCircle color={NEON_ORANGE} className="inline mr-1" />
-                  Completed
-                </>
-              ) : (
-                'Mark as Complete'
-              )}
-            </button>
-
-            <button
-              className="w-full py-2 rounded font-bold mt-2"
-              style={{
-                background: NEON_ORANGE,
-                color: '#181A1B',
-                border: `1.5px solid ${NEON_ORANGE}`,
-                fontSize: 18,
-              }}
-              onClick={() => {
-                const w = workouts.find((x) => x.id === editModal.workoutId);
-                if (w?.creator_id) handleRunWorkout(w.creator_id);
-              }}
-            >
-              START
-            </button>
-          </div>
-        </Modal>
-      )}
-
-      {/* Workout detail modal */}
-      {detailModal.open && detailModal.workout && (
-        <Modal onClose={() => setDetailModal({ open: false, workout: null })}>
-          <div className="flex flex-col gap-4">
-            {detailModal.workout.hero_image_url && (
-              <img
-                src={detailModal.workout.hero_image_url}
-                alt={detailModal.workout.name}
-                style={{ width: '100%', maxHeight: 180, objectFit: 'cover', borderRadius: 10 }}
-              />
-            )}
-
-            <div className="flex items-center justify-between">
-              <h2 className="font-bold text-xl" style={{ color: NEON_ORANGE }}>
-                {detailModal.workout.name}
-              </h2>
-
-              {detailModal.workout.creator_id && (
+              </div>
+              <div className="flex gap-2 mt-2">
                 <button
-                  onClick={() =>
-                    detailModal.workout?.creator_id &&
-                    handleRunWorkout(detailModal.workout.creator_id)
-                  }
-                  className="flex items-center gap-1 px-3 py-1 rounded-full font-semibold"
-                  style={{
-                    background: NEON_ORANGE,
-                    color: '#181A1B',
-                    border: `1.5px solid ${NEON_ORANGE}`,
-                  }}
+                  className="w-full py-3 rounded-xl font-bold shadow-md text-lg tracking-wide"
+                  style={{ background: NEON_ORANGE, color: '#181A1B', fontSize: 18 }}
+                  onClick={handleEditFormSubmit}
                 >
-                  <FaPlay /> Run workout
+                  UPDATE
                 </button>
-              )}
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              {detailModal.workout.tags?.map((tag) => (
-                <span
-                  key={tag}
-                  className="text-xs px-2 py-0.5 rounded"
+                <button
+                  className="w-full py-3 rounded-xl font-bold shadow-md text-lg tracking-wide border-2"
                   style={{
                     background: 'transparent',
                     color: NEON_ORANGE,
-                    border: `1px solid ${NEON_ORANGE}`,
+                    borderColor: NEON_ORANGE,
+                    fontSize: 18,
                   }}
+                  onClick={() => editModal.workoutId && handleDeleteWorkout(editModal.workoutId)}
                 >
-                  {tag}
-                </span>
-              ))}
-            </div>
-
-            <div className="flex gap-4 text-sm">
-              <span style={{ color: '#fff' }}>
-                {moment(detailModal.workout.date).format('dddd D MMMM YYYY')}
-              </span>
-              <span style={{ color: '#fff' }}>{detailModal.workout.time}</span>
-              <span style={{ color: NEON_ORANGE }}>{detailModal.workout.type}</span>
-              {detailModal.workout.duration ? (
-                <span style={{ color: NEON_YELLOW }}>{detailModal.workout.duration} min</span>
-              ) : null}
-            </div>
-
-            {detailModal.workout.notes && (
-              <div className="text-sm" style={{ color: '#fff' }}>
-                <b>Notes:</b> {detailModal.workout.notes}
+                  <FaRegTrashAlt className="inline mr-1" />
+                  DELETE
+                </button>
               </div>
-            )}
-
-            {/* Oefeningen tonen indien beschikbaar */}
-            {Array.isArray(detailModal.workout.exercises) &&
-              detailModal.workout.exercises.length > 0 && (
-                <div>
-                  <b style={{ color: NEON_ORANGE }}>Oefeningen:</b>
-                  <ul className="mt-2 list-disc list-inside" style={{ color: '#fff' }}>
-                    {detailModal.workout.exercises.map((ex: any, idx: number) => (
-                      <li key={idx}>
-                        {ex?.name || ex?.title || ex?.exerciseName || 'Oefening'}
-                        {ex?.sets && ex?.reps ? ` - ${ex.sets}x${ex.reps}` : ''}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+              <button
+                className="w-full py-3 rounded-xl font-bold shadow-md text-lg tracking-wide border-2 mt-2"
+                style={{
+                  background: 'transparent',
+                  color: NEON_ORANGE,
+                  borderColor: NEON_ORANGE,
+                  fontSize: 18,
+                }}
+                onClick={() => editModal.workoutId && handleCompleteWorkout(editModal.workoutId)}
+              >
+                {plannerEvents.find((w) => w.id === editModal.workoutId)?.completed ? (
+                  <>
+                    <FaCheckCircle color={NEON_ORANGE} className="inline mr-1" /> Completed
+                  </>
+                ) : (
+                  'Mark as Complete'
+                )}
+              </button>
+              <button
+                className="w-full py-3 rounded-xl font-bold shadow-md text-lg tracking-wide mt-2"
+                style={{
+                  background: NEON_ORANGE,
+                  color: '#181A1B',
+                  border: `1.5px solid ${NEON_ORANGE}`,
+                  fontSize: 18,
+                }}
+                onClick={() => {
+                  const w = plannerEvents.find((x) => x.id === editModal.workoutId);
+                  if (w?.creator_id) handleRunWorkout(w.creator_id);
+                }}
+              >
+                START
+              </button>
+            </div>
           </div>
         </Modal>
       )}
+
     </div>
   );
-};
+});
 
 /** -----------------------------
  *  Simple Modal component
@@ -1296,19 +1555,13 @@ const Modal: React.FC<{ onClose: () => void; children: React.ReactNode }> = ({
 }) => (
   <div
     className="fixed inset-0 z-50 flex items-center justify-center"
-    style={{
-      background: 'rgba(0,0,0,0.6)',
-      backdropFilter: 'blur(2px)',
-    }}
+    style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)' }}
     role="dialog"
     aria-modal="true"
   >
     <div
       className="bg-gray-900 rounded-xl p-6 w-full max-w-md relative"
-      style={{
-        boxShadow: '0 4px 32px rgba(0,0,0,0.4)',
-        color: '#fff',
-      }}
+      style={{ boxShadow: '0 4px 32px rgba(0,0,0,0.4)', color: '#fff' }}
     >
       <button
         className="absolute top-2 right-2"

@@ -1,4 +1,6 @@
-// Delete a generator workout by id
+import { supabase } from './supabase';
+import { v4 as uuidv4 } from 'uuid';
+
 export async function deleteGeneratorWorkout(id: string, user_id: string) {
   const { error } = await supabase
     .from('generator_workouts')
@@ -7,10 +9,13 @@ export async function deleteGeneratorWorkout(id: string, user_id: string) {
     .eq('user_id', user_id);
   if (error) throw error;
 }
-import { supabase } from './supabase';
-import { v4 as uuidv4 } from 'uuid';
 
-export async function saveGeneratorWorkout({ name, exercises, meta, user_id }: {
+export async function saveGeneratorWorkout({
+  name,
+  exercises,
+  meta,
+  user_id,
+}: {
   name: string;
   exercises: any[];
   meta?: any;

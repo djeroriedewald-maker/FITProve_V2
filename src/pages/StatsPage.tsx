@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   BarChart3,
@@ -17,28 +17,87 @@ import {
 import { GlassCard, GlassButton } from '../components/ui/GlassCard';
 import { StatsCard } from '../components/ui/WorkoutCard';
 import { ProgressiveImage } from '../components/ui/ProgressiveImage';
+import { supabase } from '../lib/supabase';
+import { UserWorkoutHistory } from '../types/user_workout_history.types';
+
 
 export function StatsPage() {
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, []);
 
-  // Mock data - replace with real data from your services
-  const weeklyStats = [
-    { day: 'Mon', workouts: 2, duration: 45 },
-    { day: 'Tue', workouts: 1, duration: 30 },
-    { day: 'Wed', workouts: 0, duration: 0 },
-    { day: 'Thu', workouts: 1, duration: 60 },
-    { day: 'Fri', workouts: 2, duration: 40 },
-    { day: 'Sat', workouts: 1, duration: 35 },
-    { day: 'Sun', workouts: 1, duration: 50 },
-  ];
+  // --- Supabase: Fetch user workout history ---
+  const [history, setHistory] = useState<UserWorkoutHistory[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    async function fetchHistory() {
+      setLoading(true);
+      setError(null);
+      // TODO: Replace with real user ID from auth context
+      const user = supabase.auth.getUser ? await supabase.auth.getUser() : null;
+      const userId = user?.data?.user?.id;
+      if (!userId) {
+        setError('Not logged in');
+        setLoading(false);
+        return;
+      }
+      const { data, error } = await supabase
+        .from('user_workout_history')
+        .select('*')
+        .eq('user_id', userId)
+        .order('workout_date', { ascending: false });
+      if (error) setError(error.message);
+      else setHistory(data as UserWorkoutHistory[]);
+      setLoading(false);
+    }
+    fetchHistory();
+  }, []);
+
+  // --- Aggregate stats from history ---
+  const totalWorkouts = history.length;
+  const totalMinutes = history.reduce((sum, w) => sum + (w.duration_minutes || 0), 0);
+  // Streak logic: count consecutive days with a workout
+  let streak = 0;
+  if (history.length > 0) {
+    let prev = new Date(history[0].workout_date);
+    streak = 1;
+    for (let i = 1; i < history.length; i++) {
+      const curr = new Date(history[i].workout_date);
+      const diff = (prev.getTime() - curr.getTime()) / (1000 * 60 * 60 * 24);
+      if (diff === 1) {
+        streak++;
+        prev = curr;
+      } else {
+        break;
+      }
+    }
+  }
+
+  // Weekly stats: workouts/duration per day (Mon-Sun)
+  const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const weeklyStats = weekDays.map((day, idx) => {
+    const today = new Date();
+    const weekStart = new Date(today);
+    weekStart.setDate(today.getDate() - today.getDay() + 1); // Monday
+    const dayDate = new Date(weekStart);
+    dayDate.setDate(weekStart.getDate() + idx);
+    const dayStr = dayDate.toISOString().slice(0, 10);
+    const dayWorkouts = history.filter((w) => w.workout_date === dayStr);
+    return {
+      day,
+      workouts: dayWorkouts.length,
+      duration: dayWorkouts.reduce((sum, w) => sum + (w.duration_minutes || 0), 0),
+    };
+  });
+
+  // Achievements (example logic)
   const achievements = [
-    { name: 'First Workout', icon: Star, completed: true, description: 'Complete your first workout session' },
-    { name: '7-Day Streak', icon: Flame, completed: true, description: 'Work out for 7 consecutive days' },
-    { name: 'Speed Demon', icon: Zap, completed: false, description: 'Complete a workout in under 20 minutes' },
-    { name: 'Consistency King', icon: Target, completed: false, description: 'Work out 30 days in a row' },
+    { name: 'First Workout', icon: Star, completed: totalWorkouts > 0, description: 'Complete your first workout session' },
+    { name: '7-Day Streak', icon: Flame, completed: streak >= 7, description: 'Work out for 7 consecutive days' },
+    { name: 'Speed Demon', icon: Zap, completed: history.some((w) => (w.duration_minutes || 0) < 20), description: 'Complete a workout in under 20 minutes' },
+    { name: 'Consistency King', icon: Target, completed: streak >= 30, description: 'Work out 30 days in a row' },
   ];
 
   return (

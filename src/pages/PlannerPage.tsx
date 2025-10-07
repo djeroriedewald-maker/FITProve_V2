@@ -1,76 +1,61 @@
-
-
-import React from 'react';
-import { Typography } from '@mui/material';
-import PlannerCalendar from '../components/PlannerCalendar';
-import { useLocation } from 'react-router-dom';
+// src/pages/PlannerPage.tsx
+import React, { useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-
+import PlannerCalendar, { PlannerCalendarHandle } from '../components/PlannerCalendar';
+import PlannerTodos from '../components/PlannerTodos';
 
 const PlannerPage: React.FC = () => {
-  const location = useLocation();
   const { profile, isLoading } = useAuth();
-  const bg = '/images/workout_office_1.webp';
+
+  const plannerCalendarRef = useRef<PlannerCalendarHandle>(null);
 
   if (isLoading || !profile) {
     return (
-      <div
-        style={{
-          minHeight: '100vh',
-          width: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: '#181A1B',
-        }}
-      >
-        <div style={{ color: '#FF9100', fontWeight: 700, fontSize: 24 }}>Loading...</div>
+      <div className="min-h-screen w-full flex items-center justify-center bg-neutral-900">
+        <div className="text-orange-400 font-bold text-2xl">Loading...</div>
       </div>
     );
   }
+
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        width: '100%',
-        position: 'relative',
-        overflow: 'hidden',
-      }}
-    >
-      <div
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
-          zIndex: 0,
-          backgroundImage: `url('${bg}')`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat',
-        }}
-      />
-      {/* Dark overlay */}
-      <div
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
-          zIndex: 1,
-          background: 'rgba(10,10,20,0.75)',
-        }}
-      />
-      <div style={{ padding: '2rem 1rem', maxWidth: 900, width: '100%', position: 'relative', zIndex: 2 }}>
-        <Typography variant="subtitle1" gutterBottom style={{ color: '#fff', textShadow: '0 2px 8px rgba(0,0,0,0.5)' }}>
-          Plan je workouts, afspraken en meer. Deze planner wordt jouw centrale plek voor alles rondom je fitness journey!
-        </Typography>
-        <div style={{ margin: '2rem 0', width: '100%' }}>
-          <PlannerCalendar plannerAddWorkout={location.state?.plannerAddWorkout} />
+    <div className="min-h-screen w-full flex flex-col bg-gradient-to-br from-[#181A1B] to-[#1a183b]">
+      {/* Main Content Only - no sidebar or top nav */}
+      <main className="flex-1 flex flex-col p-4 md:p-10 gap-4 relative z-0">
+        {/* Top utility row: Quick Add only */}
+        <div className="flex flex-row gap-2 items-center mb-2">
+          <button
+            className="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-3 px-8 rounded-2xl shadow transition text-xl w-full max-w-xs"
+            onClick={() => plannerCalendarRef.current?.openAddModalForToday()}
+            style={{ minHeight: 56 }}
+          >
+            + Quick Add
+          </button>
         </div>
-      </div>
+
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl md:text-4xl font-extrabold text-white mb-1 tracking-tight drop-shadow">
+              Plan Your Fitness Journey
+            </h1>
+            <p className="text-cyan-200 text-base md:text-lg max-w-2xl">
+              Organize workouts, track goals, and stay motivated—all in one place. More features
+              coming soon!
+            </p>
+          </div>
+        </div>
+
+        {/* To-Do/Goals Section */}
+        <PlannerTodos />
+
+        {/* Calendar Area */}
+        <section className="bg-black/60 rounded-2xl shadow-xl p-4 md:p-8 flex-1 min-h-[500px] flex flex-col">
+          <PlannerCalendar ref={plannerCalendarRef} />
+        </section>
+
+        {/* Details Drawer/Modal Placeholder */}
+        {/* Example: <PlannerEventDrawer /> */}
+      </main>
     </div>
   );
 };

@@ -1,14 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  ChevronRightIcon,
-  ChevronLeftIcon,
-  CheckCircleIcon,
-} from '@heroicons/react/24/outline';
+import { ChevronRightIcon, ChevronLeftIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { useGenerateWorkout, WorkoutGenerationParams } from '../hooks/useGenerateWorkout';
+import { ExerciseService } from '../lib/exercise.service';
+import { Exercise, MuscleGroup } from '../types/exercise.types';
+import { MuscleMapSelector } from '../components/ui/MuscleMapSelector';
+import { useUserHistory } from '../hooks/useUserHistory';
+import { useSaveWorkout } from '../hooks/useSaveWorkout';
 
 /* ----------------------------- Types & Data ------------------------------ */
 
+type GenderOption = 'male' | 'female' | 'non-binary' | 'prefer-not';
+
 interface WorkoutPreferences {
+  gender: GenderOption | null;
+  age: number;
   goal: string;
   eventType?: string;
   eventDate?: Date;
@@ -26,6 +32,7 @@ interface WorkoutPreferences {
     social: boolean;
     metrics: string[];
   };
+  muscles: string[];
 }
 
 interface EventItem {
@@ -169,6 +176,116 @@ const WORKOUT_GOALS = [
   },
 ];
 
+const GENDER_OPTIONS: Array<{
+  id: GenderOption;
+  label: string;
+  description: string;
+  image: string;
+}> = [
+  {
+    id: 'female',
+    label: 'Female',
+    description: 'Personalized recommendations built around female physiology',
+    image: '/images/female_selection.webp',
+  },
+  {
+    id: 'male',
+    label: 'Male',
+    description: 'Optimized progression and intensity calibrated for male athletes',
+    image: '/images/male_selection.webp',
+  },
+  {
+    id: 'non-binary',
+    label: 'Non-binary',
+    description: 'Gender-affirming guidance that puts your goals first',
+    image: '/images/onboarding.webp',
+  },
+  {
+    id: 'prefer-not',
+    label: 'Prefer Not to Say',
+    description: 'Skip gender-specific adjustments and keep things neutral',
+    image: '/images/creator-flow/goal-general.webp',
+  },
+];
+
+const EQUIPMENT_OPTIONS = [
+  { id: 'bodyweight', label: 'Bodyweight Only', image: '/images/noequipment.webp' },
+  { id: 'dumbbells', label: 'Dumbbells', image: '/images/dumbbells.webp' },
+  { id: 'kettlebell', label: 'Kettlebell', image: '/images/kettlebell.webp' },
+  { id: 'barbell', label: 'Barbell', image: '/images/barbell.webp' },
+  { id: 'bench', label: 'Bench', image: '/images/bench.webp' },
+  { id: 'pull_up_bar', label: 'Pull-Up Bar', image: '/images/Pull-up Bar.webp' },
+  { id: 'resistance_bands', label: 'Resistance Bands', image: '/images/resistance Bands.webp' },
+  { id: 'cable_machine', label: 'Cable Machine', image: '/images/creator-flow/goal-strength.webp' },
+];
+
+const EQUIPMENT_LABEL_LOOKUP: Record<string, string> = EQUIPMENT_OPTIONS.reduce<Record<string, string>>(
+  (acc, option) => {
+    acc[option.id] = option.label;
+    return acc;
+  },
+  {}
+);
+
+const MUSCLE_UI_TO_CANONICAL: Partial<Record<string, MuscleGroup>> = {
+  chest: 'chest',
+  shoulders: 'shoulders',
+  biceps: 'biceps',
+  triceps: 'triceps',
+  abs: 'abs',
+  quads: 'quadriceps',
+  calves: 'calves',
+  forearms: 'forearms',
+  neck: 'shoulders',
+  adductors: 'quadriceps',
+};
+
+const mapUiMusclesToCanonical = (values: string[]): MuscleGroup[] => {
+  const mapped = values
+    .map((key) => MUSCLE_UI_TO_CANONICAL[key])
+    .filter((value): value is MuscleGroup => Boolean(value));
+  return Array.from(new Set(mapped));
+};
+
+const mapPreferencesToParams = (prefs: WorkoutPreferences): WorkoutGenerationParams => ({
+  gender: prefs.gender ?? 'prefer-not',
+  age: prefs.age,
+  goal: prefs.goal,
+  fitnessLevel: prefs.experienceLevel,
+  equipment: Array.from(new Set(prefs.equipment.filter(Boolean))),
+  muscles: mapUiMusclesToCanonical(prefs.muscles),
+  sessionMinutes: prefs.duration,
+  limitations: prefs.limitations,
+  frequencyDays: prefs.frequency.days,
+  preferredTime: prefs.frequency.preferredTime,
+  progressionLevel: Math.max(0, (prefs.frequency.days.length || 0) - 2),
+});
+
+type StepKey =
+  | 'goal'
+  | 'event'
+  | 'experience'
+  | 'profile'
+  | 'equipment'
+  | 'duration'
+  | 'frequency'
+  | 'limitations'
+  | 'muscles'
+  | 'summary';
+
+const STEP_LABELS: Record<StepKey, string> = {
+  goal: 'Goal',
+  event: 'Event',
+  experience: 'Experience',
+  profile: 'Profile',
+  equipment: 'Equipment',
+  duration: 'Duration',
+  frequency: 'Schedule',
+  limitations: 'Limitations',
+  muscles: 'Muscles',
+  summary: 'Review',
+};
+
 /* ------------------------------- UI Bits -------------------------------- */
 
 type Stat = { label: string; value: string };
@@ -223,35 +340,382 @@ const SelectionCard: React.FC<{
 /* --------------------------- Main Component ----------------------------- */
 
 const WorkoutGenerator: React.FC = () => {
+  const scrollToPageTop = useCallback(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  }, []);
+
   const [showWelcome, setShowWelcome] = useState(true);
   const [currentStep, setCurrentStep] = useState(0); // <-- moved above useEffect
+  const [showWorkout, setShowWorkout] = useState(false);
 
-  // Scroll to top when step changes
+  // Scroll to top when step changes or major view toggles
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [currentStep]);
+    const raf = requestAnimationFrame(() => {
+      scrollToPageTop();
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [currentStep, showWorkout, showWelcome, scrollToPageTop]);
 
   const [preferences, setPreferences] = useState<WorkoutPreferences>({
+    gender: null,
+    age: 25,
     goal: '',
+    eventType: undefined,
+    eventDate: undefined,
     experienceLevel: '',
     equipment: [],
     duration: 30,
-    frequency: {
-      days: [],
-      preferredTime: undefined,
-    },
+    frequency: { days: [], preferredTime: undefined },
     limitations: [],
     workoutStyle: '',
-    tracking: {
-      social: false,
-      metrics: [],
-    },
+    music: undefined,
+    tracking: { social: false, metrics: [] },
+    muscles: [],
   });
 
-  const totalSteps = 7; // 0..6
+  const [workoutParams, setWorkoutParams] = useState<WorkoutGenerationParams | null>(null);
+  const [allExercises, setAllExercises] = useState<Exercise[]>([]);
+  const [loadingExercises, setLoadingExercises] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const { recentExerciseIds, isLoading: historyLoading } = useUserHistory(30);
+  const {
+    saveWorkout,
+    isSaving: isSavingWorkout,
+    error: saveError,
+    saved: saveSuccess,
+    reset: resetSaveState,
+  } = useSaveWorkout();
+
+  const muscleOptions = useMemo(
+    () => Object.keys(MUSCLE_UI_TO_CANONICAL),
+    []
+  );
+  const shouldPromptForMuscles = useMemo(() => {
+    // Skip muscle selection for purely endurance-focused flows
+    return preferences.goal !== 'endurance';
+  }, [preferences.goal]);
+
+  // Fetch exercises from service (transformed & enriched)
+  useEffect(() => {
+    let isMounted = true;
+    const fetchAllExercises = async () => {
+      setLoadingExercises(true);
+      setFetchError(null);
+      try {
+        const pageSize = 250;
+        let page = 1;
+        const collected: Exercise[] = [];
+
+        while (true) {
+          const result = await ExerciseService.getExercises({ page, pageSize });
+          const exercises = result?.exercises ?? [];
+          collected.push(...exercises);
+
+          if (exercises.length < pageSize) {
+            break;
+          }
+          page += 1;
+        }
+
+        if (isMounted) {
+          setAllExercises(collected);
+        }
+      } catch (error) {
+        console.error('Failed to fetch exercises for generator', error);
+        if (isMounted) {
+          setFetchError('Unable to load exercises right now. Please try again later.');
+          setAllExercises([]);
+        }
+      } finally {
+        if (isMounted) {
+          setLoadingExercises(false);
+        }
+      }
+    };
+
+    fetchAllExercises();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const defaultParams = useMemo(() => mapPreferencesToParams(preferences), [preferences]);
+
+  // Use the generator hook with the latest params and exercises from service
+  const generatedWorkout = useGenerateWorkout({
+    ...(workoutParams ?? defaultParams),
+    exerciseLibrary: allExercises,
+    recentExercises: recentExerciseIds,
+  });
+
+  const ProfileStep = () => {
+    const handleAgeChange = (value: number) => {
+      if (Number.isNaN(value)) return;
+      const clamped = Math.min(90, Math.max(13, value));
+      updatePreferences({ age: clamped });
+    };
+
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -20 }}
+        className="space-y-8"
+      >
+        <div className="text-center space-y-4">
+          <h2 className="text-3xl font-bold text-white">Tell Us About You</h2>
+          <p className="text-gray-400">We personalize volume, recovery, and intensity from these basics.</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {GENDER_OPTIONS.map((option) => {
+            const selected = preferences.gender === option.id;
+            return (
+              <motion.button
+                key={option.id}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => updatePreferences({ gender: option.id })}
+                className={`relative overflow-hidden rounded-xl h-56 group ${
+                  selected
+                    ? 'ring-2 ring-purple-500 shadow-lg shadow-purple-500/40'
+                    : 'hover:ring-2 hover:ring-purple-400/40'
+                }`}
+              >
+                <img src={option.image} alt={option.label} className="absolute inset-0 w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent" />
+                <div className="relative z-10 h-full flex flex-col justify-end p-6 text-left">
+                  <h3 className="text-xl font-semibold text-white mb-1">{option.label}</h3>
+                  <p className="text-xs text-gray-300 leading-relaxed">{option.description}</p>
+                </div>
+                {selected && (
+                  <div className="absolute top-3 right-3 bg-purple-500 rounded-full p-1 shadow-lg shadow-purple-500/60">
+                    <CheckCircleIcon className="w-5 h-5 text-white" />
+                  </div>
+                )}
+              </motion.button>
+            );
+          })}
+        </div>
+
+        <div className="bg-gray-800/50 rounded-xl p-6 space-y-4 backdrop-blur-sm border border-gray-700/40">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="text-left">
+              <h3 className="text-lg font-semibold text-white">Age</h3>
+              <p className="text-sm text-gray-400">Helps us tune volume, recovery, and intensity</p>
+            </div>
+            <span className="text-3xl font-bold text-purple-400">{preferences.age}</span>
+          </div>
+          <input
+            type="range"
+            min={13}
+            max={80}
+            value={preferences.age}
+            onChange={(e) => handleAgeChange(Number(e.target.value))}
+            className="w-full accent-purple-500"
+          />
+          <div className="flex items-center gap-3">
+            <input
+              type="number"
+              min={13}
+              max={90}
+              value={preferences.age}
+              onChange={(e) => handleAgeChange(Number(e.target.value))}
+              className="w-24 px-3 py-2 rounded-lg bg-gray-900 border border-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+            />
+            <span className="text-sm text-gray-400">Drag or type your age (13-90)</span>
+          </div>
+        </div>
+      </motion.div>
+    );
+  };
+
+  const EquipmentSelectionStep = () => {
+    const toggleEquipment = (id: string) => {
+      setPreferences((prev) => {
+        const hasItem = prev.equipment.includes(id);
+        const next = hasItem ? prev.equipment.filter((item) => item !== id) : [...prev.equipment, id];
+        return { ...prev, equipment: next };
+      });
+    };
+
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -20 }}
+        className="space-y-8"
+      >
+        <div className="text-center space-y-4">
+          <h2 className="text-3xl font-bold text-white">What Equipment Do You Have?</h2>
+          <p className="text-gray-400">Select everything you can access - mix and match freely.</p>
+        </div>
+
+        <div className="flex justify-center gap-3">
+          <button
+            type="button"
+            onClick={() =>
+              setPreferences((prev) => ({
+                ...prev,
+                equipment: Array.from(new Set(EQUIPMENT_OPTIONS.map((option) => option.id))),
+              }))
+            }
+            className="px-4 py-2 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white text-sm font-semibold shadow-md hover:shadow-lg hover:scale-105 transition-transform"
+          >
+            Select All
+          </button>
+          <button
+            type="button"
+            onClick={() => setPreferences((prev) => ({ ...prev, equipment: [] }))}
+            className="px-4 py-2 rounded-full bg-gray-800 text-gray-200 text-sm font-semibold border border-gray-700 hover:border-purple-400/70 hover:text-white transition-colors"
+          >
+            Clear
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+          {EQUIPMENT_OPTIONS.map((option) => {
+            const selected = preferences.equipment.includes(option.id);
+            return (
+              <motion.button
+                key={option.id}
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.96 }}
+                onClick={() => toggleEquipment(option.id)}
+                className={`relative rounded-xl p-4 flex flex-col items-center justify-center gap-3 text-center border transition-all ${
+                  selected
+                    ? 'border-purple-500 bg-purple-500/20 shadow-lg shadow-purple-500/30'
+                    : 'border-gray-700 bg-gray-800/40 hover:border-purple-400/60'
+                }`}
+              >
+                <img src={option.image} alt={option.label} className="w-16 h-16 object-contain rounded-lg" />
+                <span className="text-sm font-semibold text-white">{option.label}</span>
+              </motion.button>
+            );
+          })}
+        </div>
+
+        <div className="bg-gray-800/40 rounded-xl p-4 border border-gray-700/40 text-sm text-gray-300">
+          {preferences.equipment.length > 0 ? (
+            <>
+              <span className="text-white font-semibold">Selected:</span>{' '}
+              {preferences.equipment
+                .map((item) => EQUIPMENT_LABEL_LOOKUP[item] ?? item.replace(/_/g, ' '))
+                .join(', ')}
+            </>
+          ) : (
+            <span>Select at least one option to help us match movements and equipment.</span>
+          )}
+        </div>
+      </motion.div>
+    );
+  };
 
   const updatePreferences = (updates: Partial<WorkoutPreferences>) =>
     setPreferences((prev) => ({ ...prev, ...updates }));
+
+  const steps = useMemo<StepKey[]>(() => {
+    const sequence: StepKey[] = ['goal'];
+    if (preferences.goal === 'event') {
+      sequence.push('event');
+    }
+    sequence.push('experience', 'profile', 'equipment', 'duration', 'frequency', 'limitations');
+    if (shouldPromptForMuscles) {
+      sequence.push('muscles');
+    }
+    sequence.push('summary');
+    return sequence;
+  }, [preferences.goal, shouldPromptForMuscles]);
+
+  useEffect(() => {
+    setCurrentStep((prev) => {
+      if (prev >= steps.length) {
+        return Math.max(steps.length - 1, 0);
+      }
+      return prev;
+    });
+  }, [steps]);
+
+  const totalSteps = steps.length;
+  const activeStepKey = steps[currentStep] ?? steps[0] ?? 'goal';
+
+  const isStepComplete = (step: StepKey): boolean => {
+    switch (step) {
+      case 'goal':
+        return preferences.goal.length > 0;
+      case 'event':
+        return Boolean(preferences.eventType);
+      case 'experience':
+        return preferences.experienceLevel.length > 0;
+      case 'profile':
+        return preferences.gender !== null && preferences.age > 0;
+      case 'equipment':
+        return preferences.equipment.length > 0;
+      case 'duration':
+        return preferences.duration > 0;
+      case 'frequency':
+        return preferences.frequency.days.length > 0;
+      case 'muscles':
+        return mapUiMusclesToCanonical(preferences.muscles).length > 0;
+      default:
+        return true;
+    }
+  };
+
+  const canAdvance = isStepComplete(activeStepKey);
+  const isLastStep = currentStep === totalSteps - 1;
+
+  useEffect(() => {
+    if (!showWorkout) {
+      resetSaveState();
+    }
+  }, [showWorkout, resetSaveState]);
+
+  const startOnboarding = () => {
+    setShowWelcome(false);
+    setShowWorkout(false);
+    setCurrentStep(0);
+    scrollToPageTop();
+  };
+
+  const goToPreviousStep = () => {
+    setCurrentStep((prev) => Math.max(0, prev - 1));
+    scrollToPageTop();
+  };
+
+  const launchWorkoutGeneration = () => {
+    const params = mapPreferencesToParams(preferences);
+    setWorkoutParams(params);
+    scrollToPageTop();
+    setShowWorkout(true);
+  };
+
+  const handleNext = () => {
+    if (!canAdvance) return;
+    if (isLastStep) {
+      launchWorkoutGeneration();
+    } else {
+      setCurrentStep((prev) => Math.min(prev + 1, totalSteps - 1));
+      scrollToPageTop();
+    }
+  };
+
+  const handleSaveGeneratedWorkout = async () => {
+    if (!generatedWorkout.plan.length) return;
+    const workoutName = `Generated Workout (${preferences.goal || 'Custom'})`;
+    const meta = {
+      preferences,
+      generatedAt: new Date().toISOString(),
+      schedule: preferences.frequency,
+    };
+    await saveWorkout({
+      name: workoutName,
+      exercises: generatedWorkout.plan,
+      meta,
+    });
+  };
 
   /* --------------------------- Local Step Views -------------------------- */
 
@@ -306,7 +770,8 @@ const WorkoutGenerator: React.FC = () => {
   );
 
   const ProgressBar = () => {
-    const progress = (currentStep / totalSteps) * 100;
+    const progress = totalSteps === 0 ? 0 : ((currentStep + 1) / totalSteps) * 100;
+    const stepLabel = STEP_LABELS[activeStepKey];
     return (
       <div className="fixed top-0 left-0 right-0 z-50 p-4 bg-black/20 backdrop-blur-sm">
         <div className="max-w-2xl mx-auto space-y-2">
@@ -322,7 +787,7 @@ const WorkoutGenerator: React.FC = () => {
             <span>
               Step {Math.min(currentStep + 1, totalSteps)} of {totalSteps}
             </span>
-            <span className="text-purple-400">{Math.round(progress)}% Complete</span>
+            <span className="text-purple-400">{stepLabel}</span>
           </div>
         </div>
       </div>
@@ -350,9 +815,10 @@ const WorkoutGenerator: React.FC = () => {
             imageSrc={goal.imageSrc}
             isSelected={preferences.goal === goal.id}
             onClick={() => {
-              updatePreferences({ goal: goal.id });
-              setCurrentStep(goal.id === 'event' ? 1 : 2);
-              window.scrollTo({ top: 0, behavior: 'smooth' });
+              updatePreferences({
+                goal: goal.id,
+                eventType: goal.id === 'event' ? preferences.eventType : undefined,
+              });
             }}
             stats={goal.stats}
             className="w-full h-full"
@@ -383,8 +849,10 @@ const WorkoutGenerator: React.FC = () => {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => {
-                updatePreferences({ eventType: evt.id });
-                setCurrentStep(2); // proceed to experience
+                updatePreferences({
+                  eventType: evt.id,
+                  duration: Math.max(preferences.duration, evt.minDuration),
+                });
               }}
               className={`relative overflow-hidden rounded-xl aspect-[4/3] group ${
                 selected
@@ -423,7 +891,9 @@ const WorkoutGenerator: React.FC = () => {
     >
       <div className="text-center space-y-4">
         <h2 className="text-2xl sm:text-3xl font-bold text-white">Your Experience Level</h2>
-        <p className="text-sm sm:text-base text-gray-400">Help us tailor the difficulty of your workouts</p>
+        <p className="text-sm sm:text-base text-gray-400">
+          Help us tailor the difficulty of your workouts
+        </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -436,7 +906,6 @@ const WorkoutGenerator: React.FC = () => {
               whileTap={{ scale: 0.98 }}
               onClick={() => {
                 updatePreferences({ experienceLevel: level.id });
-                setCurrentStep(3);
               }}
               className={`relative overflow-hidden rounded-xl aspect-video group ${
                 selected
@@ -496,19 +965,20 @@ const WorkoutGenerator: React.FC = () => {
                 key={duration}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => {
-                  updatePreferences({ duration });
-                  setCurrentStep(4);
-                }}
-                className={`relative p-6 rounded-xl ${
-                  selected
-                    ? 'bg-gradient-to-br from-purple-600 to-indigo-600 ring-2 ring-purple-500 shadow-lg shadow-purple-500/50'
-                    : 'bg-gray-800/50 hover:bg-gray-800/80'
+              onClick={() => {
+                updatePreferences({ duration });
+              }}
+              className={`relative p-6 rounded-xl ${
+                selected
+                  ? 'bg-gradient-to-br from-purple-600 to-indigo-600 ring-2 ring-purple-500 shadow-lg shadow-purple-500/50'
+                  : 'bg-gray-800/50 hover:bg-gray-800/80'
                 }`}
               >
                 <div className="text-center">
                   <div className="text-2xl font-bold text-white mb-1">{duration} min</div>
-                  <div className="text-gray-400 text-sm">~{Math.round(duration * 4.5)} calories</div>
+                  <div className="text-gray-400 text-sm">
+                    ~{Math.round(duration * 4.5)} calories
+                  </div>
                 </div>
               </motion.button>
             );
@@ -650,70 +1120,172 @@ const WorkoutGenerator: React.FC = () => {
     );
   };
 
-  const SummaryStep = () => (
+  const MuscleSelectionStep = () => (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
       className="space-y-8"
     >
-      <div className="text-center space-y-4">
-        <h2 className="text-3xl font-bold text-white">Ready to Generate Your Workout!</h2>
-        <p className="text-gray-400">Review your preferences below</p>
+      <div className="text-center mb-4">
+        <h2 className="text-3xl font-bold text-white">Select Muscles to Focus On</h2>
+        <p className="text-gray-400">Choose one or more muscle groups</p>
       </div>
-
-      <div className="bg-gray-800/50 rounded-xl p-6 space-y-6 backdrop-blur-sm">
-        <div className="grid gap-6">
-          <div className="space-y-2">
-            <h3 className="text-lg font-semibold text-white">Your Goal</h3>
-            <p className="text-gray-300">{preferences.goal || '—'}</p>
-            {preferences.eventType && <p className="text-purple-400">Event: {preferences.eventType}</p>}
-          </div>
-
-          <div className="space-y-2">
-            <h3 className="text-lg font-semibold text-white">Experience Level</h3>
-            <p className="text-gray-300">{preferences.experienceLevel || '—'}</p>
-          </div>
-
-          <div className="space-y-2">
-            <h3 className="text-lg font-semibold text-white">Workout Schedule</h3>
-            <p className="text-gray-300">{preferences.duration} minutes per session</p>
-            <p className="text-gray-300">{preferences.frequency.days.join(', ') || 'No days selected'}</p>
-            {preferences.frequency.preferredTime && (
-              <p className="text-purple-400">Preferred time: {preferences.frequency.preferredTime}</p>
-            )}
-          </div>
-
-          {preferences.limitations.length > 0 && (
-            <div className="space-y-2">
-              <h3 className="text-lg font-semibold text-white">Limitations</h3>
-              <p className="text-gray-300">{preferences.limitations.join(', ')}</p>
-            </div>
-          )}
-        </div>
+      <div className="flex justify-center gap-3">
+        <button
+          type="button"
+          onClick={() =>
+            setPreferences((prev) => ({ ...prev, muscles: muscleOptions }))
+          }
+          className="px-4 py-2 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white text-sm font-semibold shadow-md hover:shadow-lg hover:scale-105 transition-transform"
+        >
+          Select All
+        </button>
+        <button
+          type="button"
+          onClick={() => setPreferences((prev) => ({ ...prev, muscles: [] }))}
+          className="px-4 py-2 rounded-full bg-gray-800 text-gray-200 text-sm font-semibold border border-gray-700 hover:border-purple-400/70 hover:text-white transition-colors"
+        >
+          Clear
+        </button>
       </div>
+      <MuscleMapSelector
+        value={preferences.muscles}
+        onChange={(muscles) => setPreferences((p) => ({ ...p, muscles }))}
+      />
     </motion.div>
   );
 
+  const SummaryStep = () => {
+    const genderLabel =
+      preferences.gender === null
+        ? 'Not specified'
+        : GENDER_OPTIONS.find((option) => option.id === preferences.gender)?.label ??
+          preferences.gender.replace(/-/g, ' ');
+    const eventLabel = preferences.eventType
+      ? EVENTS.find((evt) => evt.id === preferences.eventType)?.title ?? preferences.eventType
+      : null;
+    const equipmentSummary =
+      preferences.equipment.length > 0
+        ? preferences.equipment
+            .map((id) => EQUIPMENT_LABEL_LOOKUP[id] ?? id.replace(/_/g, ' '))
+            .join(', ')
+        : 'Bodyweight only';
+    const muscleSummary =
+      preferences.muscles.length > 0
+        ? preferences.muscles
+            .map((muscle) => muscle.replace(/_/g, ' '))
+            .map((label) => label.charAt(0).toUpperCase() + label.slice(1))
+            .join(', ')
+        : 'No muscles selected';
+
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -20 }}
+        className="space-y-8"
+      >
+        <div className="text-center space-y-4">
+          <h2 className="text-3xl font-bold text-white">Ready to Generate Your Workout!</h2>
+          <p className="text-gray-400">Review your preferences below</p>
+        </div>
+
+        <div className="bg-gray-800/50 rounded-xl p-6 space-y-6 backdrop-blur-sm">
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold text-white">Your Profile</h3>
+              <p className="text-gray-300">
+                Gender:{' '}
+                <span className="text-white font-semibold">{genderLabel}</span>
+              </p>
+              <p className="text-gray-300">
+                Age:{' '}
+                <span className="text-white font-semibold">{preferences.age || 'Not shared'}</span>
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold text-white">Your Goal</h3>
+              <p className="text-gray-300 capitalize">{preferences.goal || 'Not selected'}</p>
+              {eventLabel && (
+                <p className="text-purple-400">Event Focus: {eventLabel}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold text-white">Experience Level</h3>
+              <p className="text-gray-300 capitalize">
+                {preferences.experienceLevel || 'Not selected'}
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold text-white">Equipment</h3>
+              <p className="text-gray-300">{equipmentSummary}</p>
+            </div>
+
+            <div className="space-y-2 md:col-span-2">
+              <h3 className="text-lg font-semibold text-white">Workout Schedule</h3>
+              <p className="text-gray-300">
+                {preferences.duration} minutes per session{' - '}
+                {preferences.frequency.days.length > 0
+                  ? `${preferences.frequency.days.length} day(s) per week`
+                  : 'No days selected yet'}
+              </p>
+              <p className="text-gray-300">
+                {preferences.frequency.days.length > 0
+                  ? preferences.frequency.days.join(', ')
+                  : 'Choose the days you prefer to train'}
+              </p>
+              {preferences.frequency.preferredTime && (
+                <p className="text-purple-400">
+                  Preferred time: {preferences.frequency.preferredTime}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2 md:col-span-2">
+              <h3 className="text-lg font-semibold text-white">Muscle Focus</h3>
+              <p className="text-gray-300">{muscleSummary}</p>
+            </div>
+
+            {preferences.limitations.length > 0 && (
+              <div className="space-y-2 md:col-span-2">
+                <h3 className="text-lg font-semibold text-white">Limitations</h3>
+                <p className="text-gray-300">{preferences.limitations.join(', ')}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </motion.div>
+    );
+  };
   /* ------------------------------ Renderer ------------------------------- */
 
   const renderCurrentStep = () => {
-    if (showWelcome) return <WelcomeScreen onStart={() => setShowWelcome(false)} />;
+    if (showWelcome) return <WelcomeScreen onStart={startOnboarding} />;
 
-    switch (currentStep) {
-      case 0:
+    switch (activeStepKey) {
+      case 'goal':
         return <GoalSelection />;
-      case 1:
+      case 'event':
         return <EventSelection />;
-      case 2:
+      case 'experience':
         return <ExperienceSelection />;
-      case 3:
+      case 'profile':
+        return <ProfileStep />;
+      case 'equipment':
+        return <EquipmentSelectionStep />;
+      case 'duration':
         return <DurationSelection />;
-      case 4:
+      case 'frequency':
         return <FrequencySelection />;
-      case 5:
+      case 'limitations':
         return <LimitationsSelection />;
-      case 6:
+      case 'muscles':
+        return <MuscleSelectionStep />;
+      case 'summary':
         return <SummaryStep />;
       default:
         return null;
@@ -732,6 +1304,22 @@ const WorkoutGenerator: React.FC = () => {
 
       {!showWelcome && <ProgressBar />}
 
+      {!showWelcome && fetchError && (
+        <div className="relative z-20 mt-20 px-4">
+          <div className="mx-auto w-full max-w-2xl rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200 shadow-lg shadow-red-900/20">
+            {fetchError}
+          </div>
+        </div>
+      )}
+
+      {!showWelcome && !fetchError && loadingExercises && (
+        <div className="relative z-20 mt-20 px-4">
+          <div className="mx-auto w-full max-w-2xl rounded-xl border border-purple-500/30 bg-purple-500/10 px-4 py-3 text-sm text-purple-200 shadow-lg shadow-purple-900/20">
+            Loading your exercise library...
+          </div>
+        </div>
+      )}
+
       <div className="relative z-10 min-h-screen flex flex-col w-full">
         <main className="flex-1 flex items-center justify-center">
           <div className="w-full">
@@ -739,12 +1327,12 @@ const WorkoutGenerator: React.FC = () => {
           </div>
         </main>
 
-        {!showWelcome && currentStep < totalSteps && (
+        {!showWelcome && totalSteps > 0 && (
           <div className="sticky bottom-0 left-0 right-0 bg-black/20 backdrop-blur-sm w-full">
             <div className="w-full flex justify-between gap-4">
               {currentStep > 0 && (
                 <button
-                  onClick={() => setCurrentStep((s) => Math.max(0, s - 1))}
+                  onClick={goToPreviousStep}
                   className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-lg
                     hover:from-gray-500 hover:to-gray-600 transform hover:scale-105 transition-all duration-300
                     shadow-lg shadow-gray-500/30 hover:shadow-gray-500/50"
@@ -755,18 +1343,15 @@ const WorkoutGenerator: React.FC = () => {
               )}
 
               <button
-                onClick={() => {
-                  if (currentStep === totalSteps - 1) {
-                    // Generate workout here (use `preferences`)
-                  } else {
-                    setCurrentStep((s) => Math.min(totalSteps - 1, s + 1));
-                  }
-                }}
-                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg
-                  hover:from-purple-500 hover:to-indigo-500 transform hover:scale-105 transition-all duration-300
-                  shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50 ml-auto"
+                onClick={handleNext}
+                disabled={!canAdvance}
+                className={`flex items-center gap-2 px-6 py-3 rounded-lg ml-auto transition-all duration-300 ${
+                  canAdvance
+                    ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-500 hover:to-indigo-500 transform hover:scale-105 shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50'
+                    : 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                }`}
               >
-                {currentStep === totalSteps - 1 ? (
+                {isLastStep ? (
                   'Generate My Workout'
                 ) : (
                   <>
@@ -779,8 +1364,187 @@ const WorkoutGenerator: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Render generated workout summary */}
+      {showWorkout && (
+        <div className="w-full max-w-2xl mx-auto mt-10">
+          <h2 className="text-2xl font-bold text-white mb-4">Your Generated Workout</h2>
+          {historyLoading && (
+            <div className="mb-4 text-sm text-gray-400">
+              Personalizing using your recent workouts…
+            </div>
+          )}
+          <div className="flex flex-wrap items-center gap-3 mb-4">
+            <button
+              type="button"
+              onClick={handleSaveGeneratedWorkout}
+              disabled={!generatedWorkout.plan.length || isSavingWorkout}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                !generatedWorkout.plan.length || isSavingWorkout
+                  ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                  : saveSuccess
+                  ? 'bg-green-600 text-white'
+                  : 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-500 hover:to-indigo-500 shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50'
+              }`}
+            >
+              {isSavingWorkout ? 'Saving…' : saveSuccess ? 'Saved!' : 'Save Workout'}
+            </button>
+            {saveError && <span className="text-sm text-red-400">{saveError}</span>}
+            {saveSuccess && <span className="text-sm text-green-400">Workout saved to your account.</span>}
+          </div>
+          {generatedWorkout && generatedWorkout.plan.length > 0 ? (
+            <ul className="space-y-6">
+              {generatedWorkout.plan.map((item, idx) => {
+                const listKey = item.exercise.id ?? `${item.exercise.name}-${idx}`;
+                const section = item.section as 'warmup' | 'main' | 'cooldown' | undefined;
+                const sectionStyles: Record<string, string> = {
+                  warmup: 'bg-amber-500/20 text-amber-300 border-amber-300/40',
+                  main: 'bg-purple-500/20 text-purple-300 border-purple-300/40',
+                  cooldown: 'bg-blue-500/20 text-blue-300 border-blue-300/40',
+                };
+                const sectionLabel =
+                  section === 'warmup' ? 'Warm-Up' : section === 'cooldown' ? 'Cool-Down' : section === 'main' ? 'Main' : null;
+
+                return (
+                  <li
+                    key={listKey}
+                    className="bg-gradient-to-br from-gray-800/90 to-black/80 rounded-2xl p-4 flex gap-4 items-center shadow-lg border border-gray-700"
+                  >
+                    <div className="flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-gray-900 border-2 border-accent shadow">
+                      {item.exercise.image_url ? (
+                        <img
+                          src={item.exercise.image_url}
+                          alt={item.exercise.name}
+                          className="w-full h-full object-cover object-center"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-[10px] text-gray-500">
+                          No Image
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-3 mb-2 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg font-extrabold text-white drop-shadow-md">
+                            {item.exercise.name}
+                          </span>
+                          {item.exercise.difficulty && (
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-xs font-bold uppercase tracking-wide ${
+                                item.exercise.difficulty === 'beginner'
+                                  ? 'bg-green-700 text-green-200'
+                                  : item.exercise.difficulty === 'intermediate'
+                                  ? 'bg-yellow-700 text-yellow-200'
+                                  : 'bg-red-700 text-red-200'
+                              }`}
+                            >
+                              {item.exercise.difficulty}
+                            </span>
+                          )}
+                        </div>
+                        {sectionLabel && (
+                          <span
+                            className={`px-3 py-1 rounded-full text-xs font-semibold border ${
+                              section ? sectionStyles[section] : ''
+                            }`}
+                          >
+                            {sectionLabel}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-3 text-sm text-gray-300 mb-2">
+                        {typeof item.sets === 'number' && (
+                          <span>
+                            Sets: <strong className="text-white">{item.sets}</strong>
+                          </span>
+                        )}
+                        {item.reps && (
+                          <span>
+                            Reps: <strong className="text-white">{item.reps}</strong>
+                          </span>
+                        )}
+                        {item.distance && (
+                          <span>
+                            Distance: <strong className="text-white">{item.distance}</strong>
+                          </span>
+                        )}
+                        {item.time && (
+                          <span>
+                            Time: <strong className="text-white">{item.time}</strong>
+                          </span>
+                        )}
+                        {typeof item.rest === 'number' && (
+                          <span>
+                            Rest: <strong className="text-white">{item.rest}s</strong>
+                          </span>
+                        )}
+                      </div>
+                      {item.reason && <div className="text-xs text-purple-300 mb-2">{item.reason}</div>}
+                      <div className="text-xs text-gray-400 flex flex-wrap gap-4">
+                        {item.exercise.primary_muscles?.length ? (
+                          <span>
+                            <span className="text-gray-500 uppercase tracking-wide mr-1">Primary</span>
+                            {item.exercise.primary_muscles.join(', ')}
+                          </span>
+                        ) : null}
+                        {item.exercise.secondary_muscles?.length ? (
+                          <span>
+                            <span className="text-gray-500 uppercase tracking-wide mr-1">Secondary</span>
+                            {item.exercise.secondary_muscles.join(', ')}
+                          </span>
+                        ) : null}
+                        {item.exercise.equipment?.length ? (
+                          <span>
+                            <span className="text-gray-500 uppercase tracking-wide mr-1">Equipment</span>
+                            {item.exercise.equipment.join(', ')}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <div className="text-red-400">No workout could be generated. Try different options.</div>
+          )}
+          <button
+            className="mt-6 px-6 py-3 rounded-xl bg-gradient-to-r from-orange-500 via-pink-500 to-purple-500 text-white font-bold shadow-lg hover:scale-105 hover:shadow-xl"
+            onClick={() => {
+              startOnboarding();
+              setPreferences({
+                gender: null,
+                age: 25,
+                goal: '',
+                eventType: undefined,
+                eventDate: undefined,
+                experienceLevel: '',
+                equipment: [],
+                duration: 30,
+                frequency: { days: [], preferredTime: undefined },
+                limitations: [],
+                workoutStyle: '',
+                music: undefined,
+                tracking: { social: false, metrics: [] },
+                muscles: [],
+              });
+              setWorkoutParams(null);
+            }}
+          >
+            Back to Onboarding
+          </button>
+        </div>
+      )}
     </div>
   );
 };
 
 export default WorkoutGenerator;
+
+
+
+
+
+
+
