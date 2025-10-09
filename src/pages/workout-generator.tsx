@@ -685,8 +685,9 @@ const WorkoutGenerator: React.FC = () => {
                 max={80}
                 value={localAge}
                 onInput={(e) => handleAgeInput(Number((e.target as HTMLInputElement).value))}
-                onChange={(e) => handleAgeCommit(Number(e.target.value))}
-                className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                onMouseUp={(e) => handleAgeCommit(Number((e.target as HTMLInputElement).value))}
+                onTouchEnd={(e) => handleAgeCommit(Number((e.target as HTMLInputElement).value))}
+                className="w-full h-3 bg-gray-700 rounded-lg appearance-none cursor-pointer"
                 style={{
                   background: `linear-gradient(to right, #06b6d4 0%, #06b6d4 ${((localAge - 13) / (80 - 13)) * 100}%, #374151 ${((localAge - 13) / (80 - 13)) * 100}%, #374151 100%)`
                 }}
@@ -2058,16 +2059,16 @@ const WorkoutGenerator: React.FC = () => {
 
       <div className="relative z-10 min-h-screen flex flex-col w-full">
         {!showWorkout && (
-          <main className="flex-1 flex items-center justify-center">
-            <div className="w-full">
+          <main className="flex-1 flex items-center justify-center px-4 md:px-8 lg:px-12">
+            <div className="w-full max-w-7xl mx-auto">
               <AnimatePresence mode="wait">{renderCurrentStep()}</AnimatePresence>
             </div>
           </main>
         )}
 
         {!showWelcome && !showWorkout && totalSteps > 0 && (
-          <div className="sticky bottom-0 left-0 right-0 bg-black/20 backdrop-blur-sm w-full">
-            <div className="w-full flex justify-between gap-4">
+          <div className="sticky bottom-0 left-0 right-0 bg-black/20 backdrop-blur-sm w-full px-4 md:px-8 lg:px-12 py-4">
+            <div className="w-full max-w-7xl mx-auto flex justify-between gap-4">
               {currentStep > 0 && (
                 <button
                   onClick={goToPreviousStep}
