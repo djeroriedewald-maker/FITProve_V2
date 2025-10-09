@@ -269,9 +269,10 @@ const mapPreferencesToParams = (prefs: WorkoutPreferences): WorkoutGenerationPar
 });
 
 type StepKey =
+  | 'goal-event' // 🎬 NEW: Netflix-style carousel combining goal + event
   | 'goal'
   | 'event'
-  | 'profile-experience' // 🌟 NEW: Merged mega-step
+  | 'profile-experience' // 🌟 Merged mega-step (profile + experience)
   | 'experience'
   | 'profile'
   | 'equipment'
@@ -282,9 +283,10 @@ type StepKey =
   | 'summary';
 
 const STEP_LABELS: Record<StepKey, string> = {
+  'goal-event': 'Your Goal', // 🎬 NEW
   goal: 'Goal',
   event: 'Event',
-  'profile-experience': 'About You', // 🌟 NEW
+  'profile-experience': 'About You', // 🌟
   experience: 'Experience',
   profile: 'Profile',
   equipment: 'Equipment',
@@ -853,18 +855,16 @@ const WorkoutGenerator: React.FC = () => {
     setPreferences((prev) => ({ ...prev, ...updates }));
 
   const steps = useMemo<StepKey[]>(() => {
-    const sequence: StepKey[] = ['goal'];
-    if (preferences.goal === 'event') {
-      sequence.push('event');
-    }
-    // 🌟 NEW: Use combined profile-experience mega-step
+    // 🎬 NEW PREMIUM FLOW: Start with goal-event carousel mega-step
+    const sequence: StepKey[] = ['goal-event'];
+    // 🌟 Then profile-experience mega-step
     sequence.push('profile-experience', 'equipment', 'duration', 'frequency', 'limitations');
     if (shouldPromptForMuscles) {
       sequence.push('muscles');
     }
     sequence.push('summary');
     return sequence;
-  }, [preferences.goal, shouldPromptForMuscles]);
+  }, [shouldPromptForMuscles]);
 
   useEffect(() => {
     setCurrentStep((prev) => {
@@ -880,11 +880,13 @@ const WorkoutGenerator: React.FC = () => {
 
   const isStepComplete = (step: StepKey): boolean => {
     switch (step) {
+      case 'goal-event': // 🎬 NEW: Validates goal selected AND if event goal, event selected too
+        return preferences.goal.length > 0 && (preferences.goal !== 'event' || Boolean(preferences.eventType));
       case 'goal':
         return preferences.goal.length > 0;
       case 'event':
         return Boolean(preferences.eventType);
-      case 'profile-experience': // 🌟 NEW: Combined validation
+      case 'profile-experience': // 🌟 Combined validation
         return preferences.gender !== null && preferences.age > 0 && preferences.experienceLevel.length > 0;
       case 'experience':
         return preferences.experienceLevel.length > 0;
@@ -1189,6 +1191,322 @@ const WorkoutGenerator: React.FC = () => {
           </div>
         </div>
       </div>
+    );
+  };
+
+  // 🎬 NETFLIX-STYLE GOAL + EVENT CAROUSEL (Mega-Step 1)
+  const GoalEventCarousel = () => {
+    const [carouselIndex, setCarouselIndex] = useState(0);
+    const [showEventPicker, setShowEventPicker] = useState(false);
+
+    // Auto-show event picker if 'event' goal is selected
+    useEffect(() => {
+      if (preferences.goal === 'event' && !preferences.eventType) {
+        setShowEventPicker(true);
+      } else if (preferences.goal && preferences.goal !== 'event') {
+        setShowEventPicker(false);
+      }
+    }, [preferences.goal]);
+
+    const handleGoalSelect = (goalId: string) => {
+      updatePreferences({
+        goal: goalId,
+        eventType: goalId === 'event' ? preferences.eventType : undefined,
+      });
+
+      if (goalId === 'event') {
+        // Slide to event selection
+        setTimeout(() => setShowEventPicker(true), 300);
+      }
+    };
+
+    const handleEventSelect = (eventId: string) => {
+      updatePreferences({ eventType: eventId });
+      setShowEventPicker(false);
+    };
+
+    const nextCard = () => {
+      setCarouselIndex((prev) => Math.min(prev + 1, WORKOUT_GOALS.length - 1));
+    };
+
+    const prevCard = () => {
+      setCarouselIndex((prev) => Math.max(prev - 1, 0));
+    };
+
+    const isGoalComplete = preferences.goal.length > 0;
+    const isEventComplete = preferences.goal !== 'event' || Boolean(preferences.eventType);
+    const isMegaStepComplete = isGoalComplete && isEventComplete;
+
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="relative w-full h-full min-h-[600px]"
+      >
+        {/* Hero Header */}
+        <div className="text-center space-y-3 mb-8">
+          <h1 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400">
+            🎯 What Brings You Here?
+          </h1>
+          <p className="text-lg text-gray-300">
+            {showEventPicker
+              ? "Choose your event, and we'll build your competition prep plan"
+              : 'Select your primary goal to get started'}
+          </p>
+        </div>
+
+        <AnimatePresence mode="wait">
+          {!showEventPicker ? (
+            /* GOAL CAROUSEL */
+            <motion.div
+              key="goal-carousel"
+              initial={{ opacity: 0, x: -50 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 50 }}
+              className="relative"
+            >
+              {/* Carousel Navigation */}
+              <div className="flex items-center justify-center gap-4 mb-6">
+                <button
+                  onClick={prevCard}
+                  disabled={carouselIndex === 0}
+                  className="p-3 rounded-full bg-gray-800/60 border border-gray-700 hover:border-purple-400 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                >
+                  <ChevronLeftIcon className="w-6 h-6 text-white" />
+                </button>
+
+                <div className="flex gap-2">
+                  {WORKOUT_GOALS.map((_, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setCarouselIndex(idx)}
+                      className={`h-2 rounded-full transition-all ${
+                        idx === carouselIndex
+                          ? 'w-8 bg-gradient-to-r from-purple-500 to-pink-500'
+                          : 'w-2 bg-gray-600 hover:bg-gray-500'
+                      }`}
+                    />
+                  ))}
+                </div>
+
+                <button
+                  onClick={nextCard}
+                  disabled={carouselIndex === WORKOUT_GOALS.length - 1}
+                  className="p-3 rounded-full bg-gray-800/60 border border-gray-700 hover:border-purple-400 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                >
+                  <ChevronRightIcon className="w-6 h-6 text-white" />
+                </button>
+              </div>
+
+              {/* Main Card Display */}
+              <div className="relative w-full max-w-4xl mx-auto">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={carouselIndex}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    transition={{ duration: 0.3 }}
+                    className="relative"
+                  >
+                    {WORKOUT_GOALS.map((goal, idx) => {
+                      if (idx !== carouselIndex) return null;
+
+                      const isSelected = preferences.goal === goal.id;
+
+                      return (
+                        <motion.div
+                          key={goal.id}
+                          className={`relative rounded-3xl overflow-hidden border-2 cursor-pointer transition-all ${
+                            isSelected
+                              ? 'border-purple-500 shadow-2xl shadow-purple-500/40'
+                              : 'border-gray-700 hover:border-purple-400/60'
+                          }`}
+                          onClick={() => handleGoalSelect(goal.id)}
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                        >
+                          {/* Hero Image */}
+                          <div className="relative h-72 md:h-96 overflow-hidden">
+                            <img
+                              src={goal.imageSrc}
+                              alt={goal.title}
+                              className="w-full h-full object-cover"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/60 to-transparent" />
+
+                            {/* Selected Badge */}
+                            {isSelected && (
+                              <motion.div
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                className="absolute top-6 right-6 bg-green-500 text-white px-4 py-2 rounded-full font-bold text-sm flex items-center gap-2"
+                              >
+                                <CheckCircleIcon className="w-5 h-5" />
+                                Selected
+                              </motion.div>
+                            )}
+                          </div>
+
+                          {/* Card Content */}
+                          <div className="absolute bottom-0 left-0 right-0 p-8 text-white">
+                            <h3 className="text-3xl md:text-4xl font-black mb-2">{goal.title}</h3>
+                            <p className="text-lg text-gray-300 mb-4">{goal.description}</p>
+
+                            {/* Stats Row */}
+                            <div className="flex gap-6">
+                              {goal.stats.map((stat, statIdx) => (
+                                <div key={statIdx} className="flex flex-col">
+                                  <span className="text-xs text-gray-400 uppercase tracking-wider">
+                                    {stat.label}
+                                  </span>
+                                  <span className="text-lg font-bold text-purple-400">{stat.value}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+
+              {/* Quick Grid View (optional thumbnails) */}
+              <div className="mt-8 flex justify-center gap-3 flex-wrap">
+                {WORKOUT_GOALS.map((goal, idx) => {
+                  const isSelected = preferences.goal === goal.id;
+                  return (
+                    <motion.button
+                      key={goal.id}
+                      onClick={() => {
+                        setCarouselIndex(idx);
+                        handleGoalSelect(goal.id);
+                      }}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className={`relative rounded-xl overflow-hidden border-2 w-24 h-32 transition-all ${
+                        isSelected
+                          ? 'border-purple-500 shadow-lg shadow-purple-500/40'
+                          : idx === carouselIndex
+                          ? 'border-purple-400/60'
+                          : 'border-gray-700 opacity-60 hover:opacity-100'
+                      }`}
+                    >
+                      <img src={goal.imageSrc} alt={goal.title} className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-transparent" />
+                      <span className="absolute bottom-2 left-0 right-0 text-center text-xs font-bold text-white px-1">
+                        {goal.title.split(' ')[0]}
+                      </span>
+                      {isSelected && (
+                        <div className="absolute top-1 right-1 bg-green-500 rounded-full p-1">
+                          <CheckCircleIcon className="w-3 h-3 text-white" />
+                        </div>
+                      )}
+                    </motion.button>
+                  );
+                })}
+              </div>
+            </motion.div>
+          ) : (
+            /* EVENT SELECTION CAROUSEL */
+            <motion.div
+              key="event-carousel"
+              initial={{ opacity: 0, x: 50 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -50 }}
+              className="relative"
+            >
+              {/* Back Button */}
+              <button
+                onClick={() => setShowEventPicker(false)}
+                className="mb-6 px-4 py-2 rounded-lg bg-gray-800/60 border border-gray-700 hover:border-purple-400 text-white flex items-center gap-2 transition-all"
+              >
+                <ChevronLeftIcon className="w-5 h-5" />
+                Back to Goals
+              </button>
+
+              {/* Event Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {EVENTS.map((event) => {
+                  const isSelected = preferences.eventType === event.id;
+
+                  return (
+                    <motion.div
+                      key={event.id}
+                      whileHover={{ scale: 1.03, y: -5 }}
+                      whileTap={{ scale: 0.97 }}
+                      onClick={() => handleEventSelect(event.id)}
+                      className={`relative rounded-2xl overflow-hidden border-2 cursor-pointer transition-all ${
+                        isSelected
+                          ? 'border-purple-500 shadow-2xl shadow-purple-500/40'
+                          : 'border-gray-700 hover:border-purple-400/60'
+                      }`}
+                    >
+                      {/* Event Image */}
+                      <div className="relative h-48 overflow-hidden">
+                        <img src={event.image} alt={event.title} className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/40 to-transparent" />
+
+                        {isSelected && (
+                          <motion.div
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            className="absolute top-3 right-3 bg-green-500 text-white p-2 rounded-full"
+                          >
+                            <CheckCircleIcon className="w-5 h-5" />
+                          </motion.div>
+                        )}
+                      </div>
+
+                      {/* Event Details */}
+                      <div className="p-5 bg-gray-800/60 backdrop-blur-sm">
+                        <h3 className="text-xl font-bold text-white mb-2">{event.title}</h3>
+                        <p className="text-sm text-gray-400 mb-4">{event.description}</p>
+
+                        {/* Event Stats */}
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div className="flex flex-col bg-gray-900/60 rounded-lg p-2">
+                            <span className="text-gray-500 uppercase">Training Days</span>
+                            <span className="text-purple-400 font-bold">{event.recommendedFrequency}/week</span>
+                          </div>
+                          <div className="flex flex-col bg-gray-900/60 rounded-lg p-2">
+                            <span className="text-gray-500 uppercase">Min Duration</span>
+                            <span className="text-purple-400 font-bold">{event.minDuration} min</span>
+                          </div>
+                        </div>
+
+                        {/* Tips Preview */}
+                        <div className="mt-3 text-xs text-gray-400">
+                          <span className="font-semibold text-gray-300">Key Focus:</span> {event.tips[0]}
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Completion Badge */}
+        {isMegaStepComplete && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-8 p-6 rounded-2xl bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-500/40 text-center"
+          >
+            <CheckCircleIcon className="w-12 h-12 text-green-400 mx-auto mb-2" />
+            <h3 className="text-xl font-bold text-white mb-1">Goal Locked In! 🎯</h3>
+            <p className="text-gray-300">
+              {preferences.goal === 'event'
+                ? `Training plan for ${EVENTS.find((e) => e.id === preferences.eventType)?.title} ready to build!`
+                : `Let&apos;s build your ${WORKOUT_GOALS.find((g) => g.id === preferences.goal)?.title.toLowerCase()} program!`}
+            </p>
+          </motion.div>
+        )}
+      </motion.div>
     );
   };
 
@@ -1665,11 +1983,13 @@ const WorkoutGenerator: React.FC = () => {
     if (showWelcome) return <WelcomeScreen onStart={startOnboarding} />;
 
     switch (activeStepKey) {
+      case 'goal-event': // 🎬 NEW: Netflix-style carousel
+        return <GoalEventCarousel />;
       case 'goal':
         return <GoalSelection />;
       case 'event':
         return <EventSelection />;
-      case 'profile-experience': // 🌟 NEW: Use merged mega-step
+      case 'profile-experience': // 🌟 Use merged mega-step
         return <ProfileExperienceMegaStep />;
       case 'experience':
         return <ExperienceSelection />;
