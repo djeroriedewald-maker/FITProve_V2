@@ -1547,12 +1547,7 @@ const WorkoutGenerator: React.FC = () => {
 
       {/* Render generated workout summary */}
       {showWorkout && (
-        <div
-          className="w-full max-w-2xl mx-auto mt-10"
-          onClickCapture={(event) => {
-            console.log('[Generator] Click captured in summary section, target:', event.target);
-          }}
-        >
+        <div className="w-full max-w-2xl mx-auto mt-10">
           <h2 className="text-2xl font-bold text-white mb-4">Your Generated Workout</h2>
           {historyLoading && (
             <div className="mb-4 text-sm text-gray-400">
@@ -1580,7 +1575,11 @@ const WorkoutGenerator: React.FC = () => {
             )}
             <button
               type="button"
-              onClick={handleScheduleGeneratedWorkout}
+              onClick={(e) => {
+                e.stopPropagation();
+                console.log('[Generator] Add Single Workout clicked');
+                handleScheduleGeneratedWorkout();
+              }}
               disabled={!canScheduleWorkout}
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
                 !canScheduleWorkout
@@ -1592,7 +1591,11 @@ const WorkoutGenerator: React.FC = () => {
             </button>
             <button
               type="button"
-              onClick={handleSaveGeneratedWorkout}
+              onClick={(e) => {
+                e.stopPropagation();
+                console.log('[Generator] Save Workout clicked');
+                handleSaveGeneratedWorkout();
+              }}
               disabled={!generatedWorkout.plan.length || isSavingWorkout}
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
                 !generatedWorkout.plan.length || isSavingWorkout
@@ -1606,7 +1609,11 @@ const WorkoutGenerator: React.FC = () => {
             </button>
             <button
               type="button"
-              onClick={() => setShowSaveTemplateModal(true)}
+              onClick={(e) => {
+                e.stopPropagation();
+                console.log('[Generator] Save as Template clicked');
+                setShowSaveTemplateModal(true);
+              }}
               disabled={!generatedWorkout.plan.length || !user}
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${
                 !generatedWorkout.plan.length || !user
@@ -1623,7 +1630,11 @@ const WorkoutGenerator: React.FC = () => {
           <div className="flex flex-wrap items-center gap-3 mb-4">
             <button
               type="button"
-              onClick={handleRegenerate}
+              onClick={(e) => {
+                e.stopPropagation();
+                console.log('[Generator] Regenerate clicked');
+                handleRegenerate();
+              }}
               disabled={!workoutParams}
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${
                 !workoutParams
@@ -1636,7 +1647,11 @@ const WorkoutGenerator: React.FC = () => {
             </button>
             <button
               type="button"
-              onClick={handleModifyAndRegenerate}
+              onClick={(e) => {
+                e.stopPropagation();
+                console.log('[Generator] Modify & Regenerate clicked');
+                handleModifyAndRegenerate();
+              }}
               disabled={!workoutParams}
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${
                 !workoutParams
