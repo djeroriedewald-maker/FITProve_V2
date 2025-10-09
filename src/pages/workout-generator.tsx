@@ -13,6 +13,7 @@ import { SaveTemplateModal } from '../components/ui/SaveTemplateModal';
 import { TemplateModal } from '../components/ui/TemplateModal';
 import { useAuth } from '../contexts/AuthContext';
 import type { WorkoutTemplate } from '../types/template.types';
+import toast from 'react-hot-toast';
 
 /* ----------------------------- Types & Data ------------------------------ */
 
@@ -1576,11 +1577,19 @@ const WorkoutGenerator: React.FC = () => {
             <button
               type="button"
               onClick={(e) => {
+                e.preventDefault();
                 e.stopPropagation();
-                console.log('[Generator] Add Single Workout clicked');
-                handleScheduleGeneratedWorkout();
+                alert('Add Single Workout clicked!');
+                console.log('[Generator] Add Single Workout clicked', { canScheduleWorkout, planLength: generatedWorkout.plan.length });
+                if (canScheduleWorkout) {
+                  toast.success('Adding workout to planner...');
+                  handleScheduleGeneratedWorkout();
+                } else {
+                  toast.error('No workout to schedule');
+                }
               }}
               disabled={!canScheduleWorkout}
+              style={{ pointerEvents: 'auto', position: 'relative', zIndex: 10 }}
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
                 !canScheduleWorkout
                   ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
