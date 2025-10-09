@@ -13,8 +13,9 @@ import {
   generateRecurringEvents,
 } from '../lib/planner.service';
 import { useLocation, useNavigate } from 'react-router-dom';
-import type { PlannerSchedulePayload, ProgramSchedulingData } from '../lib/planner-payload';
+import type { PlannerSchedulePayload, ProgramSchedulingData, PlannerScheduleExercise } from '../lib/planner-payload';
 import { ProgramSchedulingModal } from './ui/ProgramSchedulingModal';
+import { ExerciseList } from './ui/ExerciseList';
 import { calculateDateForDay, mapPreferredTimeToActualTime, addWeeks } from '../lib/date-utils';
 
 moment.locale('nl');
@@ -156,6 +157,7 @@ const PlannerCalendar = forwardRef<PlannerCalendarHandle>((_, ref) => {
   const [editColor, setEditColor] = useState('');
   const [editReminderMinutes, setEditReminderMinutes] = useState<number>(0);
   const [editRecurringRule, setEditRecurringRule] = useState<string>('');
+  const [editExercises, setEditExercises] = useState<PlannerScheduleExercise[]>([]);
   const [showRecurringPrompt, setShowRecurringPrompt] = useState(false);
   const [pendingEdit, setPendingEdit] = useState<{ eventId: string; updates: Partial<CalendarEvent> } | null>(null);
   const [generatorModal, setGeneratorModal] = useState<{
@@ -544,6 +546,15 @@ const PlannerCalendar = forwardRef<PlannerCalendarHandle>((_, ref) => {
       setEditColor(event.color || '');
       setEditReminderMinutes(event.reminder_minutes || 0);
       setEditRecurringRule(event.recurring_rule || '');
+
+      // Load exercises from meta if available
+      const meta = event.meta as any;
+      if (meta?.exercises && Array.isArray(meta.exercises)) {
+        setEditExercises(meta.exercises);
+      } else {
+        setEditExercises([]);
+      }
+
       setEditModal({ open: true, eventId: id });
     }
   };
@@ -727,7 +738,10 @@ const PlannerCalendar = forwardRef<PlannerCalendarHandle>((_, ref) => {
         completed: false,
         reminder_minutes: generatorForm.reminderMinutes || undefined,
         source: 'Manual',
-        meta: payload.meta,
+        meta: {
+          ...payload.meta,
+          exercises: payload.exercises, // Store exercises for tracking
+        },
       };
 
       const { data, error} = await createWorkoutEvent(newWorkout);
@@ -786,6 +800,7 @@ const PlannerCalendar = forwardRef<PlannerCalendarHandle>((_, ref) => {
             source: 'Manual',
             meta: {
               ...payload.meta,
+              exercises: payload.exercises, // Store exercises for tracking
               programWeek: week + 1,
               programDay: day,
             },
@@ -1392,6 +1407,34 @@ const PlannerCalendar = forwardRef<PlannerCalendarHandle>((_, ref) => {
                           </span>
                         )}
                       </div>
+
+                      {/* Exercise Progress Indicator */}
+                      {(() => {
+                        const meta = event.meta as any;
+                        const exercises = meta?.exercises;
+                        if (exercises && Array.isArray(exercises) && exercises.length > 0) {
+                          const completedCount = exercises.filter((ex: any) => ex.completed).length;
+                          const totalCount = exercises.length;
+                          const progress = (completedCount / totalCount) * 100;
+
+                          return (
+                            <div className="mt-2 space-y-1">
+                              <div className="flex justify-between text-xs text-cyan-300">
+                                <span>💪 Exercises</span>
+                                <span>{completedCount}/{totalCount}</span>
+                              </div>
+                              <div className="h-1.5 bg-black/40 rounded-full overflow-hidden">
+                                <div
+                                  className="h-full bg-gradient-to-r from-cyan-500 to-purple-500 transition-all duration-300"
+                                  style={{ width: `${progress}%` }}
+                                />
+                              </div>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
+
                       <div className="flex gap-2 mt-2 flex-wrap">
                         <button
                           onClick={(e) => {
@@ -1757,9 +1800,29 @@ const PlannerCalendar = forwardRef<PlannerCalendarHandle>((_, ref) => {
               />
             </div>
 
+            {/* Exercise List */}
+            {editExercises.length > 0 && (
+              <div>
+                <label className="block text-sm font-semibold text-cyan-300 mb-3">
+                  💪 Oefeningen
+                </label>
+                <ExerciseList
+                  exercises={editExercises}
+                  onToggleExercise={(index, completed) => {
+                    const updated = [...editExercises];
+                    updated[index] = { ...updated[index], completed };
+                    setEditExercises(updated);
+                  }}
+                />
+              </div>
+            )}
+
             <div className="flex gap-2">
               <button
                 onClick={async () => {
+                  const currentEvent = events.find(e => e.id === editModal.eventId);
+                  const currentMeta = currentEvent?.meta as any || {};
+
                   await handleSaveEdit(editModal.eventId, {
                     title: editTitle,
                     duration_min: editDuration,
@@ -1769,6 +1832,10 @@ const PlannerCalendar = forwardRef<PlannerCalendarHandle>((_, ref) => {
                     color: editColor || undefined,
                     recurring_rule: editRecurringRule || undefined,
                     reminder_minutes: editReminderMinutes || undefined,
+                    meta: editExercises.length > 0 ? {
+                      ...currentMeta,
+                      exercises: editExercises,
+                    } : currentMeta,
                   });
                   if (!showRecurringPrompt) {
                     setEditModal({ open: false, eventId: '' });

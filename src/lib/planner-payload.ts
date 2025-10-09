@@ -13,6 +13,7 @@ export interface PlannerScheduleExercise {
   primaryMuscles: string[];
   secondaryMuscles: string[];
   equipment: string[];
+  completed?: boolean; // Track per-exercise completion
 }
 
 export interface PlannerSchedulePayload {
@@ -99,6 +100,7 @@ export function buildPlannerSchedulePayload(input: BuildPlannerPayloadInput): Pl
     primaryMuscles: item.exercise.primary_muscles || [],
     secondaryMuscles: item.exercise.secondary_muscles || [],
     equipment: item.exercise.equipment || [],
+    completed: false, // Initialize as not completed
   }));
 
   const primaryMuscles = unique(
