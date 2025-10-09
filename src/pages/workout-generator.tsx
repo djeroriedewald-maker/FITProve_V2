@@ -2446,6 +2446,7 @@ const WorkoutGenerator: React.FC = () => {
     </motion.div>
   );
 
+  // 🎯 PREMIUM SUMMARY SCREEN
   const SummaryStep = () => {
     const genderLabel =
       preferences.gender === null
@@ -2455,19 +2456,8 @@ const WorkoutGenerator: React.FC = () => {
     const eventLabel = preferences.eventType
       ? EVENTS.find((evt) => evt.id === preferences.eventType)?.title ?? preferences.eventType
       : null;
-    const equipmentSummary =
-      preferences.equipment.length > 0
-        ? preferences.equipment
-            .map((id) => EQUIPMENT_LABEL_LOOKUP[id] ?? id.replace(/_/g, ' '))
-            .join(', ')
-        : 'Bodyweight only';
-    const muscleSummary =
-      preferences.muscles.length > 0
-        ? preferences.muscles
-            .map((muscle) => muscle.replace(/_/g, ' '))
-            .map((label) => label.charAt(0).toUpperCase() + label.slice(1))
-            .join(', ')
-        : 'No muscles selected';
+    const goalLabel = WORKOUT_GOALS.find((g) => g.id === preferences.goal)?.title ?? preferences.goal;
+    const experienceLabel = EXPERIENCE_LEVELS.find((e) => e.id === preferences.experienceLevel)?.title ?? preferences.experienceLevel;
 
     return (
       <motion.div
@@ -2476,78 +2466,187 @@ const WorkoutGenerator: React.FC = () => {
         exit={{ opacity: 0, y: -20 }}
         className="space-y-8"
       >
+        {/* Hero Header */}
         <div className="text-center space-y-4">
-          <h2 className="text-3xl font-bold text-white">Ready to Generate Your Workout!</h2>
-          <p className="text-gray-400">Review your preferences below</p>
+          <motion.h1
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.1 }}
+            className="text-5xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400"
+          >
+            🎯 Your Perfect Plan
+          </motion.h1>
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+            className="text-xl text-gray-300"
+          >
+            Everything looks great! Let's build your personalized workout
+          </motion.p>
         </div>
 
-        <div className="bg-gray-800/50 rounded-xl p-6 space-y-6 backdrop-blur-sm">
-          <div className="grid gap-6 md:grid-cols-2">
-            <div className="space-y-2">
-              <h3 className="text-lg font-semibold text-white">Your Profile</h3>
-              <p className="text-gray-300">
-                Gender:{' '}
-                <span className="text-white font-semibold">{genderLabel}</span>
-              </p>
-              <p className="text-gray-300">
-                Age:{' '}
-                <span className="text-white font-semibold">{preferences.age || 'Not shared'}</span>
-              </p>
-            </div>
+        {/* Summary Cards Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 
-            <div className="space-y-2">
-              <h3 className="text-lg font-semibold text-white">Your Goal</h3>
-              <p className="text-gray-300 capitalize">{preferences.goal || 'Not selected'}</p>
-              {eventLabel && (
-                <p className="text-purple-400">Event Focus: {eventLabel}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <h3 className="text-lg font-semibold text-white">Experience Level</h3>
-              <p className="text-gray-300 capitalize">
-                {preferences.experienceLevel || 'Not selected'}
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <h3 className="text-lg font-semibold text-white">Equipment</h3>
-              <p className="text-gray-300">{equipmentSummary}</p>
-            </div>
-
-            <div className="space-y-2 md:col-span-2">
-              <h3 className="text-lg font-semibold text-white">Workout Schedule</h3>
-              <p className="text-gray-300">
-                {preferences.duration} minutes per session{' - '}
-                {preferences.frequency.days.length > 0
-                  ? `${preferences.frequency.days.length} day(s) per week`
-                  : 'No days selected yet'}
-              </p>
-              <p className="text-gray-300">
-                {preferences.frequency.days.length > 0
-                  ? preferences.frequency.days.join(', ')
-                  : 'Choose the days you prefer to train'}
-              </p>
-              {preferences.frequency.preferredTime && (
-                <p className="text-purple-400">
-                  Preferred time: {preferences.frequency.preferredTime}
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-2 md:col-span-2">
-              <h3 className="text-lg font-semibold text-white">Muscle Focus</h3>
-              <p className="text-gray-300">{muscleSummary}</p>
-            </div>
-
-            {preferences.limitations.length > 0 && (
-              <div className="space-y-2 md:col-span-2">
-                <h3 className="text-lg font-semibold text-white">Limitations</h3>
-                <p className="text-gray-300">{preferences.limitations.join(', ')}</p>
+          {/* Goal Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-2xl p-6 border border-purple-500/30"
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-full bg-purple-500/30 flex items-center justify-center">
+                🎯
               </div>
+              <h3 className="text-lg font-bold text-white">Your Goal</h3>
+            </div>
+            <p className="text-purple-300 font-semibold text-xl mb-2">{goalLabel}</p>
+            {eventLabel && (
+              <p className="text-sm text-purple-200">📍 Event: {eventLabel}</p>
             )}
-          </div>
+          </motion.div>
+
+          {/* Profile Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="bg-gradient-to-br from-cyan-500/20 to-blue-500/20 rounded-2xl p-6 border border-cyan-500/30"
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-full bg-cyan-500/30 flex items-center justify-center">
+                👤
+              </div>
+              <h3 className="text-lg font-bold text-white">Profile</h3>
+            </div>
+            <div className="space-y-2">
+              <p className="text-cyan-300 font-semibold">{genderLabel}, {preferences.age} years</p>
+              <p className="text-sm text-cyan-200">{experienceLabel}</p>
+            </div>
+          </motion.div>
+
+          {/* Equipment Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="bg-gradient-to-br from-orange-500/20 to-red-500/20 rounded-2xl p-6 border border-orange-500/30"
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-full bg-orange-500/30 flex items-center justify-center">
+                🏋️
+              </div>
+              <h3 className="text-lg font-bold text-white">Equipment</h3>
+            </div>
+            <p className="text-orange-300 font-semibold mb-2">{preferences.equipment.length} item{preferences.equipment.length !== 1 ? 's' : ''}</p>
+            <p className="text-xs text-orange-200 line-clamp-2">
+              {preferences.equipment.map((id) => EQUIPMENT_LABEL_LOOKUP[id] ?? id.replace(/_/g, ' ')).join(', ')}
+            </p>
+          </motion.div>
+
+          {/* Duration Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className="bg-gradient-to-br from-pink-500/20 to-purple-500/20 rounded-2xl p-6 border border-pink-500/30"
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-full bg-pink-500/30 flex items-center justify-center">
+                ⏱️
+              </div>
+              <h3 className="text-lg font-bold text-white">Duration</h3>
+            </div>
+            <p className="text-pink-300 font-semibold text-3xl mb-1">{preferences.duration}</p>
+            <p className="text-sm text-pink-200">minutes per workout</p>
+          </motion.div>
+
+          {/* Schedule Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6 }}
+            className="bg-gradient-to-br from-blue-500/20 to-cyan-500/20 rounded-2xl p-6 border border-blue-500/30"
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-full bg-blue-500/30 flex items-center justify-center">
+                📅
+              </div>
+              <h3 className="text-lg font-bold text-white">Weekly Schedule</h3>
+            </div>
+            <p className="text-blue-300 font-semibold text-xl mb-2">
+              {preferences.frequency.days.length}x per week
+            </p>
+            <p className="text-xs text-blue-200">{preferences.frequency.days.join(', ')}</p>
+            {preferences.frequency.preferredTime && (
+              <p className="text-xs text-blue-200 mt-1">⏰ {preferences.frequency.preferredTime}</p>
+            )}
+          </motion.div>
+
+          {/* Limitations Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7 }}
+            className={`rounded-2xl p-6 border ${
+              preferences.limitations.includes('none')
+                ? 'bg-gradient-to-br from-green-500/20 to-teal-500/20 border-green-500/30'
+                : 'bg-gradient-to-br from-orange-500/20 to-red-500/20 border-orange-500/30'
+            }`}
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                preferences.limitations.includes('none') ? 'bg-green-500/30' : 'bg-orange-500/30'
+              }`}>
+                {preferences.limitations.includes('none') ? '✅' : '🩺'}
+              </div>
+              <h3 className="text-lg font-bold text-white">Physical Status</h3>
+            </div>
+            {preferences.limitations.includes('none') ? (
+              <p className="text-green-300 font-semibold">No limitations - full intensity!</p>
+            ) : (
+              <>
+                <p className="text-orange-300 font-semibold mb-2">
+                  {preferences.limitations.length} consideration{preferences.limitations.length !== 1 ? 's' : ''}
+                </p>
+                <p className="text-xs text-orange-200 capitalize">
+                  {preferences.limitations.join(', ')}
+                </p>
+              </>
+            )}
+          </motion.div>
         </div>
+
+        {/* Call to Action */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.8 }}
+          className="bg-gradient-to-r from-purple-900/40 via-pink-900/40 to-purple-900/40 rounded-3xl p-8 border border-purple-500/30 text-center"
+        >
+          <div className="max-w-2xl mx-auto space-y-4">
+            <h2 className="text-3xl font-black text-white">Ready to Start Your Journey?</h2>
+            <p className="text-lg text-gray-300">
+              Your AI-powered workout plan is ready to be generated. Click "Generate My Workout" to create your personalized training program!
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+              <div className="px-4 py-2 rounded-full bg-purple-500/20 border border-purple-500/40">
+                <span className="text-sm text-purple-300">🎯 {goalLabel}</span>
+              </div>
+              <div className="px-4 py-2 rounded-full bg-blue-500/20 border border-blue-500/40">
+                <span className="text-sm text-blue-300">📅 {preferences.frequency.days.length}x/week</span>
+              </div>
+              <div className="px-4 py-2 rounded-full bg-pink-500/20 border border-pink-500/40">
+                <span className="text-sm text-pink-300">⏱️ {preferences.duration} min</span>
+              </div>
+              <div className="px-4 py-2 rounded-full bg-orange-500/20 border border-orange-500/40">
+                <span className="text-sm text-orange-300">🏋️ {preferences.equipment.length} equipment</span>
+              </div>
+            </div>
+          </div>
+        </motion.div>
       </motion.div>
     );
   };
