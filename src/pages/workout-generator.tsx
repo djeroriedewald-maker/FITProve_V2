@@ -1579,14 +1579,8 @@ const WorkoutGenerator: React.FC = () => {
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                alert('Add Single Workout clicked!');
                 console.log('[Generator] Add Single Workout clicked', { canScheduleWorkout, planLength: generatedWorkout.plan.length });
-                if (canScheduleWorkout) {
-                  toast.success('Adding workout to planner...');
-                  handleScheduleGeneratedWorkout();
-                } else {
-                  toast.error('No workout to schedule');
-                }
+                handleScheduleGeneratedWorkout();
               }}
               disabled={!canScheduleWorkout}
               style={{ pointerEvents: 'auto', position: 'relative', zIndex: 10 }}
@@ -1601,11 +1595,13 @@ const WorkoutGenerator: React.FC = () => {
             <button
               type="button"
               onClick={(e) => {
+                e.preventDefault();
                 e.stopPropagation();
                 console.log('[Generator] Save Workout clicked');
                 handleSaveGeneratedWorkout();
               }}
               disabled={!generatedWorkout.plan.length || isSavingWorkout}
+              style={{ pointerEvents: 'auto', position: 'relative', zIndex: 10 }}
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
                 !generatedWorkout.plan.length || isSavingWorkout
                   ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
@@ -1619,11 +1615,13 @@ const WorkoutGenerator: React.FC = () => {
             <button
               type="button"
               onClick={(e) => {
+                e.preventDefault();
                 e.stopPropagation();
                 console.log('[Generator] Save as Template clicked');
                 setShowSaveTemplateModal(true);
               }}
               disabled={!generatedWorkout.plan.length || !user}
+              style={{ pointerEvents: 'auto', position: 'relative', zIndex: 10 }}
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${
                 !generatedWorkout.plan.length || !user
                   ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
@@ -1640,11 +1638,13 @@ const WorkoutGenerator: React.FC = () => {
             <button
               type="button"
               onClick={(e) => {
+                e.preventDefault();
                 e.stopPropagation();
                 console.log('[Generator] Regenerate clicked');
                 handleRegenerate();
               }}
               disabled={!workoutParams}
+              style={{ pointerEvents: 'auto', position: 'relative', zIndex: 10 }}
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${
                 !workoutParams
                   ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
@@ -1657,11 +1657,13 @@ const WorkoutGenerator: React.FC = () => {
             <button
               type="button"
               onClick={(e) => {
+                e.preventDefault();
                 e.stopPropagation();
                 console.log('[Generator] Modify & Regenerate clicked');
                 handleModifyAndRegenerate();
               }}
               disabled={!workoutParams}
+              style={{ pointerEvents: 'auto', position: 'relative', zIndex: 10 }}
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${
                 !workoutParams
                   ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
