@@ -275,9 +275,10 @@ type StepKey =
   | 'profile-experience' // 🌟 Merged mega-step (profile + experience)
   | 'experience'
   | 'profile'
-  | 'equipment-duration' // 💪 NEW: Equipment + Duration mega-step
+  | 'equipment-duration' // 💪 Equipment + Duration mega-step
   | 'equipment'
   | 'duration'
+  | 'frequency-limitations' // 📅 NEW: Frequency + Limitations mega-step
   | 'frequency'
   | 'limitations'
   | 'muscles'
@@ -290,9 +291,10 @@ const STEP_LABELS: Record<StepKey, string> = {
   'profile-experience': 'About You', // 🌟
   experience: 'Experience',
   profile: 'Profile',
-  'equipment-duration': 'Training Setup', // 💪 NEW
+  'equipment-duration': 'Training Setup', // 💪
   equipment: 'Equipment',
   duration: 'Duration',
+  'frequency-limitations': 'Weekly Plan', // 📅 NEW
   frequency: 'Schedule',
   limitations: 'Limitations',
   muscles: 'Muscles',
@@ -1143,11 +1145,10 @@ const WorkoutGenerator: React.FC = () => {
   const steps = useMemo<StepKey[]>(() => {
     // 🚀 PREMIUM FLOW: Mega-steps for best UX
     const sequence: StepKey[] = [
-      'goal-event',           // 🎬 Mega-step 1: Goal + Event carousel
-      'profile-experience',   // 🌟 Mega-step 2: Profile + Experience
-      'equipment-duration',   // 💪 Mega-step 3: Equipment + Duration
-      'frequency',
-      'limitations'
+      'goal-event',             // 🎬 Mega-step 1: Goal + Event carousel
+      'profile-experience',     // 🌟 Mega-step 2: Profile + Experience
+      'equipment-duration',     // 💪 Mega-step 3: Equipment + Duration
+      'frequency-limitations',  // 📅 Mega-step 4: Frequency + Limitations
     ];
     if (shouldPromptForMuscles) {
       sequence.push('muscles');
@@ -1182,14 +1183,18 @@ const WorkoutGenerator: React.FC = () => {
         return preferences.experienceLevel.length > 0;
       case 'profile':
         return preferences.gender !== null && preferences.age > 0;
-      case 'equipment-duration': // 💪 NEW: Combined validation
+      case 'equipment-duration': // 💪 Combined validation
         return preferences.equipment.length > 0 && preferences.duration > 0;
       case 'equipment':
         return preferences.equipment.length > 0;
       case 'duration':
         return preferences.duration > 0;
+      case 'frequency-limitations': // 📅 NEW: Combined validation
+        return preferences.frequency.days.length > 0 && preferences.limitations.length > 0;
       case 'frequency':
         return preferences.frequency.days.length > 0;
+      case 'limitations':
+        return preferences.limitations.length > 0;
       case 'muscles':
         return mapUiMusclesToCanonical(preferences.muscles).length > 0;
       default:
@@ -1996,6 +2001,283 @@ const WorkoutGenerator: React.FC = () => {
     );
   };
 
+  // 📅 NEW: Frequency + Limitations Mega-Step
+  const FrequencyLimitationsMegaStep = () => {
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
+    const timeSlots = ['Morning', 'Afternoon', 'Evening'] as const;
+    const limitations = [
+      { id: 'none', label: 'No Limitations', icon: '✅', desc: 'Ready for anything!' },
+      { id: 'knee', label: 'Knee Issues', icon: '🦵', desc: 'We\'ll modify lower body' },
+      { id: 'back', label: 'Back Problems', icon: '🔙', desc: 'Careful with spine load' },
+      { id: 'shoulder', label: 'Shoulder Injury', icon: '💪', desc: 'Upper body adjustments' },
+      { id: 'wrist', label: 'Wrist Pain', icon: '🤚', desc: 'Alternative grips' },
+      { id: 'ankle', label: 'Ankle Issues', icon: '🦶', desc: 'Stability modifications' },
+    ] as const;
+
+    const toggleLimitation = (id: string) => {
+      if (id === 'none') {
+        updatePreferences({ limitations: ['none'] });
+      } else {
+        const next = preferences.limitations.includes(id)
+          ? preferences.limitations.filter((l) => l !== id)
+          : [...preferences.limitations.filter((l) => l !== 'none'), id];
+        updatePreferences({ limitations: next });
+      }
+    };
+
+    const isMegaStepComplete = preferences.frequency.days.length > 0 && preferences.limitations.length > 0;
+
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -20 }}
+        className="space-y-8"
+      >
+        {/* Hero Header */}
+        <div className="text-center space-y-3">
+          <h1 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-cyan-400 to-teal-400">
+            📅 Plan Your Training Week
+          </h1>
+          <p className="text-lg text-gray-300">
+            Set your workout schedule and tell us about any physical considerations
+          </p>
+        </div>
+
+        {/* Split Layout: Schedule | Limitations */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+          {/* LEFT: Frequency Section */}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.2 }}
+            className="space-y-6"
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center text-2xl">
+                📅
+              </div>
+              <div>
+                <h3 className="text-2xl font-bold text-white">Weekly Schedule</h3>
+                <p className="text-sm text-gray-400">Pick your training days</p>
+              </div>
+            </div>
+
+            {/* Weekly Calendar */}
+            <div className="bg-gradient-to-br from-gray-800/60 to-gray-900/60 rounded-2xl p-6 border border-gray-700/40 backdrop-blur-sm">
+              <div className="grid grid-cols-7 gap-2 mb-6">
+                {days.map((day) => {
+                  const isSelected = preferences.frequency.days.includes(day);
+                  return (
+                    <motion.button
+                      key={day}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => {
+                        const nextDays = isSelected
+                          ? preferences.frequency.days.filter((d) => d !== day)
+                          : [...preferences.frequency.days, day];
+                        updatePreferences({ frequency: { ...preferences.frequency, days: nextDays } });
+                      }}
+                      className={`aspect-square rounded-xl flex flex-col items-center justify-center transition-all ${
+                        isSelected
+                          ? 'bg-gradient-to-br from-blue-600 to-cyan-600 ring-2 ring-blue-400 shadow-lg shadow-blue-500/30'
+                          : 'bg-gray-800/40 hover:bg-gray-800/60 ring-1 ring-gray-700'
+                      }`}
+                    >
+                      <span className={`text-xs font-bold ${isSelected ? 'text-white' : 'text-gray-400'}`}>
+                        {day}
+                      </span>
+                      {isSelected && (
+                        <motion.div
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          className="mt-1"
+                        >
+                          <CheckCircleIcon className="w-4 h-4 text-white" />
+                        </motion.div>
+                      )}
+                    </motion.button>
+                  );
+                })}
+              </div>
+
+              {/* Selected Days Summary */}
+              {preferences.frequency.days.length > 0 && (
+                <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 mb-4">
+                  <p className="text-sm text-blue-300">
+                    <span className="font-bold">{preferences.frequency.days.length}</span> day
+                    {preferences.frequency.days.length !== 1 ? 's' : ''} per week:{' '}
+                    <span className="font-semibold">{preferences.frequency.days.join(', ')}</span>
+                  </p>
+                </div>
+              )}
+
+              {/* Preferred Time */}
+              <div className="space-y-3">
+                <label className="text-sm font-semibold text-cyan-300">Preferred Time (Optional)</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {timeSlots.map((time) => {
+                    const isSelected = preferences.frequency.preferredTime === time;
+                    return (
+                      <motion.button
+                        key={time}
+                        whileHover={{ scale: 1.03 }}
+                        whileTap={{ scale: 0.97 }}
+                        onClick={() => {
+                          updatePreferences({
+                            frequency: {
+                              ...preferences.frequency,
+                              preferredTime: isSelected ? undefined : time,
+                            },
+                          });
+                        }}
+                        className={`p-2 rounded-lg text-xs font-medium transition-all ${
+                          isSelected
+                            ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white ring-2 ring-blue-400'
+                            : 'bg-gray-800/40 text-gray-400 hover:bg-gray-800/60 ring-1 ring-gray-700'
+                        }`}
+                      >
+                        {time}
+                      </motion.button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Presets */}
+            <div className="space-y-3">
+              <p className="text-sm font-semibold text-gray-400">Quick Templates</p>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { days: ['Mon', 'Wed', 'Fri'], label: '3x/week', emoji: '⚡' },
+                  { days: ['Mon', 'Tue', 'Thu', 'Fri'], label: '4x/week', emoji: '🔥' },
+                  { days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'], label: '5x/week', emoji: '💪' },
+                  { days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], label: '6x/week', emoji: '🏆' },
+                ].map((preset) => (
+                  <motion.button
+                    key={preset.label}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => {
+                      updatePreferences({
+                        frequency: { ...preferences.frequency, days: preset.days as any },
+                      });
+                    }}
+                    className="p-2 rounded-lg bg-gray-800/40 hover:bg-gray-800/60 ring-1 ring-gray-700 transition-all text-left"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">{preset.emoji}</span>
+                      <span className="text-xs font-bold text-white">{preset.label}</span>
+                    </div>
+                  </motion.button>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+
+          {/* RIGHT: Limitations Section */}
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.3 }}
+            className="space-y-6"
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-teal-500 to-green-600 flex items-center justify-center text-2xl">
+                🩺
+              </div>
+              <div>
+                <h3 className="text-2xl font-bold text-white">Physical Considerations</h3>
+                <p className="text-sm text-gray-400">We'll adjust your workouts accordingly</p>
+              </div>
+            </div>
+
+            {/* Limitations Grid */}
+            <div className="space-y-3">
+              {limitations.map((limitation) => {
+                const isSelected = preferences.limitations.includes(limitation.id);
+                const isNone = limitation.id === 'none';
+                return (
+                  <motion.button
+                    key={limitation.id}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => toggleLimitation(limitation.id)}
+                    className={`w-full p-4 rounded-xl transition-all text-left ${
+                      isSelected
+                        ? isNone
+                          ? 'bg-gradient-to-r from-green-600/40 to-teal-600/40 ring-2 ring-green-400 shadow-lg shadow-green-500/30'
+                          : 'bg-gradient-to-r from-orange-600/40 to-red-600/40 ring-2 ring-orange-400 shadow-lg shadow-orange-500/30'
+                        : 'bg-gray-800/40 hover:bg-gray-800/60 ring-1 ring-gray-700'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-3">
+                        <span className="text-2xl">{limitation.icon}</span>
+                        <div>
+                          <h4 className="text-white font-bold mb-1">{limitation.label}</h4>
+                          <p className="text-xs text-gray-400">{limitation.desc}</p>
+                        </div>
+                      </div>
+                      {isSelected && (
+                        <motion.div
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                        >
+                          <CheckCircleIcon className="w-6 h-6 text-green-400" />
+                        </motion.div>
+                      )}
+                    </div>
+                  </motion.button>
+                );
+              })}
+            </div>
+
+            {/* Limitations Summary */}
+            {preferences.limitations.length > 0 && (
+              <div className="bg-gray-800/40 rounded-xl p-4 border border-gray-700/40">
+                <p className="text-sm text-gray-300">
+                  {preferences.limitations.includes('none') ? (
+                    <span className="text-green-400 font-semibold">✅ No modifications needed - full intensity!</span>
+                  ) : (
+                    <>
+                      <span className="text-orange-400 font-semibold">⚠️ Adjusting for:</span>{' '}
+                      {preferences.limitations
+                        .map((id) => limitations.find((l) => l.id === id)?.label)
+                        .filter(Boolean)
+                        .join(', ')}
+                    </>
+                  )}
+                </p>
+              </div>
+            )}
+          </motion.div>
+        </div>
+
+        {/* Completion Badge */}
+        {isMegaStepComplete && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="p-6 rounded-2xl bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-500/40 text-center"
+          >
+            <CheckCircleIcon className="w-12 h-12 text-green-400 mx-auto mb-2" />
+            <h3 className="text-xl font-bold text-white mb-1">Schedule Locked In! 📅</h3>
+            <p className="text-gray-300">
+              {preferences.frequency.days.length}x per week
+              {preferences.frequency.preferredTime && ` • ${preferences.frequency.preferredTime}`}
+              {' • '}
+              {preferences.limitations.includes('none') ? 'No limitations' : `${preferences.limitations.length} consideration(s)`}
+            </p>
+          </motion.div>
+        )}
+      </motion.div>
+    );
+  };
+
   const FrequencySelection = () => {
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
     const timeSlots = ['Morning', 'Afternoon', 'Evening'] as const;
@@ -2287,12 +2569,14 @@ const WorkoutGenerator: React.FC = () => {
         return <ExperienceSelection />;
       case 'profile':
         return <ProfileStep />;
-      case 'equipment-duration': // 💪 NEW: Equipment + Duration mega-step
+      case 'equipment-duration': // 💪 Equipment + Duration mega-step
         return <EquipmentDurationMegaStep />;
       case 'equipment':
         return <EquipmentSelectionStep />;
       case 'duration':
         return <DurationSelection />;
+      case 'frequency-limitations': // 📅 NEW: Frequency + Limitations mega-step
+        return <FrequencyLimitationsMegaStep />;
       case 'frequency':
         return <FrequencySelection />;
       case 'limitations':
