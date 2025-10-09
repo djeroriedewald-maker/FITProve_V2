@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, X, Heart, MessageCircle, Trophy, User } from 'lucide-react';
+import { Bell, X, Heart, MessageCircle, Trophy, User, Dumbbell } from 'lucide-react';
 import { Notification } from '../../types/notification.types';
 import { markNotificationAsRead, markAllNotificationsAsRead } from '../../lib/notifications';
 import { useNotificationContext } from '../../contexts/NotificationContext';
@@ -22,6 +22,8 @@ const getNotificationIcon = (type: string) => {
       return <Trophy className="w-4 h-4 text-yellow-500" />;
     case 'follow':
       return <User className="w-4 h-4 text-green-500" />;
+    case 'planner_reminder':
+      return <Dumbbell className="w-4 h-4 text-orange-500" />;
     default:
       return <Bell className="w-4 h-4 text-gray-500" />;
   }

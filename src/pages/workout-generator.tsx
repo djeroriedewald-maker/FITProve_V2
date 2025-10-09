@@ -7,6 +7,8 @@ import { Exercise, MuscleGroup } from '../types/exercise.types';
 import { MuscleMapSelector } from '../components/ui/MuscleMapSelector';
 import { useUserHistory } from '../hooks/useUserHistory';
 import { useSaveWorkout } from '../hooks/useSaveWorkout';
+import { useNavigate } from 'react-router-dom';
+import { buildPlannerSchedulePayload } from '../lib/planner-payload';
 
 /* ----------------------------- Types & Data ------------------------------ */
 
@@ -387,6 +389,7 @@ const WorkoutGenerator: React.FC = () => {
     saved: saveSuccess,
     reset: resetSaveState,
   } = useSaveWorkout();
+  const navigate = useNavigate();
 
   const muscleOptions = useMemo(
     () => Object.keys(MUSCLE_UI_TO_CANONICAL),
@@ -449,6 +452,10 @@ const WorkoutGenerator: React.FC = () => {
     exerciseLibrary: allExercises,
     recentExercises: recentExerciseIds,
   });
+  const canScheduleWorkout = generatedWorkout.plan.length > 0;
+  useEffect(() => {
+    console.log('[Generator] Render state - showWorkout:', showWorkout, 'plan length:', generatedWorkout.plan.length, 'canSchedule:', canScheduleWorkout);
+  }, [showWorkout, generatedWorkout.plan.length, canScheduleWorkout]);
 
   const ProfileStep = () => {
     const handleAgeChange = (value: number) => {
@@ -687,7 +694,7 @@ const WorkoutGenerator: React.FC = () => {
 
   const launchWorkoutGeneration = () => {
     const params = mapPreferencesToParams(preferences);
-    setWorkoutParams(params);
+      setWorkoutParams(params);
     scrollToPageTop();
     setShowWorkout(true);
   };
@@ -703,7 +710,11 @@ const WorkoutGenerator: React.FC = () => {
   };
 
   const handleSaveGeneratedWorkout = async () => {
-    if (!generatedWorkout.plan.length) return;
+    console.log('[Generator] Save workout clicked');
+    if (!generatedWorkout.plan.length) {
+      console.warn('[Generator] No plan items to save.');
+      return;
+    }
     const workoutName = `Generated Workout (${preferences.goal || 'Custom'})`;
     const meta = {
       preferences,
@@ -715,6 +726,100 @@ const WorkoutGenerator: React.FC = () => {
       exercises: generatedWorkout.plan,
       meta,
     });
+  };
+
+  const handleScheduleGeneratedWorkout = () => {
+    console.log('[Generator] Add to planner clicked', { canScheduleWorkout });
+    if (!canScheduleWorkout) {
+      console.warn('[Generator] Cannot schedule workout yet, plan length:', generatedWorkout.plan.length);
+      return;
+    }
+    const workoutName = `Generated Workout (${preferences.goal || 'Custom'})`;
+    const payload = buildPlannerSchedulePayload({
+      name: workoutName,
+      goal: preferences.goal || 'Custom',
+      preferences,
+      frequencyDays: preferences.frequency.days,
+      equipment: preferences.equipment,
+      durationMinutes: preferences.duration,
+      plan: generatedWorkout.plan,
+      generatedAt: new Date().toISOString(),
+      suggestedTime: preferences.frequency.preferredTime,
+    });
+    try {
+      if (typeof window === 'undefined') {
+        console.warn('[Generator] Window undefined, cannot schedule planner payload');
+        return;
+      }
+
+      const storageKey = `planner-import-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      console.log('[Generator] Storing planner payload under key:', storageKey, payload);
+
+      window.sessionStorage.setItem(storageKey, JSON.stringify(payload));
+
+      navigate('/modules/workout/planner', {
+        state: { plannerAddWorkoutId: storageKey },
+      });
+    } catch (error) {
+      console.error('[Generator] Failed to prepare planner payload', error);
+    }
+  };
+
+  const handleScheduleFullProgram = () => {
+    console.log('[Generator] Schedule full program clicked');
+    if (!canScheduleWorkout) {
+      console.warn('[Generator] Cannot schedule program yet, plan length:', generatedWorkout.plan.length);
+      return;
+    }
+
+    if (preferences.frequency.days.length === 0) {
+      console.warn('[Generator] No frequency days selected');
+      return;
+    }
+
+    const workoutName = `${preferences.goal || 'Custom'} Program`;
+    const payload = buildPlannerSchedulePayload({
+      name: workoutName,
+      goal: preferences.goal || 'Custom',
+      preferences,
+      frequencyDays: preferences.frequency.days,
+      equipment: preferences.equipment,
+      durationMinutes: preferences.duration,
+      plan: generatedWorkout.plan,
+      generatedAt: new Date().toISOString(),
+      suggestedTime: preferences.frequency.preferredTime,
+    });
+
+    // Create program scheduling data
+    const programData = {
+      payload,
+      scheduling: {
+        type: 'multi-day-program' as const,
+        days: preferences.frequency.days,
+        weeks: 4, // Default, user can change in modal
+        startDate: new Date().toISOString().split('T')[0],
+        recurring: false,
+        preferredTime: preferences.frequency.preferredTime,
+      },
+    };
+
+    try {
+      if (typeof window === 'undefined') {
+        console.warn('[Generator] Window undefined, cannot schedule program');
+        return;
+      }
+
+      const storageKey = `planner-program-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      console.log('[Generator] Storing program data under key:', storageKey, programData);
+
+      window.sessionStorage.setItem(storageKey, JSON.stringify(programData));
+
+      navigate('/modules/workout/planner', {
+        state: { plannerProgramId: storageKey },
+      });
+    } catch (error) {
+      console.error('[Generator] Failed to prepare program data', error);
+    }
   };
 
   /* --------------------------- Local Step Views -------------------------- */
@@ -1321,13 +1426,15 @@ const WorkoutGenerator: React.FC = () => {
       )}
 
       <div className="relative z-10 min-h-screen flex flex-col w-full">
-        <main className="flex-1 flex items-center justify-center">
-          <div className="w-full">
-            <AnimatePresence mode="wait">{renderCurrentStep()}</AnimatePresence>
-          </div>
-        </main>
+        {!showWorkout && (
+          <main className="flex-1 flex items-center justify-center">
+            <div className="w-full">
+              <AnimatePresence mode="wait">{renderCurrentStep()}</AnimatePresence>
+            </div>
+          </main>
+        )}
 
-        {!showWelcome && totalSteps > 0 && (
+        {!showWelcome && !showWorkout && totalSteps > 0 && (
           <div className="sticky bottom-0 left-0 right-0 bg-black/20 backdrop-blur-sm w-full">
             <div className="w-full flex justify-between gap-4">
               {currentStep > 0 && (
@@ -1367,7 +1474,12 @@ const WorkoutGenerator: React.FC = () => {
 
       {/* Render generated workout summary */}
       {showWorkout && (
-        <div className="w-full max-w-2xl mx-auto mt-10">
+        <div
+          className="w-full max-w-2xl mx-auto mt-10"
+          onClickCapture={(event) => {
+            console.log('[Generator] Click captured in summary section, target:', event.target);
+          }}
+        >
           <h2 className="text-2xl font-bold text-white mb-4">Your Generated Workout</h2>
           {historyLoading && (
             <div className="mb-4 text-sm text-gray-400">
@@ -1375,6 +1487,36 @@ const WorkoutGenerator: React.FC = () => {
             </div>
           )}
           <div className="flex flex-wrap items-center gap-3 mb-4">
+            {preferences.frequency.days.length > 0 && (
+              <button
+                type="button"
+                onClick={handleScheduleFullProgram}
+                disabled={!canScheduleWorkout}
+                className={`px-6 py-3 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${
+                  !canScheduleWorkout
+                    ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-emerald-500 via-cyan-500 to-blue-600 text-white hover:from-emerald-400 hover:via-cyan-400 hover:to-blue-500 shadow-lg shadow-cyan-500/40 hover:shadow-cyan-500/60 transform hover:scale-105'
+                }`}
+                title={`Plan ${preferences.frequency.days.length} days/week for multiple weeks`}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                Schedule Full Program ({preferences.frequency.days.length}x/week)
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={handleScheduleGeneratedWorkout}
+              disabled={!canScheduleWorkout}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                !canScheduleWorkout
+                  ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white hover:from-cyan-400 hover:to-blue-500 shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50'
+              }`}
+            >
+              Add Single Workout
+            </button>
             <button
               type="button"
               onClick={handleSaveGeneratedWorkout}

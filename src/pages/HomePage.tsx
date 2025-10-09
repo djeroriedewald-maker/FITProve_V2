@@ -1,5 +1,5 @@
 // src/pages/HomePage.tsx
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Activity,
   Users,
@@ -26,6 +26,12 @@ import { GlassCard } from '../components/ui/GlassCard';
 import { FloatingElements, MorphingBlob } from '../components/ui/Advanced3D';
 import { BiometricRing } from '../components/ui/BiometricComponents';
 import { CircleProgress } from '../components/ui/CircleProgress';
+import { getWorkoutStats, getDailyWorkoutData, getUpcomingWorkouts } from '../lib/workout-stats.service';
+import { WorkoutDailyChart, WorkoutMinutesChart } from '../components/ui/WorkoutCharts';
+import { supabase } from '../lib/supabase';
+import moment from 'moment';
+import { getUserGoals, updateAllGoalsProgress, calculateGoalProgress } from '../lib/goals.service';
+import { Goal } from '../types/goal.types';
 
 interface WorkoutStats {
   todayProgress: number;
@@ -76,6 +82,76 @@ interface Event {
 export default function HomePage() {
   const navigate = useNavigate();
   const { user, profile } = useAuth();
+
+  // Real data state
+  const [stats, setStats] = useState<WorkoutStats>({
+    todayProgress: 0,
+    weeklyWorkouts: 0,
+    activeStreak: 0,
+    nextMilestone: "10 Workouts",
+    caloriesBurned: 0,
+    minutesActive: 0
+  });
+  const [dailyData, setDailyData] = useState<any[]>([]);
+  const [upcomingWorkouts, setUpcomingWorkouts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [goals, setGoals] = useState<Goal[]>([]);
+
+  // Fetch real workout data
+  useEffect(() => {
+    if (!user) return;
+
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        const [statsData, dailyChartData, upcomingData] = await Promise.all([
+          getWorkoutStats(user.id),
+          getDailyWorkoutData(user.id, 7),
+          getUpcomingWorkouts(user.id, 5),
+        ]);
+
+        setStats({
+          ...statsData,
+          nextMilestone: "10 Workouts", // Calculate based on stats if needed
+        });
+        setDailyData(dailyChartData);
+        setUpcomingWorkouts(upcomingData);
+
+        // Fetch and update goals
+        await updateAllGoalsProgress(user.id);
+        const userGoals = await getUserGoals(user.id, 'active');
+        setGoals(userGoals.slice(0, 3)); // Show top 3 active goals
+      } catch (error) {
+        console.error('Error loading workout data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+
+    // Subscribe to real-time updates from planner_events
+    const channel = supabase
+      .channel('planner_events_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'planner_events',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('Planner event changed, reloading data...', payload);
+          loadData(); // Reload data when any change occurs
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
 
   const communityWorkouts: CommunityWorkout[] = [
     {
@@ -137,15 +213,7 @@ export default function HomePage() {
     }
   ];
 
-  // Stats that would come from your backend/context
-  const stats: WorkoutStats = {
-    todayProgress: 75,
-    weeklyWorkouts: 4,
-    activeStreak: 7,
-    nextMilestone: "10 Workouts",
-    caloriesBurned: 847,
-    minutesActive: 45
-  };
+  // Stats are now fetched from real data via useEffect above
 
   const activeChallenge: ChallengeProgress = {
     id: "push-up-challenge",
@@ -156,13 +224,16 @@ export default function HomePage() {
     participants: 243
   };
 
-  const nextWorkout: ScheduledWorkout = {
-    id: "next-workout-1",
-    name: "Upper Body Power",
-    time: "Today, 6:00 PM",
-    type: "Strength",
-    duration: "45 min"
-  };
+  // Get next workout from real upcoming workouts data
+  const nextWorkout: ScheduledWorkout | null = upcomingWorkouts.length > 0 ? {
+    id: upcomingWorkouts[0].id,
+    name: upcomingWorkouts[0].title || upcomingWorkouts[0].workout_type || 'Workout',
+    time: upcomingWorkouts[0].date === moment().format('YYYY-MM-DD')
+      ? `Vandaag, ${upcomingWorkouts[0].time || 'Hele dag'}`
+      : moment(upcomingWorkouts[0].date).format('dddd, D MMM'),
+    type: upcomingWorkouts[0].workout_type || 'Training',
+    duration: upcomingWorkouts[0].duration_min ? `${upcomingWorkouts[0].duration_min} min` : '30 min'
+  } : null;
 
   const displayName = 
     profile?.displayName || 
@@ -275,34 +346,53 @@ export default function HomePage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
             >
-              <GlassCard 
-                className="p-6 h-full" 
-                onClick={() => navigate(`/workout/${nextWorkout.id}`)}
+              <GlassCard
+                className="p-6 h-full"
+                onClick={() => nextWorkout && navigate(`/workout/${nextWorkout.id}`)}
               >
                 <div className="h-full flex flex-col">
                   <h3 className="font-semibold text-white mb-4 flex items-center gap-2">
                     <Clock className="w-5 h-5 text-cyan-400" />
                     Next Workout
                   </h3>
-                  
-                  <div className="flex-1 flex flex-col justify-between">
-                    <div>
-                      <div className="text-lg font-bold text-white mb-1">{nextWorkout.name}</div>
-                      <div className="flex items-center gap-4 text-sm text-white/60">
-                        <span>{nextWorkout.time}</span>
-                        <span className="w-1 h-1 rounded-full bg-white/30" />
-                        <span>{nextWorkout.duration}</span>
+
+                  {nextWorkout ? (
+                    <div className="flex-1 flex flex-col justify-between">
+                      <div>
+                        <div className="text-lg font-bold text-white mb-1">{nextWorkout.name}</div>
+                        <div className="flex items-center gap-4 text-sm text-white/60">
+                          <span>{nextWorkout.time}</span>
+                          <span className="w-1 h-1 rounded-full bg-white/30" />
+                          <span>{nextWorkout.duration}</span>
+                        </div>
                       </div>
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate('/modules/workout/planner');
+                        }}
+                        className="mt-4 w-full py-2 px-4 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 rounded-lg transition-colors flex items-center justify-center gap-2"
+                      >
+                        <Play className="w-4 h-4" />
+                        Start Workout
+                      </button>
                     </div>
-                    
-                    <button 
-                      onClick={() => navigate('/workout/start')}
-                      className="mt-4 w-full py-2 px-4 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 rounded-lg transition-colors flex items-center justify-center gap-2"
-                    >
-                      <Play className="w-4 h-4" />
-                      Start Workout
-                    </button>
-                  </div>
+                  ) : (
+                    <div className="flex-1 flex flex-col items-center justify-center text-white/60">
+                      <Calendar className="w-12 h-12 mb-2 opacity-50" />
+                      <p className="text-sm">Geen workouts gepland</p>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate('/modules/workout/planner');
+                        }}
+                        className="mt-4 px-4 py-2 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 rounded-lg transition-colors text-sm"
+                      >
+                        Plan een workout
+                      </button>
+                    </div>
+                  )}
                 </div>
               </GlassCard>
             </motion.div>
@@ -369,11 +459,132 @@ export default function HomePage() {
             </GlassCard>
           </motion.section>
 
-          {/* Quick Access Grid */}
+          {/* Workout Progress Charts */}
           <motion.section
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
+            className="mb-8"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                <BarChart className="w-6 h-6 text-cyan-400" />
+                Workout Progress
+              </h2>
+              <button
+                onClick={() => navigate('/modules/workout/planner')}
+                className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors flex items-center gap-1"
+              >
+                View Planner <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Daily Workouts Chart */}
+              <GlassCard className="p-6">
+                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                  <Activity className="w-5 h-5 text-cyan-400" />
+                  Deze Week
+                </h3>
+                {!loading && dailyData.length > 0 ? (
+                  <WorkoutDailyChart data={dailyData} />
+                ) : loading ? (
+                  <div className="h-64 flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400" />
+                  </div>
+                ) : (
+                  <div className="h-64 flex items-center justify-center text-white/60">
+                    Nog geen workout data
+                  </div>
+                )}
+              </GlassCard>
+
+              {/* Minutes Chart */}
+              <GlassCard className="p-6">
+                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-orange-400" />
+                  Trainingsminuten
+                </h3>
+                {!loading && dailyData.length > 0 ? (
+                  <WorkoutMinutesChart data={dailyData} />
+                ) : loading ? (
+                  <div className="h-64 flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-400" />
+                  </div>
+                ) : (
+                  <div className="h-64 flex items-center justify-center text-white/60">
+                    Nog geen minuten data
+                  </div>
+                )}
+              </GlassCard>
+            </div>
+          </motion.section>
+
+          {/* Active Goals */}
+          {goals.length > 0 && (
+            <motion.section
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.45 }}
+              className="mb-8"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                  <Target className="w-6 h-6 text-green-400" />
+                  Active Goals
+                </h2>
+                <button
+                  onClick={() => navigate('/stats')}
+                  className="text-sm text-green-400 hover:text-green-300 transition-colors flex items-center gap-1"
+                >
+                  View All
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {goals.map((goal) => {
+                  const progress = calculateGoalProgress(goal);
+                  return (
+                    <GlassCard key={goal.id} className="p-4 hover:scale-[1.02] transition-transform cursor-pointer" onClick={() => navigate('/stats')}>
+                      <div className="flex items-start justify-between mb-3">
+                        <h3 className="text-sm font-semibold text-white">{goal.title}</h3>
+                        <span className="text-xs font-bold text-green-400">{progress}%</span>
+                      </div>
+
+                      <div className="mb-3">
+                        <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${progress}%` }}
+                            transition={{ duration: 0.8, ease: 'easeOut' }}
+                            className="h-full bg-gradient-to-r from-green-400 to-emerald-500 rounded-full"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-white/60">
+                          {goal.current_value} / {goal.target_value} {goal.unit}
+                        </span>
+                        {goal.deadline && (
+                          <span className="text-white/50">
+                            {moment(goal.deadline).fromNow()}
+                          </span>
+                        )}
+                      </div>
+                    </GlassCard>
+                  );
+                })}
+              </div>
+            </motion.section>
+          )}
+
+          {/* Quick Access Grid */}
+          <motion.section
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
           >
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <GlassCard 

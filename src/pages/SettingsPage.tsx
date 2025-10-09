@@ -51,11 +51,16 @@ export default function SettingsPage() {
   const [notificationPrefs, setNotificationPrefs] = useState<{
     events: Array<'in_app' | 'email' | 'push'>;
     todos: Array<'in_app' | 'email' | 'push'>;
+    workouts: Array<'in_app' | 'email' | 'push'>;
   }>(() => {
     if (profile?.notification_preferences) {
-      return profile.notification_preferences;
+      return {
+        events: profile.notification_preferences.events || ['in_app'],
+        todos: profile.notification_preferences.todos || ['in_app'],
+        workouts: profile.notification_preferences.workouts || ['in_app'],
+      };
     }
-    return { events: ['in_app'], todos: ['in_app'] };
+    return { events: ['in_app'], todos: ['in_app'], workouts: ['in_app'] };
   });
 
   const [isPublic, setIsPublic] = useState(profile?.isPublic ?? false);
@@ -295,46 +300,48 @@ export default function SettingsPage() {
   ];
 
   return (
-    <div className="min-h-screen pb-20 bg-gradient-to-br from-gray-900 via-black to-gray-900 relative overflow-hidden">
-      {/* Animated Background Elements */}
-      <div className="absolute inset-0">
-        <div className="absolute top-20 left-10 w-72 h-72 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-40 right-10 w-96 h-96 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-full blur-3xl animate-pulse delay-1000" />
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-gradient-to-r from-orange-500/20 to-red-500/20 rounded-full blur-3xl animate-pulse delay-2000" />
+    <div className="min-h-screen pb-20 bg-gradient-to-br from-[#0f2027] via-[#2c5364] to-[#232526] relative overflow-hidden">
+      {/* Animated, layered glass gradients for depth */}
+      <div className="absolute inset-0 z-0">
+        <div className="absolute top-10 left-4 w-72 h-72 bg-gradient-to-br from-cyan-400/30 to-blue-700/30 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-32 right-4 w-96 h-96 bg-gradient-to-br from-purple-500/30 to-pink-500/30 rounded-full blur-3xl animate-pulse delay-1000" />
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-gradient-to-br from-orange-400/30 to-yellow-500/30 rounded-full blur-3xl animate-pulse delay-2000" />
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full h-40 bg-gradient-to-t from-black/60 to-transparent" />
       </div>
 
-      <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+      <div className="relative z-10 max-w-2xl mx-auto px-2 sm:px-4 pt-4">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
-          className="mb-8"
+          className="mb-6"
         >
           <GlassButton
             variant="ghost"
             onClick={() => navigate('/')}
-            className="mb-6 flex items-center gap-2"
+            className="mb-6 flex items-center gap-2 text-lg font-bold text-cyan-300 hover:text-white"
+            style={{ textShadow: '0 2px 8px #00fff7aa' }}
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="w-5 h-5" />
             Back to Home
           </GlassButton>
 
-          <GlassCard variant="hero" className="text-center">
+          <GlassCard variant="hero" className="text-center bg-gradient-to-br from-cyan-900/60 to-black/80 shadow-2xl border-2 border-cyan-400/30 rounded-3xl p-6">
             <div className="flex items-center justify-center mb-4">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center shadow-neon-cyan">
-                <SettingsIcon className="w-8 h-8 text-white" />
+              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center shadow-neon-cyan border-4 border-cyan-400/40 animate-pulse">
+                <SettingsIcon className="w-10 h-10 text-white drop-shadow-neon-cyan" />
               </div>
             </div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-white/70 bg-clip-text text-transparent mb-2">
+            <h1 className="text-4xl font-extrabold bg-gradient-to-r from-cyan-200 via-white to-cyan-400 bg-clip-text text-transparent mb-2 tracking-tight" style={{ textShadow: '0 2px 16px #00fff7cc' }}>
               Settings
             </h1>
-            <p className="text-white/60">Customize your FITProve experience</p>
+            <p className="text-cyan-100/80 text-lg font-medium">Customize your FITProve experience</p>
           </GlassCard>
         </motion.div>
 
         {/* Settings Sections */}
-        <div className="space-y-6">
+        <div className="space-y-8">
           {settingsSections.map((section, index) => (
             <motion.div
               key={section.title}
@@ -342,14 +349,14 @@ export default function SettingsPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: index * 0.1 }}
             >
-              <GlassCard>
-                <div className="flex items-center mb-6">
-                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center mr-4">
-                    <section.icon className="w-5 h-5 text-primary" />
+              <GlassCard className="rounded-2xl bg-gradient-to-br from-white/5 to-cyan-900/10 border-2 border-cyan-400/10 shadow-xl p-4 sm:p-6">
+                <div className="flex items-center mb-6 gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/30 to-secondary/30 flex items-center justify-center border-2 border-cyan-400/30 shadow-neon-cyan animate-pulse">
+                    <section.icon className="w-6 h-6 text-cyan-300 drop-shadow-neon-cyan" />
                   </div>
-                  <h2 className="text-xl font-semibold text-white">{section.title}</h2>
+                  <h2 className="text-2xl font-bold text-cyan-100 tracking-tight" style={{ textShadow: '0 2px 8px #00fff7aa' }}>{section.title}</h2>
                 </div>
-                {section.content}
+                <div className="text-base sm:text-lg">{section.content}</div>
               </GlassCard>
             </motion.div>
           ))}
@@ -360,25 +367,26 @@ export default function SettingsPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.4 }}
-          className="mt-8"
+          className="mt-10"
         >
-          <GlassCard>
+          <GlassCard className="rounded-2xl bg-gradient-to-br from-cyan-900/60 to-black/80 border-2 border-cyan-400/20 shadow-xl p-4">
             <div className="text-center">
               <GlassButton
                 variant="primary"
                 onClick={handleSave}
                 disabled={saving}
-                className="w-full md:w-auto px-8 py-3"
+                className="w-full md:w-auto px-10 py-4 text-xl font-bold rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 shadow-neon-cyan border-2 border-cyan-300/40 hover:scale-105 transition-transform"
+                style={{ textShadow: '0 2px 8px #00fff7aa' }}
               >
                 <div className="flex items-center justify-center space-x-2">
                   {saving ? (
                     <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
                       <span>Saving...</span>
                     </>
                   ) : (
                     <>
-                      <Save className="w-4 h-4" />
+                      <Save className="w-5 h-5" />
                       <span>Save Settings</span>
                     </>
                   )}
@@ -389,14 +397,15 @@ export default function SettingsPage() {
                 <motion.div
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  className={`mt-4 flex items-center justify-center space-x-2 p-3 rounded-xl ${
+                  className={`mt-4 flex items-center justify-center space-x-2 p-4 rounded-2xl text-lg font-semibold shadow-lg border-2 ${
                     message.includes('success')
-                      ? 'bg-green-500/20 border border-green-500/30 text-green-300'
-                      : 'bg-red-500/20 border border-red-500/30 text-red-300'
+                      ? 'bg-green-500/20 border-green-400/40 text-green-200'
+                      : 'bg-red-500/20 border-red-400/40 text-red-200'
                   }`}
+                  style={{ textShadow: '0 2px 8px #00fff7aa' }}
                 >
-                  {message.includes('success') && <CheckCircle className="w-4 h-4" />}
-                  <span className="text-sm">{message}</span>
+                  {message.includes('success') && <CheckCircle className="w-5 h-5" />}
+                  <span>{message}</span>
                 </motion.div>
               )}
             </div>

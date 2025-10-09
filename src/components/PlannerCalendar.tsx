@@ -1,753 +1,907 @@
-// src/components/PlannerCalendar.tsx
-import React, { useEffect, useMemo, useState, forwardRef, useImperativeHandle } from 'react';
-import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
-import moment, { Moment } from 'moment';
+import React, { useState, useEffect, forwardRef, useImperativeHandle, useMemo } from 'react';
+import moment from 'moment';
 import 'moment/locale/nl';
-import { FaCheckCircle, FaRegEdit, FaRegTrashAlt, FaRegTimesCircle, FaPlay } from 'react-icons/fa';
+import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+import { FaRegEdit, FaCheckCircle, FaRegTrashAlt, FaPlay, FaSpinner, FaRedo } from 'react-icons/fa';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import toast from 'react-hot-toast';
+import {
+  createWorkoutEvent,
+  updateRecurringEvent,
+  deleteRecurringEvent,
+  generateRecurringEvents,
+} from '../lib/planner.service';
+import { useLocation, useNavigate } from 'react-router-dom';
+import type { PlannerSchedulePayload, ProgramSchedulingData } from '../lib/planner-payload';
+import { ProgramSchedulingModal } from './ui/ProgramSchedulingModal';
+import { calculateDateForDay, mapPreferredTimeToActualTime, addWeeks } from '../lib/date-utils';
 
-/** -----------------------------
- *  Neon colors & source mapping
- *  ----------------------------- */
-const NEON_ORANGE = '#FF7A18';
-const NEON_GREEN = '#39FF14';
-const NEON_BLUE = '#00D1FF';
-const NEON_YELLOW = '#FFC300';
-const NEON_PURPLE = '#B66CFF';
+moment.locale('nl');
 
-type WorkoutSource = 'library' | 'community' | 'creator' | 'external' | 'other';
-const SOURCE_NEON: Record<WorkoutSource, string> = {
-  library: NEON_GREEN,
-  community: NEON_BLUE,
-  creator: NEON_ORANGE,
-  external: NEON_BLUE,
-  other: NEON_YELLOW,
-};
+// --- Types ---
+type WorkoutType = 'Run' | 'Strength' | 'Hybrid' | 'Cardio' | 'Mobility' | 'Stretching' | 'Zen';
+type WorkoutSource = 'Peloton' | 'Nike' | 'Strava' | 'Apple' | 'Manual';
 
-/** -----------------------------
- *  Types
- *  ----------------------------- */
-const WORKOUT_TYPES = [
-  'Run',
-  'Strength',
-  'Hybrid',
-  'Cardio',
-  'Mobility',
-  'Stretching',
-  'Zen',
-  'Other',
-] as const;
-type WorkoutType = (typeof WORKOUT_TYPES)[number];
-
-type PlannerEvent = {
+interface CalendarEvent {
   id: string;
   user_id: string;
-  date: string; // YYYY-MM-DD
-  type: 'workout' | 'rest' | string;
+  type: 'workout' | 'rest';
+  date: string;
   title?: string;
-  notes?: string;
-  time?: string; // HH:mm
+  workout_type?: string;
+  time?: string;
   duration_min?: number;
+  notes?: string;
   completed?: boolean;
-  // optional metadata for “creator/external” style workouts
-  external?: boolean;
-  hero_image_url?: string;
-  tags?: string[];
-  creator_id?: string;
-  exercises?: any[];
-  source?: WorkoutSource;
-  workout_type?: WorkoutType | string; // for display
-  recurrence_rule?: string | null;
-  recurrence_end?: string | null; // YYYY-MM-DD
-  color?: string | null; // HEX or color name
-  reminder_minutes_before?: number | null;
+  source?: string;
+  workout_id?: string | null;
+  color?: string;
+  recurring_rule?: string;
+  recurrence_end?: string;
+  parent_event_id?: string;
+  reminder_minutes?: number;
+  reminder_sent?: boolean;
+  created_at?: string;
+  updated_at?: string;
+  meta?: Record<string, unknown>;
+}
+
+// --- Color Constants ---
+const NEON_GREEN = '#39FF14';
+const NEON_ORANGE = '#FF6700';
+const NEON_PURPLE = '#BC13FE';
+const NEON_BLUE = '#00D9FF';
+const NEON_YELLOW = '#FFFF00';
+
+const SOURCE_NEON: Record<WorkoutSource, string> = {
+  Peloton: NEON_ORANGE,
+  Nike: NEON_GREEN,
+  Strava: NEON_ORANGE,
+  Apple: NEON_BLUE,
+  Manual: NEON_PURPLE,
 };
 
-type ExternalForm = {
-  name: string;
-  notes: string;
-  time: string; // "HH:mm"
-  types: WorkoutType[]; // max 3
-  hero_image_url: string;
-  tags: string[];
-  creator_id?: string;
-  exercises: any[];
-  duration: number;
-  recurrence_rule?: string | null;
-  recurrence_end?: string | null; // YYYY-MM-DD
-  color?: string | null; // HEX or color name
-  reminder_minutes_before?: number | null;
+const WORKOUT_TYPE_COLORS: Record<string, string> = {
+  Run: NEON_GREEN,
+  Strength: NEON_ORANGE,
+  Hybrid: NEON_PURPLE,
+  Cardio: NEON_BLUE,
+  Mobility: NEON_YELLOW,
+  Stretching: NEON_YELLOW,
+  Zen: NEON_YELLOW,
 };
 
-type AddModalState = { open: boolean; date: string };
-type AddTypeModalState = { open: boolean; date: string; type: 'Creator' | 'External' | '' };
-type EditModalState = { open: boolean; workoutId: string | null };
-type DetailModalState = { open: boolean; workout: PlannerEvent | null };
-
-/** -----------------------------
- *  Utils
- *  ----------------------------- */
-const isBrowser = typeof window !== 'undefined';
-
-const getWeekDates = (date: Moment) => {
-  const start = moment(date).startOf('isoWeek');
-  return Array.from({ length: 7 }, (_, i) => moment(start).add(i, 'days'));
+// --- Utility Functions ---
+const normalizeWorkoutType = (type: string): WorkoutType => {
+  const lower = type.toLowerCase();
+  if (lower.includes('run')) return 'Run';
+  if (lower.includes('strength') || lower.includes('weights')) return 'Strength';
+  if (lower.includes('hybrid')) return 'Hybrid';
+  if (lower.includes('cardio') || lower.includes('cycling') || lower.includes('bike')) return 'Cardio';
+  if (lower.includes('mobility') || lower.includes('stretch') || lower.includes('yoga') || lower.includes('zen'))
+    return 'Mobility';
+  return 'Cardio';
 };
 
-// Normalize any free-form string to a valid WorkoutType
-const normalizeWorkoutType = (t: unknown): WorkoutType => {
-  const s = String(t || '').trim();
-  return (WORKOUT_TYPES as readonly string[]).includes(s) ? (s as WorkoutType) : 'Other';
+// --- Modal Component ---
+const Modal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+  title?: string;
+}> = ({ isOpen, onClose, children, title }) => {
+  if (!isOpen) return null;
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-gradient-to-br from-gray-900 to-black border-2 border-cyan-500 rounded-2xl p-6 max-w-md w-full shadow-2xl max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {title && <h2 className="text-2xl font-bold text-cyan-300 mb-4">{title}</h2>}
+        {children}
+      </div>
+    </div>
+  );
 };
 
-/** -----------------------------
- *  Component
- *  ----------------------------- */
+// --- Loading Spinner Component ---
+const LoadingSpinner: React.FC = () => (
+  <div className="flex items-center justify-center p-4">
+    <FaSpinner className="animate-spin text-cyan-400 text-3xl" />
+  </div>
+);
 
+// --- Main Component ---
 export type PlannerCalendarHandle = {
   openAddModalForToday: () => void;
 };
 
 const PlannerCalendar = forwardRef<PlannerCalendarHandle>((_, ref) => {
-  moment.locale('nl');
   const { user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
 
-  // Core state
-  const [currentWeek, setCurrentWeek] = useState<Moment>(moment());
-  const [currentDay, setCurrentDay] = useState<Moment>(moment());
-  const [plannerEvents, setPlannerEvents] = useState<PlannerEvent[]>([]);
+  // --- State ---
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [loading, setLoading] = useState(false);
   const [viewMode, setViewMode] = useState<'Week' | 'Month' | 'Day'>('Week');
-
-  // Month view state (mirrors selected week when switching)
-  const [currentMonth, setCurrentMonth] = useState<Moment>(moment());
-  useEffect(() => {
-    if (viewMode === 'Month') {
-      setCurrentMonth(currentWeek.clone());
-    }
-  }, [viewMode, currentWeek]);
-
-  // Month grid (Mon-Sun rows spanning first/last partial weeks)
-  const getMonthGrid = (month: Moment) => {
-    const start = month.clone().startOf('month').startOf('isoWeek');
-    const end = month.clone().endOf('month').endOf('isoWeek');
-    const days: Moment[] = [];
-    let day = start.clone();
-    while (day.isSameOrBefore(end, 'day')) {
-      days.push(day.clone());
-      day.add(1, 'day');
-    }
-    return days;
-  };
-
-  const monthDays = useMemo(() => getMonthGrid(currentMonth), [currentMonth]);
-  const monthLabel = useMemo(() => currentMonth.format('MMMM YYYY'), [currentMonth]);
-
-  // UI state
-  const [addModal, setAddModal] = useState<AddModalState>({ open: false, date: '' });
-  const [addTypeModal, setAddTypeModal] = useState<AddTypeModalState>({
+  const [currentWeek, setCurrentWeek] = useState(moment().startOf('isoWeek'));
+  const [currentMonth, setCurrentMonth] = useState(moment());
+  const [currentDay, setCurrentDay] = useState(moment());
+  const [addModal, setAddModal] = useState<{ open: boolean; date: string }>({ open: false, date: '' });
+  const [editModal, setEditModal] = useState<{ open: boolean; eventId: string }>({ open: false, eventId: '' });
+  const [typeModal, setTypeModal] = useState<{ open: boolean; date: string }>({ open: false, date: '' });
+  const [restDayModal, setRestDayModal] = useState<{ open: boolean; date: string; eventId?: string }>({
     open: false,
     date: '',
-    type: '',
-  });
-  const [editModal, setEditModal] = useState<EditModalState>({ open: false, workoutId: null });
-  const [detailModal, setDetailModal] = useState<DetailModalState>({ open: false, workout: null });
-
-  // External/Creator form
-  const [externalForm, setExternalForm] = useState<ExternalForm>({
-    name: '',
-    notes: '',
-    time: '07:00',
-    types: [],
-    hero_image_url: '',
-    tags: [],
-    creator_id: undefined,
-    exercises: [],
-    duration: 0,
-    recurrence_rule: null,
-    recurrence_end: null,
-    color: '#FF7A18',
-    reminder_minutes_before: null,
+    eventId: undefined
   });
 
-  // Expose imperative handle for parent to trigger Add modal
+  // Add workout modal state
+  const [addWorkoutTime, setAddWorkoutTime] = useState<string>('');
+
+  // Rest day modal state
+  const [restDayNotes, setRestDayNotes] = useState<string>('');
+
+  // Edit modal state
+  const [editTitle, setEditTitle] = useState('');
+  const [editDuration, setEditDuration] = useState<number>(0);
+  const [editNotes, setEditNotes] = useState('');
+  const [editTime, setEditTime] = useState('');
+  const [editWorkoutType, setEditWorkoutType] = useState('');
+  const [editColor, setEditColor] = useState('');
+  const [editReminderMinutes, setEditReminderMinutes] = useState<number>(0);
+  const [editRecurringRule, setEditRecurringRule] = useState<string>('');
+  const [showRecurringPrompt, setShowRecurringPrompt] = useState(false);
+  const [pendingEdit, setPendingEdit] = useState<{ eventId: string; updates: Partial<CalendarEvent> } | null>(null);
+  const [generatorModal, setGeneratorModal] = useState<{
+    open: boolean;
+    payload: PlannerSchedulePayload | null;
+  }>({ open: false, payload: null });
+  const [generatorForm, setGeneratorForm] = useState<{
+    date: string;
+    time: string;
+    reminderMinutes: number;
+  }>({
+    date: moment().format('YYYY-MM-DD'),
+    time: '',
+    reminderMinutes: 0,
+  });
+  const [programModal, setProgramModal] = useState<{
+    open: boolean;
+    data: ProgramSchedulingData | null;
+  }>({ open: false, data: null });
+  const [isProgramScheduling, setIsProgramScheduling] = useState(false);
+
+  const sortEventsByDate = (list: CalendarEvent[]) =>
+    list
+      .slice()
+      .sort((a, b) => {
+        const dateDiff = moment(a.date).diff(moment(b.date));
+        if (dateDiff !== 0) return dateDiff;
+        const timeA = a.time || '';
+        const timeB = b.time || '';
+        return timeA.localeCompare(timeB);
+      });
+
+  // --- Expose methods via ref ---
   useImperativeHandle(ref, () => ({
     openAddModalForToday: () => {
-      setAddModal({ open: true, date: moment().format('YYYY-MM-DD') });
+      const today = moment().format('YYYY-MM-DD');
+      setAddModal({ open: true, date: today });
     },
   }));
 
-  /** -----------------------------
-   *  Derived values
-   *  ----------------------------- */
-  const weekDates = useMemo(() => getWeekDates(currentWeek), [currentWeek]);
-  const weekNumber = useMemo(() => currentWeek.isoWeek(), [currentWeek]);
+  useEffect(() => {
+    const state = location.state as Record<string, unknown> | undefined;
 
-  // Helper: expand recurring events for a given date range
-  function expandRecurringEvents(events: PlannerEvent[], range: Moment[]) {
-    const result: PlannerEvent[] = [];
-    for (const e of events) {
-      if (!e.recurrence_rule) {
-        result.push(e);
-        continue;
+    // Handle regular workout payload
+    const payloadId = state?.plannerAddWorkoutId as string | undefined;
+    const storedPayload =
+      typeof window !== 'undefined' && payloadId ? sessionStorage.getItem(payloadId) : null;
+
+    const inlinePayload = state?.plannerAddWorkout as PlannerSchedulePayload | undefined;
+
+    let payload: PlannerSchedulePayload | null = null;
+
+    if (storedPayload) {
+      try {
+        payload = JSON.parse(storedPayload) as PlannerSchedulePayload;
+        console.log('[Planner] Loaded payload from sessionStorage:', payloadId, payload);
+        sessionStorage.removeItem(payloadId!);
+      } catch (error) {
+        console.error('[Planner] Failed to load planner payload from storage', error);
+        toast.error('Kon gegenereerde workout niet laden');
       }
-      // Only support simple RRULEs: DAILY, WEEKLY, MONTHLY
-      const start = moment(e.date);
-      const end = e.recurrence_end ? moment(e.recurrence_end) : range[range.length - 1];
-      let freq = '';
-      if (e.recurrence_rule.includes('FREQ=DAILY')) freq = 'DAILY';
-      else if (e.recurrence_rule.includes('FREQ=WEEKLY')) freq = 'WEEKLY';
-      else if (e.recurrence_rule.includes('FREQ=MONTHLY')) freq = 'MONTHLY';
-      else {
-        result.push(e); // fallback: treat as single event
-        continue;
+    } else if (inlinePayload) {
+      console.log('[Planner] Received inline payload via navigation state', inlinePayload);
+      payload = inlinePayload;
+    }
+
+    if (payload) {
+      console.log('[Planner] Opening generator modal with payload', payload);
+      setGeneratorModal({ open: true, payload });
+      setGeneratorForm({
+        date: payload.suggestedDate || moment().format('YYYY-MM-DD'),
+        time: payload.suggestedTime || '',
+        reminderMinutes: 0,
+      });
+    }
+
+    // Handle program scheduling data
+    const programId = state?.plannerProgramId as string | undefined;
+    const storedProgram =
+      typeof window !== 'undefined' && programId ? sessionStorage.getItem(programId) : null;
+
+    if (storedProgram) {
+      try {
+        const programData = JSON.parse(storedProgram) as ProgramSchedulingData;
+        console.log('[Planner] Loaded program data from sessionStorage:', programId, programData);
+        sessionStorage.removeItem(programId);
+        setProgramModal({ open: true, data: programData });
+      } catch (error) {
+        console.error('[Planner] Failed to load program data from storage', error);
+        toast.error('Kon programma niet laden');
       }
-      for (const d of range) {
-        if (d.isBefore(start, 'day') || d.isAfter(end, 'day')) continue;
-        if (
-          freq === 'DAILY' ||
-          (freq === 'WEEKLY' && d.isoWeekday() === start.isoWeekday()) ||
-          (freq === 'MONTHLY' && d.date() === start.date())
-        ) {
-          // Clone event for this date
-          result.push({ ...e, date: d.format('YYYY-MM-DD') });
+    }
+
+    if (state?.plannerAddWorkoutId || state?.plannerAddWorkout || state?.plannerProgramId) {
+      console.log('[Planner] Cleaning router state after consuming payload');
+      const nextState = { ...state };
+      delete (nextState as any).plannerAddWorkout;
+      delete (nextState as any).plannerAddWorkoutId;
+      delete (nextState as any).plannerProgramId;
+      navigate(location.pathname, { replace: true, state: nextState });
+    }
+  }, [location, navigate]);
+
+  // --- Load events from Supabase ---
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+
+    const loadEvents = async () => {
+      try {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from('planner_events')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('date', { ascending: true });
+
+        if (error) throw error;
+        if (!cancelled && data) {
+          setEvents(data as CalendarEvent[]);
+        }
+      } catch (e) {
+        console.error('Failed to load events:', e);
+        toast.error('Kon events niet laden');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    // Try to migrate localStorage data to Supabase on first load
+    const migrateLocalStorage = async () => {
+      const stored = localStorage.getItem('plannerEvents');
+      if (stored && user) {
+        try {
+          const localEvents = JSON.parse(stored) as CalendarEvent[];
+          if (localEvents.length > 0) {
+            // Add user_id to each event and insert to Supabase
+            const eventsToInsert = localEvents.map((event) => ({
+              ...event,
+              user_id: user.id,
+              id: undefined, // Let Supabase generate new IDs
+            }));
+
+            const { error } = await supabase
+              .from('planner_events')
+              .insert(eventsToInsert);
+
+            if (!error) {
+              console.log('Migrated localStorage events to Supabase');
+              localStorage.removeItem('plannerEvents');
+              toast.success('Je oude workouts zijn gemigreerd!');
+            }
+          }
+        } catch (e) {
+          console.error('Failed to migrate localStorage events:', e);
         }
       }
+    };
+
+    migrateLocalStorage().then(() => loadEvents());
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  // --- Computed Values ---
+  const weekDates = Array.from({ length: 7 }, (_, i) => currentWeek.clone().add(i, 'days'));
+  const weekNumber = currentWeek.isoWeek();
+
+  const eventsByDate = events.reduce((acc, event) => {
+    if (!acc[event.date]) acc[event.date] = [];
+    acc[event.date].push(event);
+    return acc;
+  }, {} as Record<string, CalendarEvent[]>);
+
+  const completedCount = events.filter((e) => e.completed && e.type === 'workout').length;
+  const futureCount = events.filter(
+    (e) => !e.completed && e.type === 'workout' && moment(e.date).isSameOrAfter(moment(), 'day')
+  ).length;
+  const totalMinutes = events
+    .filter((e) => e.completed && e.type === 'workout')
+    .reduce((sum, e) => sum + (e.duration_min || 0), 0);
+
+  // Month view
+  const monthLabel = currentMonth.format('MMMM YYYY');
+  const firstDayOfMonth = currentMonth.clone().startOf('month');
+  const startOfCalendar = firstDayOfMonth.clone().startOf('isoWeek');
+  const monthDays = Array.from({ length: 42 }, (_, i) => startOfCalendar.clone().add(i, 'days'));
+
+  const eventsByDateMonth = events.reduce((acc, event) => {
+    if (!acc[event.date]) acc[event.date] = [];
+    acc[event.date].push(event);
+    return acc;
+  }, {} as Record<string, CalendarEvent[]>);
+
+  // Day view
+  const eventsForCurrentDay = events.filter((e) => e.date === currentDay.format('YYYY-MM-DD'));
+
+  // --- Handlers ---
+  const handlePrevWeek = () => setCurrentWeek((w) => w.clone().subtract(1, 'week'));
+  const handleNextWeek = () => setCurrentWeek((w) => w.clone().add(1, 'week'));
+
+  const handleRestDayClick = (dateStr: string) => {
+    if (!user) return;
+    const dayEvents = eventsByDate[dateStr] || [];
+    const restEvent = dayEvents.find((e) => e.type === 'rest');
+
+    if (restEvent) {
+      // Edit existing rest day
+      setRestDayNotes(restEvent.notes || '');
+      setRestDayModal({ open: true, date: dateStr, eventId: restEvent.id });
+    } else {
+      // Add new rest day
+      setRestDayNotes('');
+      setRestDayModal({ open: true, date: dateStr, eventId: undefined });
     }
-    return result;
-  }
+  };
 
-  // Map date string to events for DnD (Week view, with recurrence)
-  // Events for current day (Day view)
-  const eventsForCurrentDay = useMemo(() => {
-    const dateStr = currentDay.format('YYYY-MM-DD');
-    // Expand recurring events for this day only
-    const expanded = expandRecurringEvents(plannerEvents, [currentDay]);
-    return expanded.filter(e => e.date === dateStr);
-  }, [plannerEvents, currentDay]);
-  const eventsByDate = useMemo(() => {
-    const map: Record<string, PlannerEvent[]> = {};
-    weekDates.forEach((d) => {
-      map[d.format('YYYY-MM-DD')] = [];
-    });
-    const expanded = expandRecurringEvents(plannerEvents, weekDates);
-    expanded.forEach((e) => {
-      if (map[e.date]) map[e.date].push(e);
-    });
-    return map;
-  }, [plannerEvents, weekDates]);
-
-  // Map date string to events for the whole month (Month view, with recurrence)
-  const eventsByDateMonth = useMemo(() => {
-    const map: Record<string, PlannerEvent[]> = {};
-    monthDays.forEach((d) => {
-      map[d.format('YYYY-MM-DD')] = [];
-    });
-    const expanded = expandRecurringEvents(plannerEvents, monthDays);
-    expanded.forEach((e) => {
-      if (map[e.date]) map[e.date].push(e);
-    });
-    return map;
-  }, [plannerEvents, monthDays]);
-
-  // KPIs
-  const completedCount = useMemo(
-    () => plannerEvents.filter((e) => e.completed && e.type === 'workout').length,
-    [plannerEvents]
-  );
-  const futureCount = useMemo(() => {
-    const todayStr = moment().format('YYYY-MM-DD');
-    return plannerEvents.filter((e) => e.type === 'workout' && e.date > todayStr).length;
-  }, [plannerEvents]);
-  const totalMinutes = useMemo(
-    () =>
-      plannerEvents.reduce((sum, e) => {
-        const d = Number(e.duration_min || 0);
-        return sum + (Number.isFinite(d) ? d : 0);
-      }, 0),
-    [plannerEvents]
-  );
-
-  /** -----------------------------
-   *  Fetch events (range depends on view)
-   *  ----------------------------- */
-  useEffect(() => {
+  const handleSaveRestDay = async () => {
     if (!user) return;
 
-    const { start, end } =
-      viewMode === 'Month'
-        ? {
-            start: currentMonth.clone().startOf('month').startOf('isoWeek').format('YYYY-MM-DD'),
-            end: currentMonth.clone().endOf('month').endOf('isoWeek').format('YYYY-MM-DD'),
-          }
-        : {
-            start: currentWeek.clone().startOf('isoWeek').format('YYYY-MM-DD'),
-            end: currentWeek.clone().endOf('isoWeek').format('YYYY-MM-DD'),
-          };
+    try {
+      setLoading(true);
 
-    (async () => {
-      const { data, error } = await supabase
-        .from('planner_events')
-        .select('*')
-        .eq('user_id', user.id)
-        .gte('date', start)
-        .lte('date', end)
-        .order('date', { ascending: true });
+      if (restDayModal.eventId) {
+        // Update existing rest day
+        const { data, error } = await supabase
+          .from('planner_events')
+          .update({ notes: restDayNotes })
+          .eq('id', restDayModal.eventId)
+          .select()
+          .single();
 
-      if (error) {
-        // eslint-disable-next-line no-console
-        console.error('Failed to load planner_events:', error);
-        return;
+        if (error) throw error;
+        if (data) {
+          setEvents((prev) => prev.map((e) => (e.id === restDayModal.eventId ? (data as CalendarEvent) : e)));
+          toast.success('Rustdag bijgewerkt');
+        }
+      } else {
+        // Create new rest day
+        const newRest: Partial<CalendarEvent> = {
+          user_id: user.id,
+          type: 'rest',
+          date: restDayModal.date,
+          title: 'Rest Day',
+          notes: restDayNotes || undefined,
+          color: NEON_YELLOW,
+          completed: false,
+        };
+
+        const { data, error } = await supabase
+          .from('planner_events')
+          .insert(newRest)
+          .select()
+          .single();
+
+        if (error) throw error;
+        if (data) {
+          setEvents((prev) => [...prev, data as CalendarEvent]);
+          toast.success('Rustdag toegevoegd');
+        }
       }
-      setPlannerEvents((data || []) as PlannerEvent[]);
-    })();
-  }, [user, viewMode, currentWeek, currentMonth]);
 
-  /** -----------------------------
-   *  Check router state: plannerAddWorkout (from generator)
-   *  ----------------------------- */
-  useEffect(() => {
-    if (!isBrowser) return;
-    const nav = (window.history.state || {}) as any;
-    const plannerAddWorkout = nav?.usr?.plannerAddWorkout;
-    if (plannerAddWorkout) {
-      const today = moment().format('YYYY-MM-DD');
-      setAddTypeModal({ open: true, date: today, type: 'Creator' });
-
-      // Normalize inbound fields to satisfy TS and UI constraints
-      const normalizedType = normalizeWorkoutType(plannerAddWorkout.trainingType);
-      const normalizedTypes: WorkoutType[] = [normalizedType];
-
-      setExternalForm((prev) => ({
-        ...prev,
-        name: plannerAddWorkout.name || 'Generated Workout',
-        notes: plannerAddWorkout.description || '',
-        time: '07:00',
-        types: normalizedTypes,
-        hero_image_url: plannerAddWorkout.hero_image_url || '',
-        tags: Array.isArray(plannerAddWorkout.tags) ? plannerAddWorkout.tags : [],
-        creator_id: undefined,
-        exercises: Array.isArray(plannerAddWorkout.exercises) ? plannerAddWorkout.exercises : [],
-        duration: Number(plannerAddWorkout.duration || 0),
-      }));
-      // Clear the state so it won't reopen
-      window.history.replaceState(
-        { ...nav, usr: { ...nav?.usr, plannerAddWorkout: undefined } },
-        ''
-      );
+      setRestDayModal({ open: false, date: '', eventId: undefined });
+      setRestDayNotes('');
+    } catch (e) {
+      console.error('Failed to save rest day:', e);
+      toast.error('Kon rustdag niet opslaan');
+    } finally {
+      setLoading(false);
     }
-  }, []);
+  };
 
-  /** -----------------------------
-   *  Week navigation
-   *  ----------------------------- */
-  const handlePrevWeek = () => setCurrentWeek((w) => moment(w).subtract(1, 'week'));
-  const handleNextWeek = () => setCurrentWeek((w) => moment(w).add(1, 'week'));
+  const handleDeleteRestDay = async () => {
+    if (!restDayModal.eventId) return;
 
-  /** -----------------------------
-   *  Drag-and-drop
-   *  ----------------------------- */
-  const onDragEnd = async (result: DropResult) => {
-    if (!result.destination) return;
-    const { source, destination, draggableId } = result;
-    const srcDate = source.droppableId;
-    const destDate = destination.droppableId;
-    if (srcDate === destDate) return;
+    try {
+      setLoading(true);
+      const { error } = await supabase
+        .from('planner_events')
+        .delete()
+        .eq('id', restDayModal.eventId);
 
-    const event = plannerEvents.find((e) => e.id === draggableId);
+      if (error) throw error;
+      setEvents((prev) => prev.filter((e) => e.id !== restDayModal.eventId));
+      toast.success('Rustdag verwijderd');
+      setRestDayModal({ open: false, date: '', eventId: undefined });
+      setRestDayNotes('');
+    } catch (e) {
+      console.error('Failed to delete rest day:', e);
+      toast.error('Kon rustdag niet verwijderen');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddWorkoutClick = (dateStr: string) => {
+    setAddWorkoutTime('');
+    setTypeModal({ open: true, date: dateStr });
+  };
+
+  const handleCompleteWorkout = async (id: string) => {
+    const event = events.find((e) => e.id === id);
     if (!event) return;
 
-    const { data, error } = await supabase
-      .from('planner_events')
-      .update({ date: destDate })
-      .eq('id', event.id)
-      .select()
-      .single();
+    // Optimistic update - update UI immediately
+    const newCompletedState = !event.completed;
+    setEvents((prev) => prev.map((e) => (e.id === id ? { ...e, completed: newCompletedState } : e)));
 
-    if (error) {
-      // eslint-disable-next-line no-console
-      console.error('Failed to move workout:', error);
-      return;
-    }
+    // Show immediate feedback
+    toast.success(newCompletedState ? 'Workout voltooid! 🎉' : 'Workout gemarkeerd als niet voltooid');
 
-    if (data) {
-      setPlannerEvents((prev) =>
-        prev.map((e) => (e.id === event.id ? { ...e, date: destDate } : e))
-      );
-    }
-  };
-
-  /** -----------------------------
-   *  CTA: Add & Rest Day
-   *  ----------------------------- */
-  const handleAddWorkoutClick = (date: string) => {
-    setAddModal({ open: true, date });
-  };
-
-  const handleRestDayClick = async (date: string) => {
-    if (!user) return;
-    const existing = plannerEvents.find((e) => e.date === date && e.type === 'rest');
-    if (existing) {
-      const { error } = await supabase.from('planner_events').delete().eq('id', existing.id);
-      if (error) {
-        // eslint-disable-next-line no-console
-        console.error('Failed to delete rest day:', error);
-      }
-      setPlannerEvents((events) => events.filter((e) => e.id !== existing.id));
-    } else {
+    try {
+      // Update in background
       const { data, error } = await supabase
         .from('planner_events')
-        .insert({
-          user_id: user.id,
-          date,
-          type: 'rest',
-          title: 'Rest Day',
-        })
+        .update({ completed: newCompletedState })
+        .eq('id', id)
         .select()
         .single();
 
-      if (error) {
-        // eslint-disable-next-line no-console
-        console.error('Failed to insert rest day:', error);
-      }
+      if (error) throw error;
 
+      // Sync with server response to ensure consistency
       if (data) {
-        setPlannerEvents((events) => [...events, data as PlannerEvent]);
+        setEvents((prev) => prev.map((e) => (e.id === id ? (data as CalendarEvent) : e)));
+        if (
+          !event.completed &&
+          newCompletedState &&
+          event.meta &&
+          typeof event.meta === 'object' &&
+          (event.meta as any).generator &&
+          user
+        ) {
+          try {
+            await supabase.from('user_workout_history').insert({
+              user_id: user.id,
+              exercise_id: id,
+              completed_at: new Date().toISOString(),
+              notes: 'planner_generated',
+            });
+          } catch (historyError) {
+            console.error('Failed to log workout completion history', historyError);
+          }
+        }
       }
-    }
-  };
-
-  /** -----------------------------
-   *  Add flow: choose type
-   *  ----------------------------- */
-  const handleWorkoutTypeSelect = async (choice: string) => {
-    if (!user) return;
-
-    if (choice === 'External') {
-      setAddModal({ open: false, date: addModal.date });
-      setAddTypeModal({ open: true, date: addModal.date, type: 'External' });
-      setExternalForm({
-        name: '',
-        notes: '',
-        time: '07:00',
-        types: [],
-        hero_image_url: '',
-        tags: [],
-        creator_id: undefined,
-        exercises: [],
-        duration: 0,
-        recurrence_rule: null,
-        recurrence_end: null,
-        color: '#FF7A18',
-        reminder_minutes_before: null,
-      });
-      return;
-    }
-
-    if (choice === 'Workout Generator') {
-      if (isBrowser) window.location.href = '/workout-generator';
-      return;
-    }
-
-    if (choice === 'Workout Creator') {
-      if (isBrowser) window.location.href = '/modules/workout/workout-creator';
-      return;
-    }
-
-    // Quick add placeholder workout event
-    const { data, error } = await supabase
-      .from('planner_events')
-      .insert({
-        user_id: user.id,
-        date: addModal.date,
-        type: 'workout',
-        title: `${choice}`,
-        completed: false,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      // eslint-disable-next-line no-console
-      console.error('Failed to quick insert workout:', error);
-    }
-
-    if (data) setPlannerEvents((events) => [...events, data as PlannerEvent]);
-    setAddModal({ open: false, date: '' });
-  };
-
-  /** -----------------------------
-   *  External/Creator form helpers
-   *  ----------------------------- */
-  const handleExternalFormChange = <K extends keyof ExternalForm>(
-    field: K,
-    value: ExternalForm[K]
-  ) => setExternalForm((prev) => ({ ...prev, [field]: value }));
-
-  const handleTypeToggle = (type: WorkoutType) => {
-    setExternalForm((prev) => {
-      const exists = prev.types.includes(type);
-      const next = exists
-        ? prev.types.filter((t) => t !== type)
-        : prev.types.length < 3
-          ? [...prev.types, type]
-          : prev.types;
-      return { ...prev, types: next };
-    });
-  };
-
-  const handleExternalFormSubmit = async () => {
-    if (!user || !addTypeModal.date) return;
-
-    const payload: any = {
-      user_id: user.id,
-      date: addTypeModal.date,
-      type: 'workout' as const,
-      title: externalForm.name || 'Workout',
-      notes: externalForm.notes || '',
-      duration_min: Number(externalForm.duration || 0),
-      completed: false,
-      external: addTypeModal.type === 'External',
-      hero_image_url: externalForm.hero_image_url || null,
-      tags: externalForm.tags?.length ? externalForm.tags : null,
-      creator_id: externalForm.creator_id || null,
-      exercises: externalForm.exercises?.length ? externalForm.exercises : null,
-      workout_type: externalForm.types?.[0] || 'Other',
-      source: (addTypeModal.type === 'External' ? 'external' : 'creator') as WorkoutSource,
-      recurrence_rule: externalForm.recurrence_rule || null,
-      recurrence_end: externalForm.recurrence_end || null,
-      color: externalForm.color || null,
-      reminder_minutes_before: externalForm.reminder_minutes_before ?? null,
-      time: externalForm.time || null,
-    };
-
-    const { data, error } = await supabase.from('planner_events').insert(payload).select().single();
-    if (error) {
-      // eslint-disable-next-line no-console
-      console.error('Failed to insert external/creator workout:', error);
-    }
-    if (data) {
-      setPlannerEvents((events) => [...events, data as PlannerEvent]);
-      setAddTypeModal({ open: false, date: '', type: '' });
-      setExternalForm({
-        name: '',
-        notes: '',
-        time: '07:00',
-        types: [],
-        hero_image_url: '',
-        tags: [],
-        creator_id: undefined,
-        exercises: [],
-        duration: 0,
-        recurrence_rule: null,
-        recurrence_end: null,
-        color: '#FF7A18',
-        reminder_minutes_before: null,
-      });
-    }
-  };
-
-  /** -----------------------------
-   *  Edit / Complete / Delete
-   *  ----------------------------- */
-  const openEditFor = (id: string) => {
-    const ev = plannerEvents.find((e) => e.id === id);
-    if (!ev) return;
-
-    setExternalForm((prev) => ({
-      ...prev,
-      name: ev.title || '',
-      notes: ev.notes || '',
-      time: ev.time || '07:00',
-      types: ev.workout_type ? [normalizeWorkoutType(ev.workout_type)] : [],
-      hero_image_url: ev.hero_image_url || '',
-      tags: ev.tags || [],
-      creator_id: ev.creator_id,
-      exercises: ev.exercises || [],
-      duration: Number(ev.duration_min || 0),
-      recurrence_rule: ev.recurrence_rule ?? null,
-      recurrence_end: ev.recurrence_end ?? null,
-      color: ev.color ?? '#FF7A18',
-      reminder_minutes_before: ev.reminder_minutes_before ?? null,
-    }));
-
-    setEditModal({ open: true, workoutId: id });
-  };
-
-  const handleEditFormSubmit = async () => {
-    if (!editModal.workoutId) return;
-
-    const payload: any = {
-      title: externalForm.name || 'Workout',
-      notes: externalForm.notes || '',
-      duration_min: Number(externalForm.duration || 0),
-      workout_type: externalForm.types?.[0] || 'Other',
-      hero_image_url: externalForm.hero_image_url || null,
-      tags: externalForm.tags?.length ? externalForm.tags : null,
-      exercises: externalForm.exercises?.length ? externalForm.exercises : null,
-      creator_id: externalForm.creator_id || null,
-      recurrence_rule: externalForm.recurrence_rule || null,
-      recurrence_end: externalForm.recurrence_end || null,
-      color: externalForm.color || null,
-      reminder_minutes_before: externalForm.reminder_minutes_before ?? null,
-      time: externalForm.time || null,
-    };
-
-    const { data, error } = await supabase
-      .from('planner_events')
-      .update(payload)
-      .eq('id', editModal.workoutId)
-      .select()
-      .single();
-
-    if (error) {
-      // eslint-disable-next-line no-console
-      console.error('Failed to update workout:', error);
-    }
-
-    if (data) {
-      setPlannerEvents((events) =>
-        events.map((e) => (e.id === editModal.workoutId ? (data as PlannerEvent) : e))
-      );
-      setEditModal({ open: false, workoutId: null });
+    } catch (e) {
+      console.error('Failed to toggle workout completion:', e);
+      // Rollback on error
+      setEvents((prev) => prev.map((e) => (e.id === id ? { ...e, completed: event.completed } : e)));
+      toast.error('Kon workout status niet bijwerken - wijziging teruggedraaid');
     }
   };
 
   const handleDeleteWorkout = async (id: string) => {
-    const { error } = await supabase.from('planner_events').delete().eq('id', id);
-    if (error) {
-      // eslint-disable-next-line no-console
-      console.error('Failed to delete workout:', error);
-    }
-    setPlannerEvents((events) => events.filter((e) => e.id !== id));
-    if (editModal.open && editModal.workoutId === id) {
-      setEditModal({ open: false, workoutId: null });
-    }
-    // Close detail panel if that item was open
-    if (detailModal.open && detailModal.workout?.id === id) {
-      setDetailModal({ open: false, workout: null });
+    if (!confirm('Weet je zeker dat je deze workout wilt verwijderen?')) return;
+
+    try {
+      setLoading(true);
+      const { error } = await supabase.from('planner_events').delete().eq('id', id);
+
+      if (error) throw error;
+      setEvents((prev) => prev.filter((e) => e.id !== id));
+      toast.success('Workout verwijderd');
+    } catch (e) {
+      console.error('Failed to delete workout:', e);
+      toast.error('Kon workout niet verwijderen');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleCompleteWorkout = async (id: string) => {
-    const event = plannerEvents.find((e) => e.id === id);
-    if (!event) return;
+  const handleRunWorkout = (workoutId: string) => {
+    toast('Workout starten binnenkort beschikbaar!', { icon: '🏃' });
+  };
 
-    const { data, error } = await supabase
-      .from('planner_events')
-      .update({ completed: !event.completed })
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) {
-      // eslint-disable-next-line no-console
-      console.error('Failed to toggle complete:', error);
+  const openEditFor = (id: string) => {
+    const event = events.find((e) => e.id === id);
+    if (event) {
+      setEditTitle(event.title || '');
+      setEditDuration(event.duration_min || 0);
+      setEditNotes(event.notes || '');
+      setEditTime(event.time || '');
+      setEditWorkoutType(event.workout_type || '');
+      setEditColor(event.color || '');
+      setEditReminderMinutes(event.reminder_minutes || 0);
+      setEditRecurringRule(event.recurring_rule || '');
+      setEditModal({ open: true, eventId: id });
     }
+  };
 
-    if (data) {
-      setPlannerEvents((events) => events.map((e) => (e.id === id ? (data as PlannerEvent) : e)));
-      // sync the detail drawer if it is showing this workout
-      if (detailModal.open && detailModal.workout?.id === id) {
-        setDetailModal({ open: true, workout: data as PlannerEvent });
+  const onDragEnd = async (result: any) => {
+    if (!result.destination) return;
+    const { draggableId, destination } = result;
+    const newDate = destination.droppableId;
+
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('planner_events')
+        .update({ date: newDate })
+        .eq('id', draggableId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      if (data) {
+        setEvents((prev) => prev.map((e) => (e.id === draggableId ? (data as CalendarEvent) : e)));
+        toast.success('Workout verplaatst');
       }
+    } catch (e) {
+      console.error('Failed to move event:', e);
+      toast.error('Kon workout niet verplaatsen');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleRunWorkout = (creatorId: string) => {
-    if (!isBrowser) return;
-    // In the future: navigate(`/modules/workouts/execute?id=${creatorId}`)
-    // For now:
-    // eslint-disable-next-line no-alert
-    alert('Start workout: ' + creatorId);
+  const handleAddWorkout = async (type: string, date: string) => {
+    if (!user) return;
+
+    try {
+      setLoading(true);
+      const newWorkout = {
+        type: 'workout' as const,
+        date,
+        title: `${type} Workout`,
+        workout_type: type,
+        duration_min: 30,
+        time: addWorkoutTime || undefined,
+        color: WORKOUT_TYPE_COLORS[type] || NEON_ORANGE,
+        completed: false,
+      };
+
+      // Use the service to handle recurring events
+      const endDate = moment(date).add(3, 'months').format('YYYY-MM-DD');
+      const { data, error } = await createWorkoutEvent(newWorkout, endDate);
+
+      if (error) throw error;
+      if (data) {
+        // Reload events to get any generated recurring instances
+        const { data: allEvents } = await supabase
+          .from('planner_events')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('date', { ascending: true });
+
+        if (allEvents) {
+          setEvents(allEvents as CalendarEvent[]);
+        }
+
+        setTypeModal({ open: false, date: '' });
+        setAddWorkoutTime('');
+        toast.success(`${type} workout toegevoegd!`);
+      }
+    } catch (e) {
+      console.error('Failed to add workout:', e);
+      toast.error('Kon workout niet toevoegen');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  /** -----------------------------
-   *  Background overlay (SSR-safe)
-   *  ----------------------------- */
-  useEffect(() => {
-    if (!isBrowser || !document?.body) return;
+  const handleSaveEdit = async (eventId: string, updates: Partial<CalendarEvent>, updateFuture: boolean = false) => {
+    // Validation
+    if (updates.title !== undefined && !updates.title.trim()) {
+      toast.error('Titel mag niet leeg zijn');
+      return;
+    }
+    if (updates.duration_min !== undefined && updates.duration_min < 0) {
+      toast.error('Duur mag niet negatief zijn');
+      return;
+    }
 
-    const body = document.body;
-    const prevStyles = {
-      backgroundImage: body.style.backgroundImage,
-      backgroundSize: body.style.backgroundSize,
-      backgroundPosition: body.style.backgroundPosition,
-      backgroundRepeat: body.style.backgroundRepeat,
-      minHeight: body.style.minHeight,
+    const event = events.find((e) => e.id === eventId);
+
+    // Check if this is a recurring event
+    if (event && (event.recurring_rule || event.parent_event_id) && !showRecurringPrompt) {
+      // Store pending edit and show prompt
+      setPendingEdit({ eventId, updates });
+      setShowRecurringPrompt(true);
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      if (updateFuture && (event?.recurring_rule || event?.parent_event_id)) {
+        // Update this and all future instances
+        const { success, error } = await updateRecurringEvent(eventId, updates, true);
+
+        if (error) throw error;
+        if (success) {
+          // Reload all events
+          const { data: allEvents } = await supabase
+            .from('planner_events')
+            .select('*')
+            .eq('user_id', user?.id)
+            .order('date', { ascending: true });
+
+          if (allEvents) {
+            setEvents(allEvents as CalendarEvent[]);
+          }
+          toast.success('Recurring workout bijgewerkt');
+        }
+      } else {
+        // Just update this single event
+        const { data, error } = await supabase
+          .from('planner_events')
+          .update(updates)
+          .eq('id', eventId)
+          .select()
+          .single();
+
+        if (error) throw error;
+        if (data) {
+          setEvents((prev) => prev.map((e) => (e.id === eventId ? (data as CalendarEvent) : e)));
+          toast.success('Workout bijgewerkt');
+        }
+      }
+
+      setShowRecurringPrompt(false);
+      setPendingEdit(null);
+    } catch (e) {
+      console.error('Failed to update event:', e);
+      toast.error('Kon workout niet bijwerken');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const currentEditEvent = events.find((e) => e.id === editModal.eventId);
+
+  const generatorSummary = useMemo(() => {
+    if (!generatorModal.payload) {
+      return null;
+    }
+    const { muscles, tags, workoutType } = generatorModal.payload;
+    return {
+      musclesLabel: muscles.length ? muscles.join(', ') : '—',
+      tagsLabel: tags.length ? tags.join(', ') : '—',
+      workoutType,
     };
+  }, [generatorModal.payload]);
 
-    const prevOverlay = document.getElementById('planner-bg-overlay');
-    body.style.backgroundImage = "url('/images/workout_office_1.webp')";
-    body.style.backgroundSize = 'cover';
-    body.style.backgroundPosition = 'center';
-    body.style.backgroundRepeat = 'no-repeat';
-    body.style.minHeight = '100vh';
+  const handleGeneratorFormChange = (field: 'date' | 'time' | 'reminderMinutes', value: string) => {
+    setGeneratorForm((prev) => ({
+      ...prev,
+      [field]: field === 'reminderMinutes' ? Number(value) : value,
+    }));
+  };
 
-    let overlay = document.getElementById('planner-bg-overlay');
-    if (!overlay) {
-      overlay = document.createElement('div');
-      overlay.id = 'planner-bg-overlay';
-      overlay.style.position = 'fixed';
-      overlay.style.top = '0';
-      overlay.style.left = '0';
-      overlay.style.width = '100vw';
-      overlay.style.height = '100vh';
-      overlay.style.background = 'rgba(0,0,0,0.35)';
-      overlay.style.zIndex = '0';
-      overlay.style.pointerEvents = 'none';
-      document.body.appendChild(overlay);
+  const handleScheduleGeneratorWorkout = async () => {
+    if (!generatorModal.payload || !user) return;
+
+    try {
+      setLoading(true);
+      const payload = generatorModal.payload;
+      const newWorkout = {
+        type: 'workout' as const,
+        date: generatorForm.date,
+        title: payload.name,
+        notes: payload.description,
+        workout_type: payload.workoutType,
+        duration_min: payload.duration,
+        time: generatorForm.time || undefined,
+        color: WORKOUT_TYPE_COLORS[payload.workoutType] || NEON_ORANGE,
+        completed: false,
+        reminder_minutes: generatorForm.reminderMinutes || undefined,
+        source: 'Manual',
+        meta: payload.meta,
+      };
+
+      const { data, error} = await createWorkoutEvent(newWorkout);
+      if (error) throw error;
+      if (data) {
+        setEvents((prev) => sortEventsByDate([...prev, data as CalendarEvent]));
+        toast.success('Workout ingepland in je planner!');
+      }
+
+      setGeneratorModal({ open: false, payload: null });
+    } catch (e) {
+      console.error('Failed to schedule generator workout:', e);
+      toast.error('Kon generator workout niet plannen');
+    } finally {
+      setLoading(false);
     }
+  };
 
-    return () => {
-      body.style.backgroundImage = prevStyles.backgroundImage;
-      body.style.backgroundSize = prevStyles.backgroundSize;
-      body.style.backgroundPosition = prevStyles.backgroundPosition;
-      body.style.backgroundRepeat = prevStyles.backgroundRepeat;
-      body.style.minHeight = prevStyles.minHeight;
-      const currentOverlay = document.getElementById('planner-bg-overlay');
-      if (currentOverlay && currentOverlay.parentNode) {
-        currentOverlay.parentNode.removeChild(currentOverlay);
-      }
-      if (prevOverlay && !document.getElementById('planner-bg-overlay')) {
-        document.body.appendChild(prevOverlay);
-      }
-    };
-  }, []);
+  const handleScheduleProgram = async (config: {
+    weeks: number;
+    startDate: string;
+    recurring: boolean;
+    reminderMinutes: number;
+  }) => {
+    if (!programModal.data || !user) return;
 
-  /** -----------------------------
-   *  Render
-   *  ----------------------------- */
+    try {
+      setIsProgramScheduling(true);
+      const { payload, scheduling } = programModal.data;
+      const { weeks, startDate, recurring, reminderMinutes } = config;
+
+      console.log('[Planner] Scheduling program:', { weeks, startDate, recurring, days: scheduling.days });
+
+      const eventsToCreate: Array<Omit<CalendarEvent, 'id' | 'created_at' | 'updated_at'>> = [];
+
+      // Generate events for each week
+      for (let week = 0; week < weeks; week++) {
+        for (const day of scheduling.days) {
+          const eventDate = calculateDateForDay(startDate, day, week);
+          const time = mapPreferredTimeToActualTime(scheduling.preferredTime);
+
+          eventsToCreate.push({
+            user_id: user.id,
+            type: 'workout' as const,
+            date: eventDate,
+            title: payload.name,
+            notes: payload.description,
+            workout_type: payload.workoutType,
+            duration_min: payload.duration,
+            time,
+            color: WORKOUT_TYPE_COLORS[payload.workoutType] || NEON_ORANGE,
+            completed: false,
+            reminder_minutes: reminderMinutes || undefined,
+            recurring_rule: recurring ? 'weekly' : undefined,
+            recurrence_end: recurring ? addWeeks(eventDate, 52) : undefined,
+            source: 'Manual',
+            meta: {
+              ...payload.meta,
+              programWeek: week + 1,
+              programDay: day,
+            },
+          });
+        }
+      }
+
+      console.log(`[Planner] Creating ${eventsToCreate.length} workout events`);
+
+      // Batch insert all events
+      const { data, error } = await supabase
+        .from('planner_events')
+        .insert(eventsToCreate)
+        .select();
+
+      if (error) throw error;
+
+      if (data) {
+        // If recurring, generate future instances for the first event of each day pattern
+        if (recurring) {
+          const parentEvents = new Map<string, string>();
+
+          for (const event of data as CalendarEvent[]) {
+            const eventMeta = event.meta as any;
+            const key = `${eventMeta?.programDay}-week-${eventMeta?.programWeek}`;
+
+            if (!parentEvents.has(eventMeta?.programDay) && eventMeta?.programWeek === 1) {
+              parentEvents.set(eventMeta?.programDay, event.id);
+
+              // Generate recurring instances for 1 year
+              await generateRecurringEvents(
+                event.id,
+                event.date,
+                addWeeks(event.date, 52)
+              );
+            }
+          }
+        }
+
+        setEvents((prev) => sortEventsByDate([...prev, ...(data as CalendarEvent[])]));
+        toast.success(`🎉 ${eventsToCreate.length} workouts ingepland!`);
+      }
+
+      setProgramModal({ open: false, data: null });
+    } catch (e) {
+      console.error('Failed to schedule program:', e);
+      toast.error('Kon programma niet plannen');
+    } finally {
+      setIsProgramScheduling(false);
+    }
+  };
+
+  // Get event color
+  const getEventColor = (event: CalendarEvent): string => {
+    if (event.color) return event.color;
+    if (event.type === 'rest') return NEON_YELLOW;
+    if (event.workout_type && WORKOUT_TYPE_COLORS[event.workout_type]) {
+      return WORKOUT_TYPE_COLORS[event.workout_type];
+    }
+    if (event.source && SOURCE_NEON[event.source as WorkoutSource]) {
+      return SOURCE_NEON[event.source as WorkoutSource];
+    }
+    return NEON_ORANGE;
+  };
+
+  // --- Render ---
   return (
-    <div className="w-full max-w-full px-1 sm:px-4" style={{ position: 'relative', zIndex: 1 }}>
-      {/* KPIs at the very top for instant visibility */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 mb-6 mt-2">
-        <div className="rounded-xl border border-cyan-700 bg-black/60 p-4 flex flex-col items-center">
-          <span className="text-3xl font-bold text-cyan-400">{completedCount}</span>
-          <span className="text-white/80 text-sm mt-1">Workouts voltooid</span>
+    <div className="w-full max-w-full px-1 sm:px-4" style={{ position: 'relative', zIndex: 1, background: 'none' }}>
+      {/* Loading Overlay */}
+      {loading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-gradient-to-br from-gray-900 to-black border-2 border-cyan-500 rounded-2xl p-8 shadow-2xl">
+            <LoadingSpinner />
+            <p className="text-cyan-300 text-center mt-4 font-semibold">Bezig...</p>
+          </div>
         </div>
-        <div className="rounded-xl border border-cyan-700 bg-black/60 p-4 flex flex-col items-center">
-          <span className="text-3xl font-bold text-cyan-400">{futureCount}</span>
-          <span className="text-white/80 text-sm mt-1">Toekomstig gepland</span>
+      )}
+
+      {/* KPIs */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8 mt-2">
+        <div className="rounded-2xl bg-gradient-to-br from-cyan-900/60 to-black/80 border-2 border-cyan-400/20 shadow-xl p-6 flex flex-col items-center animate-pulse">
+          <span className="text-4xl font-extrabold text-cyan-200 drop-shadow-neon-cyan" style={{ textShadow: '0 2px 8px #00fff7aa' }}>
+            {completedCount}
+          </span>
+          <span className="text-cyan-100/80 text-base mt-2 font-semibold">Workouts voltooid</span>
         </div>
-        <div className="rounded-xl border border-yellow-600 bg-black/60 p-4 flex flex-col items-center">
-          <span className="text-3xl font-bold text-yellow-400">{totalMinutes}</span>
-          <span className="text-white/80 text-sm mt-1">Minuten getraind</span>
+        <div className="rounded-2xl bg-gradient-to-br from-cyan-900/60 to-black/80 border-2 border-cyan-400/20 shadow-xl p-6 flex flex-col items-center animate-pulse delay-100">
+          <span className="text-4xl font-extrabold text-cyan-200 drop-shadow-neon-cyan" style={{ textShadow: '0 2px 8px #00fff7aa' }}>
+            {futureCount}
+          </span>
+          <span className="text-cyan-100/80 text-base mt-2 font-semibold">Toekomstig gepland</span>
+        </div>
+        <div className="rounded-2xl bg-gradient-to-br from-yellow-500/30 to-black/80 border-2 border-yellow-400/20 shadow-xl p-6 flex flex-col items-center animate-pulse delay-200">
+          <span className="text-4xl font-extrabold text-yellow-200 drop-shadow-neon-cyan" style={{ textShadow: '0 2px 8px #ffe066aa' }}>
+            {totalMinutes}
+          </span>
+          <span className="text-yellow-100/80 text-base mt-2 font-semibold">Minuten getraind</span>
         </div>
       </div>
 
-      {/* View Switcher - mobile friendly */}
-      <div className="flex gap-2 mb-6 flex-wrap">
+      {/* View Switcher */}
+      <div className="flex gap-2 mb-8 flex-wrap justify-center">
         {['Week', 'Month', 'Day'].map((view) => (
           <button
             key={view}
-            className={`w-full xs:w-auto px-4 py-3 rounded-full font-semibold transition border-2 text-base focus:outline-none focus:ring-2 focus:ring-cyan-400/60
+            className={`w-full xs:w-auto px-6 py-3 rounded-full font-extrabold text-lg tracking-wide transition border-2 focus:outline-none focus:ring-2 focus:ring-cyan-400/60 shadow-lg
               ${
                 viewMode === view
-                  ? 'bg-cyan-500 border-cyan-400 text-white shadow'
+                  ? 'bg-gradient-to-r from-cyan-400 to-blue-500 border-cyan-300 text-white scale-105 shadow-neon-cyan'
                   : 'bg-black/40 border-cyan-700 text-cyan-300 hover:bg-cyan-900/30'
               }`}
-            style={{ minWidth: 90, marginBottom: 4 }}
+            style={{
+              minWidth: 110,
+              marginBottom: 4,
+              textShadow: viewMode === view ? '0 2px 8px #00fff7aa' : '',
+            }}
             onClick={() => setViewMode(view as 'Week' | 'Month' | 'Day')}
             aria-pressed={viewMode === view}
           >
@@ -759,8 +913,6 @@ const PlannerCalendar = forwardRef<PlannerCalendarHandle>((_, ref) => {
       {/* WEEK VIEW */}
       {viewMode === 'Week' && (
         <>
-
-          {/* Week navigation */}
           <div className="flex flex-col xs:flex-row items-center justify-between gap-2 mb-2 sm:mb-4">
             <button
               onClick={handlePrevWeek}
@@ -771,7 +923,9 @@ const PlannerCalendar = forwardRef<PlannerCalendarHandle>((_, ref) => {
             </button>
             <span className="text-lg font-semibold text-white/90">
               {weekDates[0].format('D MMM')} - {weekDates[6].format('D MMM YYYY')}{' '}
-              <span className="text-cyan-400 font-normal ml-2">Week {weekNumber}</span>
+              <span className="text-cyan-400 font-normal ml-2">
+                Week {weekNumber}
+              </span>
             </span>
             <button
               onClick={handleNextWeek}
@@ -781,8 +935,6 @@ const PlannerCalendar = forwardRef<PlannerCalendarHandle>((_, ref) => {
               {'>'}
             </button>
           </div>
-
-          {/* Calendar days with drag-and-drop */}
           <DragDropContext onDragEnd={onDragEnd}>
             <div className="grid grid-cols-1 gap-2 sm:gap-4">
               {weekDates.map((dateObj) => {
@@ -797,7 +949,7 @@ const PlannerCalendar = forwardRef<PlannerCalendarHandle>((_, ref) => {
                           className={`rounded-xl border ${
                             isRestDay ? 'border-yellow-600' : 'border-cyan-700'
                           } bg-black/50 p-4 flex flex-col gap-2 relative ${
-                            snapshot.isDraggingOver ? 'ring-2 ring-cyan-400' : ''
+                            snapshot.isDraggingOver ? 'ring-2 ring-cyan-400 bg-cyan-900/20' : ''
                           }`}
                         >
                           <div className="flex items-center justify-between mb-2">
@@ -813,46 +965,49 @@ const PlannerCalendar = forwardRef<PlannerCalendarHandle>((_, ref) => {
                                 isRestDay
                                   ? 'border-yellow-400 text-yellow-400'
                                   : 'border-cyan-400 text-cyan-400'
-                              } bg-transparent hover:bg-cyan-900/30 transition`}
+                              } bg-transparent hover:bg-cyan-900/30 transition focus:outline-none focus:ring-2 focus:ring-yellow-400`}
+                              disabled={loading}
+                              aria-label={isRestDay ? `Rustdag verwijderen op ${dateObj.format('dddd D MMMM')}` : `Rustdag instellen op ${dateObj.format('dddd D MMMM')}`}
                             >
                               {isRestDay ? 'Unset Restday' : 'Set Restday'}
                             </button>
                             <button
                               onClick={() => handleAddWorkoutClick(dateStr)}
-                              className="text-xs px-2 py-1 rounded-full border border-cyan-400 text-cyan-400 bg-transparent hover:bg-cyan-900/30 transition"
+                              className="text-xs px-2 py-1 rounded-full border border-cyan-400 text-cyan-400 bg-transparent hover:bg-cyan-900/30 transition focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                              disabled={loading}
+                              aria-label={`Workout toevoegen op ${dateObj.format('dddd D MMMM')}`}
                             >
                               + Add Workout
                             </button>
                           </div>
-                          {/* Render events for this day with DnD */}
                           <div className="flex flex-col gap-2 min-h-[32px]">
+                            {/* Rest Day Card */}
+                            {isRestDay && dayEvents.filter((e) => e.type === 'rest').map((restEvent) => (
+                              <div
+                                key={restEvent.id}
+                                className="rounded-2xl bg-yellow-500/10 backdrop-blur-md border-2 border-yellow-400 p-4 flex flex-col gap-2 shadow-lg cursor-pointer hover:bg-yellow-500/20 transition"
+                                onClick={() => handleRestDayClick(dateStr)}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className="font-bold text-lg text-yellow-300">😴 Rustdag</span>
+                                </div>
+                                {restEvent.notes && (
+                                  <p className="text-sm text-yellow-100/80">{restEvent.notes}</p>
+                                )}
+                                <span className="text-xs text-yellow-400/60">Klik om te bewerken</span>
+                              </div>
+                            ))}
+
                             {dayEvents.filter((e) => e.type === 'workout').length === 0 &&
                               !isRestDay && (
-                                <span className="text-sm text-gray-400">No workouts planned.</span>
+                                <span className="text-sm text-gray-400">
+                                  No workouts planned.
+                                </span>
                               )}
                             {dayEvents
                               .filter((e) => e.type === 'workout')
                               .map((event, idx) => {
-                                // Use event.color if present, otherwise fallback to neon logic
-                                let color = event.color ?? undefined;
-                                if (!color) {
-                                  color = NEON_ORANGE;
-                                  if (event.type === 'rest') color = NEON_YELLOW;
-                                  else if (event.workout_type) {
-                                    const t = normalizeWorkoutType(event.workout_type);
-                                    if (t === 'Run') color = NEON_GREEN;
-                                    else if (t === 'Strength') color = NEON_ORANGE;
-                                    else if (t === 'Hybrid') color = NEON_PURPLE;
-                                    else if (t === 'Cardio') color = NEON_BLUE;
-                                    else if (t === 'Mobility' || t === 'Stretching' || t === 'Zen')
-                                      color = NEON_YELLOW;
-                                  } else if (
-                                    event.source &&
-                                    SOURCE_NEON[event.source as WorkoutSource]
-                                  ) {
-                                    color = SOURCE_NEON[event.source as WorkoutSource];
-                                  }
-                                }
+                                const color = getEventColor(event);
                                 return (
                                   <Draggable draggableId={event.id} index={idx} key={event.id}>
                                     {(dragProvided, dragSnapshot) => (
@@ -860,7 +1015,7 @@ const PlannerCalendar = forwardRef<PlannerCalendarHandle>((_, ref) => {
                                         ref={dragProvided.innerRef}
                                         {...dragProvided.draggableProps}
                                         {...dragProvided.dragHandleProps}
-                                        className="rounded-lg border p-3 flex items-center justify-between cursor-pointer bg-opacity-90"
+                                        className="rounded-lg border p-3 cursor-pointer bg-opacity-90"
                                         style={{
                                           borderColor: color,
                                           background: dragSnapshot.isDragging
@@ -877,80 +1032,113 @@ const PlannerCalendar = forwardRef<PlannerCalendarHandle>((_, ref) => {
                                           }
                                         }}
                                       >
-                                        <div className="min-w-0">
-                                          <span className="text-white font-semibold break-words">
-                                            {event.title || 'Workout'}
-                                          </span>
-                                          {event.duration_min ? (
-                                            <span className="ml-2 text-xs text-yellow-400">
-                                              {event.duration_min} min
-                                            </span>
-                                          ) : null}
-                                          <div className="flex gap-2 mt-1 text-xs text-gray-400 flex-wrap">
-                                            {event.notes && (
-                                              <span className="truncate max-w-[240px]">
-                                                {event.notes}
+                                        <div
+                                          className="rounded-2xl bg-black/60 backdrop-blur-md border-2 p-3 flex flex-col gap-2 shadow-lg"
+                                          style={{
+                                            borderColor: color,
+                                            minWidth: 0,
+                                          }}
+                                        >
+                                          <div className="flex items-center justify-between gap-2">
+                                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                                              {event.recurring_rule && (
+                                                <span className="text-purple-400 text-sm" title="Terugkerende workout">
+                                                  🔄
+                                                </span>
+                                              )}
+                                              <span
+                                                className="font-bold text-base text-white truncate"
+                                                title={event.title || 'Workout'}
+                                              >
+                                                {event.title || 'Workout'}
                                               </span>
-                                            )}
-                                            <span>
-                                              {moment(event.date).format('ddd D MMM YYYY')}
-                                            </span>
-                                            {event.time && <span>{event.time}</span>}
+                                            </div>
                                             {event.workout_type && (
                                               <span
-                                                className="px-2 py-0.5 rounded border"
-                                                style={{ borderColor: color, color: color }}
+                                                className="px-2 py-0.5 rounded-full text-xs font-semibold border flex-shrink-0"
+                                                style={{
+                                                  borderColor: color,
+                                                  color: color,
+                                                  background: `${color}22`,
+                                                }}
                                               >
                                                 {event.workout_type}
                                               </span>
                                             )}
                                           </div>
-                                        </div>
-                                        <div
-                                          className="flex flex-wrap gap-3 shrink-0 mt-2 md:mt-0"
-                                          onClick={(e) => e.stopPropagation()}
-                                        >
-                                          <button
-                                            onClick={() => openEditFor(event.id)}
-                                            className="rounded-full bg-cyan-900/30 text-cyan-400 hover:bg-cyan-700 hover:text-white p-3 text-xl flex items-center justify-center"
-                                            aria-label="Edit"
-                                            title="Edit"
-                                            style={{ minWidth: 44, minHeight: 44 }}
-                                          >
-                                            <FaRegEdit />
-                                          </button>
-                                          <button
-                                            onClick={() => handleCompleteWorkout(event.id)}
-                                            className={`rounded-full bg-green-900/20 ${event.completed ? 'text-green-400' : 'text-gray-400'} hover:bg-green-700 hover:text-white p-3 text-xl flex items-center justify-center`}
-                                            aria-label="Toggle complete"
-                                            title="Mark as complete"
-                                            style={{ minWidth: 44, minHeight: 44 }}
-                                          >
-                                            <FaCheckCircle />
-                                          </button>
-                                          <button
-                                            onClick={() => handleDeleteWorkout(event.id)}
-                                            className="rounded-full bg-red-900/20 text-red-400 hover:bg-red-700 hover:text-white p-3 text-xl flex items-center justify-center"
-                                            aria-label="Delete"
-                                            title="Delete"
-                                            style={{ minWidth: 44, minHeight: 44 }}
-                                          >
-                                            <FaRegTrashAlt />
-                                          </button>
-                                          {event.external && (
+                                          <div className="flex flex-wrap items-center gap-3 text-xs text-cyan-100/80">
+                                            <span className="flex items-center gap-1">
+                                              📅 {moment(event.date).format('ddd D MMM YYYY')}
+                                            </span>
+                                            {event.time && (
+                                              <span className="flex items-center gap-1">
+                                                🕐 {event.time}
+                                              </span>
+                                            )}
+                                            {event.duration_min && (
+                                              <span className="flex items-center gap-1 text-yellow-400 font-bold">
+                                                ⏱️ {event.duration_min} min
+                                              </span>
+                                            )}
+                                            {event.notes && (
+                                              <span className="truncate max-w-[180px] text-gray-300">
+                                                📝 {event.notes}
+                                              </span>
+                                            )}
+                                            {event.reminder_minutes && (
+                                              <span className="flex items-center gap-1 text-purple-300">
+                                                🔔 {event.reminder_minutes} min
+                                              </span>
+                                            )}
+                                          </div>
+                                          <div className="flex gap-2 mt-2 flex-wrap">
                                             <button
-                                              onClick={() =>
-                                                event.creator_id &&
-                                                handleRunWorkout(event.creator_id)
-                                              }
-                                              className="rounded-full bg-purple-700 text-white font-semibold px-5 py-3 text-lg flex items-center gap-2 ml-1"
-                                              style={{ minWidth: 80 }}
-                                              aria-label="Start workout"
-                                              title="Start"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                openEditFor(event.id);
+                                              }}
+                                              className="flex-1 min-w-[44px] py-2 rounded-xl bg-cyan-700 hover:bg-cyan-500 text-white font-bold flex items-center justify-center gap-2 text-base shadow-md"
+                                              title="Edit"
+                                              disabled={loading}
                                             >
-                                              <FaPlay /> Start
+                                              <FaRegEdit />
                                             </button>
-                                          )}
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleCompleteWorkout(event.id);
+                                              }}
+                                              className={`flex-1 min-w-[44px] py-2 rounded-xl ${
+                                                event.completed ? 'bg-green-600' : 'bg-green-900'
+                                              } hover:bg-green-500 text-white font-bold flex items-center justify-center gap-2 text-base shadow-md`}
+                                              title="Complete"
+                                              disabled={loading}
+                                            >
+                                              <FaCheckCircle />
+                                            </button>
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDeleteWorkout(event.id);
+                                              }}
+                                              className="flex-1 min-w-[44px] py-2 rounded-xl bg-red-700 hover:bg-red-500 text-white font-bold flex items-center justify-center gap-2 text-base shadow-md"
+                                              title="Delete"
+                                              disabled={loading}
+                                            >
+                                              <FaRegTrashAlt />
+                                            </button>
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                event.workout_id && handleRunWorkout(event.workout_id);
+                                              }}
+                                              className="flex-1 min-w-[44px] py-2 rounded-xl bg-purple-700 hover:bg-purple-500 text-white font-bold flex items-center justify-center gap-2 text-base shadow-md disabled:opacity-60"
+                                              title="Start"
+                                              disabled={!event.workout_id || loading}
+                                            >
+                                              <FaPlay />
+                                            </button>
+                                          </div>
                                         </div>
                                       </div>
                                     )}
@@ -990,60 +1178,110 @@ const PlannerCalendar = forwardRef<PlannerCalendarHandle>((_, ref) => {
               {'>'}
             </button>
           </div>
-
-          <div className="grid grid-cols-7 gap-0.5 sm:gap-1 bg-black/40 rounded-xl overflow-hidden text-xs sm:text-base">
+          <DragDropContext onDragEnd={onDragEnd}>
+            <div className="grid grid-cols-7 gap-0.5 sm:gap-1 bg-black/40 rounded-xl overflow-hidden text-xs sm:text-base">
             {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => (
-              <div key={d} className="text-cyan-300 text-center py-2 font-semibold bg-black/60">
+              <div
+                key={d}
+                className="text-cyan-300 text-center py-2 font-semibold bg-black/60"
+              >
                 {d}
               </div>
             ))}
-
             {monthDays.map((day) => {
               const dateStr = day.format('YYYY-MM-DD');
               const isCurrentMonth = day.month() === currentMonth.month();
               const isToday = day.isSame(moment(), 'day');
               const events = eventsByDateMonth[dateStr] || [];
               return (
-                <div
-                  key={dateStr}
-                  className={`min-h-[56px] sm:min-h-[80px] p-0.5 sm:p-1 border border-black/30 flex flex-col rounded-lg cursor-pointer transition group
-                      ${isCurrentMonth ? 'bg-black/70' : 'bg-black/30 opacity-60'}
-                      ${isToday ? 'ring-2 ring-cyan-400' : ''}`}
-                  onClick={() => setAddModal({ open: true, date: dateStr })}
-                  onDoubleClick={() => setAddModal({ open: true, date: dateStr })}
-                  tabIndex={0}
-                  aria-label={`Add or view events for ${day.format('dddd, D MMMM YYYY')}`}
-                >
-                  <div className="text-[10px] sm:text-xs text-cyan-200 font-bold mb-0.5 sm:mb-1 text-right pr-0.5 sm:pr-1">
-                    {day.date()}
-                  </div>
-                  <div className="flex flex-col gap-0.5">
-                    {events.map((event) => {
-                      const color = event.color || NEON_ORANGE;
-                      return (
-                        <div
-                          key={event.id}
-                          className="truncate text-[10px] sm:text-xs px-1 sm:px-2 py-0.5 rounded mb-0.5 font-semibold"
-                          style={{
-                            background: `${color}22`,
-                            color: color,
-                            border: `1px solid ${color}`,
-                          }}
-                          title={event.title || 'Workout'}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openEditFor(event.id);
-                          }}
-                        >
-                          {event.title || event.workout_type || 'Workout'}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
+                <Droppable droppableId={dateStr} key={dateStr}>
+                  {(provided, snapshot) => (
+                    <div
+                      ref={provided.innerRef}
+                      {...provided.droppableProps}
+                      className={`min-h-[56px] sm:min-h-[80px] p-0.5 sm:p-1 border border-black/30 flex flex-col rounded-lg cursor-pointer transition group
+                          ${isCurrentMonth ? 'bg-black/70' : 'bg-black/30 opacity-60'}
+                          ${isToday ? 'ring-2 ring-cyan-400' : ''}
+                          ${snapshot.isDraggingOver ? 'ring-2 ring-purple-400 bg-purple-900/20' : ''}`}
+                      onClick={() => handleAddWorkoutClick(dateStr)}
+                      tabIndex={0}
+                      aria-label={`Add or view events for ${day.format('dddd, D MMMM YYYY')}`}
+                    >
+                      <div className="text-[10px] sm:text-xs text-cyan-200 font-bold mb-0.5 sm:mb-1 text-right pr-0.5 sm:pr-1">
+                        {day.date()}
+                      </div>
+                      <div className="flex flex-col gap-0.5">
+                        {events.map((event, idx) => {
+                          const color = getEventColor(event);
+                          return (
+                            <Draggable draggableId={event.id} index={idx} key={event.id}>
+                              {(dragProvided, dragSnapshot) => (
+                                <div
+                                  ref={dragProvided.innerRef}
+                                  {...dragProvided.draggableProps}
+                                  {...dragProvided.dragHandleProps}
+                                  className="rounded-2xl bg-black/60 backdrop-blur-md border-2 p-2 mb-1 flex flex-col gap-1 shadow-lg min-w-0 max-w-full"
+                                  style={{
+                                    borderColor: color,
+                                    background: dragSnapshot.isDragging ? `${color}33` : undefined,
+                                    ...dragProvided.draggableProps.style,
+                                  }}
+                                  title={event.title || 'Workout'}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openEditFor(event.id);
+                                  }}
+                                >
+                                  <div className="flex items-center justify-between gap-1">
+                                    <div className="flex items-center gap-1 min-w-0 flex-1">
+                                      {event.recurring_rule && (
+                                        <span className="text-purple-400 text-[10px]" title="Terugkerende workout">
+                                          🔄
+                                        </span>
+                                      )}
+                                      <span
+                                        className="font-bold text-xs text-white truncate"
+                                        title={event.title || 'Workout'}
+                                      >
+                                        {event.title || event.workout_type || 'Workout'}
+                                      </span>
+                                    </div>
+                                    {event.workout_type && (
+                                      <span
+                                        className="px-2 py-0.5 rounded-full text-[10px] font-semibold border flex-shrink-0"
+                                        style={{
+                                          borderColor: color,
+                                          color: color,
+                                          background: `${color}22`,
+                                        }}
+                                      >
+                                        {event.workout_type}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="flex flex-wrap items-center gap-2 text-[10px] text-cyan-100/80">
+                                    <span>{moment(event.date).format('D MMM')}</span>
+                                    {event.time && <span>🕐 {event.time}</span>}
+                                    {event.duration_min && (
+                                      <span className="text-yellow-400 font-bold">
+                                        ⏱️ {event.duration_min}min
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </Draggable>
+                          );
+                        })}
+                        {provided.placeholder}
+                      </div>
+                    </div>
+                  )}
+                </Droppable>
               );
             })}
-          </div>
+            </div>
+          </DragDropContext>
         </>
       )}
 
@@ -1062,7 +1300,7 @@ const PlannerCalendar = forwardRef<PlannerCalendarHandle>((_, ref) => {
               type="date"
               className="bg-black/60 border border-cyan-700 rounded-lg px-3 py-1 text-cyan-200 text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-cyan-400"
               value={currentDay.format('YYYY-MM-DD')}
-              onChange={e => setCurrentDay(moment(e.target.value))}
+              onChange={(e) => setCurrentDay(moment(e.target.value))}
               style={{ minWidth: 160 }}
             />
             <button
@@ -1075,25 +1313,12 @@ const PlannerCalendar = forwardRef<PlannerCalendarHandle>((_, ref) => {
           </div>
           <div className="w-full flex flex-col gap-4">
             {eventsForCurrentDay.length === 0 ? (
-              <div className="text-gray-400 text-center text-base">No workouts or events planned for this day.</div>
+              <div className="text-gray-400 text-center text-base">
+                No workouts or events planned for this day.
+              </div>
             ) : (
-              eventsForCurrentDay.map((event, idx) => {
-                let color = event.color;
-                if (!color) {
-                  color = NEON_ORANGE;
-                  if (event.type === 'rest') color = NEON_YELLOW;
-                  else if (event.workout_type) {
-                    const t = normalizeWorkoutType(event.workout_type);
-                    if (t === 'Run') color = NEON_GREEN;
-                    else if (t === 'Strength') color = NEON_ORANGE;
-                    else if (t === 'Hybrid') color = NEON_PURPLE;
-                    else if (t === 'Cardio') color = NEON_BLUE;
-                    else if (t === 'Mobility' || t === 'Stretching' || t === 'Zen')
-                      color = NEON_YELLOW;
-                  } else if (event.source && SOURCE_NEON[event.source as WorkoutSource]) {
-                    color = SOURCE_NEON[event.source as WorkoutSource];
-                  }
-                }
+              eventsForCurrentDay.map((event) => {
+                const color = getEventColor(event);
                 return (
                   <div
                     key={event.id}
@@ -1105,90 +1330,116 @@ const PlannerCalendar = forwardRef<PlannerCalendarHandle>((_, ref) => {
                     onClick={() => openEditFor(event.id)}
                     role="button"
                     tabIndex={0}
-                    onKeyDown={e => {
+                    onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
                         openEditFor(event.id);
                       }
                     }}
                   >
-                    <div className="min-w-0 flex-1">
-                      <span className="text-white font-semibold text-lg break-words">
-                        {event.title || 'Workout'}
-                      </span>
-                      {event.duration_min ? (
-                        <span className="ml-2 text-xs text-yellow-400">
-                          {event.duration_min} min
-                        </span>
-                      ) : null}
-                      <div className="flex gap-2 mt-1 text-xs text-gray-400 flex-wrap">
-                        {event.notes && (
-                          <span className="truncate max-w-[240px]">
-                            {event.notes}
+                    <div
+                      className="rounded-2xl bg-black/60 backdrop-blur-md border-2 p-4 flex flex-col gap-2 shadow-lg min-w-0 max-w-full"
+                      style={{ borderColor: color }}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          {event.recurring_rule && (
+                            <span className="text-purple-400 text-base" title="Terugkerende workout">
+                              🔄
+                            </span>
+                          )}
+                          <span
+                            className="font-bold text-lg text-white truncate"
+                            title={event.title || 'Workout'}
+                          >
+                            {event.title || 'Workout'}
                           </span>
-                        )}
-                        <span>{moment(event.date).format('ddd D MMM YYYY')}</span>
-                        {event.time && <span>{event.time}</span>}
+                        </div>
                         {event.workout_type && (
                           <span
-                            className="px-2 py-0.5 rounded border"
-                            style={{ borderColor: color, color: color }}
+                            className="px-2 py-0.5 rounded-full text-xs font-semibold border flex-shrink-0"
+                            style={{
+                              borderColor: color,
+                              color: color,
+                              background: `${color}22`,
+                            }}
                           >
                             {event.workout_type}
                           </span>
                         )}
                       </div>
-                    </div>
-                    <div className="flex flex-wrap gap-3 shrink-0 self-end sm:self-center mt-2 md:mt-0">
-                      <button
-                        onClick={e => {
-                          e.stopPropagation();
-                          openEditFor(event.id);
-                        }}
-                        className="rounded-full bg-cyan-900/30 text-cyan-400 hover:bg-cyan-700 hover:text-white p-3 text-xl flex items-center justify-center"
-                        aria-label="Edit"
-                        title="Edit"
-                        style={{ minWidth: 44, minHeight: 44 }}
-                      >
-                        <FaRegEdit />
-                      </button>
-                      <button
-                        onClick={e => {
-                          e.stopPropagation();
-                          handleCompleteWorkout(event.id);
-                        }}
-                        className={`rounded-full bg-green-900/20 ${event.completed ? 'text-green-400' : 'text-gray-400'} hover:bg-green-700 hover:text-white p-3 text-xl flex items-center justify-center`}
-                        aria-label="Toggle complete"
-                        title="Mark as complete"
-                        style={{ minWidth: 44, minHeight: 44 }}
-                      >
-                        <FaCheckCircle />
-                      </button>
-                      <button
-                        onClick={e => {
-                          e.stopPropagation();
-                          handleDeleteWorkout(event.id);
-                        }}
-                        className="rounded-full bg-red-900/20 text-red-400 hover:bg-red-700 hover:text-white p-3 text-xl flex items-center justify-center"
-                        aria-label="Delete"
-                        title="Delete"
-                        style={{ minWidth: 44, minHeight: 44 }}
-                      >
-                        <FaRegTrashAlt />
-                      </button>
-                      {event.external && (
+                      <div className="flex flex-wrap items-center gap-3 text-xs text-cyan-100/80">
+                        <span className="flex items-center gap-1">
+                          📅 {moment(event.date).format('ddd D MMM YYYY')}
+                        </span>
+                        {event.time && (
+                          <span className="flex items-center gap-1">
+                            🕐 {event.time}
+                          </span>
+                        )}
+                        {event.duration_min && (
+                          <span className="flex items-center gap-1 text-yellow-400 font-bold">
+                            ⏱️ {event.duration_min} min
+                          </span>
+                        )}
+                        {event.notes && (
+                          <span className="truncate max-w-[180px] text-gray-300">
+                            📝 {event.notes}
+                          </span>
+                        )}
+                        {event.reminder_minutes && (
+                          <span className="flex items-center gap-1 text-purple-300">
+                            🔔 {event.reminder_minutes} min
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex gap-2 mt-2 flex-wrap">
                         <button
-                          onClick={e => {
+                          onClick={(e) => {
                             e.stopPropagation();
-                            event.creator_id && handleRunWorkout(event.creator_id);
+                            openEditFor(event.id);
                           }}
-                          className="rounded-full bg-purple-700 text-white font-semibold px-5 py-3 text-lg flex items-center gap-2 ml-1"
-                          style={{ minWidth: 80 }}
-                          aria-label="Start workout"
-                          title="Start"
+                          className="flex-1 min-w-[44px] py-2 rounded-xl bg-cyan-700 hover:bg-cyan-500 text-white font-bold flex items-center justify-center gap-2 text-base shadow-md"
+                          title="Edit"
+                          disabled={loading}
                         >
-                          <FaPlay /> Start
+                          <FaRegEdit />
                         </button>
-                      )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleCompleteWorkout(event.id);
+                          }}
+                          className={`flex-1 min-w-[44px] py-2 rounded-xl ${
+                            event.completed ? 'bg-green-600' : 'bg-green-900'
+                          } hover:bg-green-500 text-white font-bold flex items-center justify-center gap-2 text-base shadow-md`}
+                          title="Complete"
+                          disabled={loading}
+                        >
+                          <FaCheckCircle />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteWorkout(event.id);
+                          }}
+                          className="flex-1 min-w-[44px] py-2 rounded-xl bg-red-700 hover:bg-red-500 text-white font-bold flex items-center justify-center gap-2 text-base shadow-md"
+                          title="Delete"
+                          disabled={loading}
+                        >
+                          <FaRegTrashAlt />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            event.workout_id && handleRunWorkout(event.workout_id);
+                          }}
+                          className="flex-1 min-w-[44px] py-2 rounded-xl bg-purple-700 hover:bg-purple-500 text-white font-bold flex items-center justify-center gap-2 text-base shadow-md disabled:opacity-60"
+                          title="Start"
+                          disabled={!event.workout_id || loading}
+                        >
+                          <FaPlay />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -1198,383 +1449,496 @@ const PlannerCalendar = forwardRef<PlannerCalendarHandle>((_, ref) => {
         </div>
       )}
 
-      {/* Add Workout Modal - mobile friendly buttons */}
-      {addModal.open && (
-        <Modal onClose={() => setAddModal({ open: false, date: '' })}>
-          <div className="flex flex-col gap-4 sm:gap-6 p-2 sm:p-0">
-            <h2 className="font-extrabold text-lg sm:text-2xl mb-2 text-cyan-300 flex items-center gap-2">
-              <FaRegEdit className="text-cyan-400" /> Plan a New Workout
-            </h2>
-            <div className="grid grid-cols-1 gap-3">
-              <button
-                className="w-full py-4 rounded-2xl font-semibold shadow-md border-2 border-cyan-400 bg-black/40 hover:bg-cyan-900/30 transition flex flex-row items-center gap-3 text-lg"
-                onClick={() => handleWorkoutTypeSelect('Workout Library')}
-                aria-label="Add from Workout Library"
-              >
-                <span className="text-cyan-300 text-2xl">🏋️‍♂️</span>
-                <span>Workout Library</span>
-              </button>
-              <button
-                className="w-full py-4 rounded-2xl font-semibold shadow-md border-2 border-yellow-400 bg-black/40 hover:bg-yellow-900/20 transition flex flex-row items-center gap-3 text-lg"
-                onClick={() => handleWorkoutTypeSelect('Community Workouts')}
-                aria-label="Add Community Workout"
-              >
-                <span className="text-yellow-300 text-2xl">🤝</span>
-                <span>Community</span>
-              </button>
-              <button
-                className="w-full py-4 rounded-2xl font-semibold shadow-md border-2 border-purple-400 bg-black/40 hover:bg-purple-900/20 transition flex flex-row items-center gap-3 text-lg"
-                onClick={() => handleWorkoutTypeSelect('Workout Creator')}
-                aria-label="Create Custom Workout"
-              >
-                <span className="text-purple-300 text-2xl">🛠️</span>
-                <span>Creator</span>
-              </button>
-              <button
-                className="w-full py-4 rounded-2xl font-semibold shadow-md border-2 border-orange-400 bg-black/40 hover:bg-orange-900/20 transition flex flex-row items-center gap-3 text-lg"
-                onClick={() => handleWorkoutTypeSelect('Workout Generator')}
-                aria-label="Generate Workout"
-              >
-                <span className="text-orange-300 text-2xl">⚡</span>
-                <span>Generator</span>
-              </button>
-              <button
-                className="w-full py-4 rounded-2xl font-semibold shadow-md border-2 border-blue-400 bg-black/40 hover:bg-blue-900/20 transition flex flex-row items-center gap-3 text-lg"
-                onClick={() => handleWorkoutTypeSelect('External')}
-                aria-label="Add External Workout"
-              >
-                <span className="text-blue-300 text-2xl">🌐</span>
-                <span>External Workout</span>
-              </button>
-            </div>
-            <div className="text-base text-gray-400 mt-2 text-center">
-              Choose a source to start planning your workout for{' '}
-              <span className="text-cyan-200 font-semibold">{addModal.date}</span>.
+      {/* Type Selection Modal with Time */}
+      <Modal
+        isOpen={typeModal.open}
+        onClose={() => {
+          setTypeModal({ open: false, date: '' });
+          setAddWorkoutTime('');
+        }}
+        title="Workout Toevoegen"
+      >
+        <div className="flex flex-col gap-4">
+          <div>
+            <label className="block text-sm font-semibold text-cyan-300 mb-2">
+              Tijd (optioneel)
+            </label>
+            <input
+              type="time"
+              className="w-full bg-black/60 border border-cyan-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+              value={addWorkoutTime}
+              onChange={(e) => setAddWorkoutTime(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-cyan-300 mb-2">
+              Workout Type
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              {['Run', 'Strength', 'Hybrid', 'Cardio', 'Mobility', 'Stretching'].map((type) => (
+                <button
+                  key={type}
+                  onClick={() => handleAddWorkout(type, typeModal.date)}
+                  className="px-4 py-3 rounded-xl bg-cyan-700 hover:bg-cyan-500 text-white font-bold text-sm transition"
+                  disabled={loading}
+                  style={{
+                    borderLeft: `4px solid ${WORKOUT_TYPE_COLORS[type] || NEON_ORANGE}`,
+                  }}
+                >
+                  {type}
+                </button>
+              ))}
             </div>
           </div>
-        </Modal>
-      )}
+        </div>
+      </Modal>
 
-      {/* AddTypeModal (Creator/External) */}
-      {addTypeModal.open && (
-        <Modal onClose={() => setAddTypeModal({ open: false, date: '', type: '' })}>
-          <div className="flex flex-col gap-4 sm:gap-6 p-2 sm:p-0">
-            <h2
-              className="font-extrabold text-lg sm:text-2xl mb-2 flex items-center gap-2"
-              style={{ color: addTypeModal.type === 'External' ? NEON_BLUE : NEON_ORANGE }}
-            >
-              {addTypeModal.type === 'Creator' ? (
-                <>
-                  <FaRegEdit className="text-orange-400" /> Plan Custom Workout
-                </>
-              ) : (
-                <>
-                  <FaRegEdit className="text-blue-400" /> Add External Workout
-                </>
+      {/* Generator planner modal */}
+      <Modal
+        isOpen={generatorModal.open && !!generatorModal.payload}
+        onClose={() => setGeneratorModal({ open: false, payload: null })}
+        title="Plan gegenereerde workout"
+      >
+        {generatorModal.payload && (
+          <div className="flex flex-col gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-cyan-300 mb-2">
+                Datum *
+              </label>
+              <input
+                type="date"
+                className="w-full bg-black/60 border border-cyan-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                value={generatorForm.date}
+                onChange={(e) => handleGeneratorFormChange('date', e.target.value)}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-semibold text-cyan-300 mb-2">
+                  Tijd (optioneel)
+                </label>
+                <input
+                  type="time"
+                  className="w-full bg-black/60 border border-cyan-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                  value={generatorForm.time}
+                  onChange={(e) => handleGeneratorFormChange('time', e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-cyan-300 mb-2">
+                  Herinnering
+                </label>
+                <select
+                  className="w-full bg-black/60 border border-cyan-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                  value={generatorForm.reminderMinutes}
+                  onChange={(e) => handleGeneratorFormChange('reminderMinutes', e.target.value)}
+                >
+                  <option value={0}>Geen</option>
+                  <option value={15}>15 minuten voor</option>
+                  <option value={30}>30 minuten voor</option>
+                  <option value={60}>1 uur voor</option>
+                  <option value={120}>2 uur voor</option>
+                  <option value={1440}>1 dag voor</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-cyan-700 bg-black/50 p-3">
+              <p className="text-lg font-bold text-white">{generatorModal.payload.name}</p>
+              {generatorModal.payload.description && (
+                <p className="text-sm text-cyan-200 mt-1">{generatorModal.payload.description}</p>
               )}
-            </h2>
-            <div className="grid grid-cols-1 gap-3 sm:gap-4">
-              {/* Color Picker */}
-              <div className="flex flex-col gap-2">
-                <label className="font-semibold">Event Color</label>
-                <input
-                  type="color"
-                  className="w-12 h-8 p-0 border-2 rounded"
-                  value={externalForm.color || '#FF7A18'}
-                  onChange={(e) => handleExternalFormChange('color', e.target.value)}
-                  aria-label="Pick event color"
-                />
+              <div className="mt-3 text-sm text-white/70 space-y-1">
+                <div>
+                  Type:{' '}
+                  <span className="text-cyan-300 font-semibold">
+                    {generatorSummary?.workoutType || 'Onbekend'}
+                  </span>
+                </div>
+                <div>
+                  Focus:{' '}
+                  <span className="text-cyan-300">{generatorSummary?.musclesLabel || '—'}</span>
+                </div>
+                <div>
+                  Tags:{' '}
+                  <span className="text-cyan-300">{generatorSummary?.tagsLabel || '—'}</span>
+                </div>
+                <div>
+                  Duur:{' '}
+                  <span className="text-cyan-300">{generatorModal.payload.duration} min</span>
+                </div>
               </div>
-              {/* Reminder Picker */}
-              <div className="flex flex-col gap-2">
-                <label className="font-semibold">Reminder</label>
-                <select
-                  className="rounded p-2 border-2 focus:outline-none focus:ring-2 focus:ring-cyan-400 bg-black/40 text-white"
-                  value={externalForm.reminder_minutes_before ?? ''}
-                  onChange={(e) =>
-                    handleExternalFormChange(
-                      'reminder_minutes_before',
-                      e.target.value ? Number(e.target.value) : null
-                    )
-                  }
-                >
-                  <option value="">No reminder</option>
-                  <option value="5">5 minutes before</option>
-                  <option value="10">10 minutes before</option>
-                  <option value="30">30 minutes before</option>
-                  <option value="60">1 hour before</option>
-                  <option value="1440">1 day before</option>
-                </select>
-              </div>
-              <div className="flex flex-col gap-2">
-                <label className="font-semibold">Name</label>
-                <input
-                  className="rounded p-2 border-2 focus:outline-none focus:ring-2 focus:ring-cyan-400"
-                  style={{
-                    background: 'transparent',
-                    color: '#fff',
-                    borderColor: addTypeModal.type === 'External' ? NEON_BLUE : NEON_ORANGE,
-                  }}
-                  value={externalForm.name}
-                  onChange={(e) => handleExternalFormChange('name', e.target.value)}
-                  placeholder="Workout name"
-                  required
-                  maxLength={60}
-                />
-              </div>
-              {/* Additional fields can be added here as needed */}
+            </div>
+
+            <div className="rounded-lg border border-cyan-900 bg-black/40 p-3 max-h-56 overflow-y-auto">
+              <p className="text-sm font-semibold text-cyan-300 mb-2">Workout schema</p>
+              <ul className="space-y-2">
+                {generatorModal.payload.exercises.map((exercise, index) => (
+                  <li key={`${exercise.section}-${exercise.name}-${index}`} className="text-sm text-white/80">
+                    <span className="text-cyan-300 uppercase text-xs mr-2">{exercise.section}</span>
+                    <span className="font-semibold">{exercise.name}</span>
+                    <span className="text-white/60">
+                      {exercise.sets ? ` · ${exercise.sets} sets` : ''}
+                      {exercise.reps ? ` · ${exercise.reps}` : ''}
+                      {exercise.time ? ` · ${exercise.time}` : ''}
+                      {exercise.distance ? ` · ${exercise.distance}` : ''}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="flex gap-2">
               <button
-                className="w-full py-3 mt-2 rounded-xl font-bold shadow-md text-lg tracking-wide"
-                style={{
-                  background: addTypeModal.type === 'External' ? NEON_BLUE : NEON_ORANGE,
-                  color: '#181A1B',
-                  fontSize: 18,
-                }}
-                onClick={handleExternalFormSubmit}
+                onClick={handleScheduleGeneratorWorkout}
+                className="flex-1 px-4 py-2 rounded-xl bg-gradient-to-r from-purple-500 to-cyan-500 text-white font-bold shadow-lg hover:scale-105 transition"
+                disabled={loading}
               >
-                SCHEDULE
+                {loading ? 'Bezig...' : 'Voeg toe aan planner'}
+              </button>
+              <button
+                onClick={() => setGeneratorModal({ open: false, payload: null })}
+                className="px-4 py-2 rounded-xl bg-gray-700 hover:bg-gray-600 text-white font-bold"
+                disabled={loading}
+              >
+                Annuleren
               </button>
             </div>
           </div>
-        </Modal>
-      )}
+        )}
+      </Modal>
 
-      {/* Edit Workout Modal */}
-      {editModal.open && (
-        <Modal onClose={() => setEditModal({ open: false, workoutId: null })}>
-          <div className="flex flex-col gap-4 sm:gap-6 p-2 sm:p-0">
-            <h2
-              className="font-extrabold text-lg sm:text-2xl mb-2 flex items-center gap-2"
-              style={{ color: NEON_ORANGE }}
+      {/* Program Scheduling Modal */}
+      <ProgramSchedulingModal
+        isOpen={programModal.open}
+        programData={programModal.data}
+        onClose={() => setProgramModal({ open: false, data: null })}
+        onSchedule={handleScheduleProgram}
+        isLoading={isProgramScheduling}
+      />
+
+      {/* Edit Modal - Extended */}
+      <Modal
+        isOpen={editModal.open}
+        onClose={() => setEditModal({ open: false, eventId: '' })}
+        title="Workout Bewerken"
+      >
+        {currentEditEvent && (
+          <div className="flex flex-col gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-cyan-300 mb-2">
+                Titel *
+              </label>
+              <input
+                type="text"
+                placeholder="Titel"
+                className="w-full bg-black/60 border border-cyan-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-semibold text-cyan-300 mb-2">
+                  Type
+                </label>
+                <select
+                  className="w-full bg-black/60 border border-cyan-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                  value={editWorkoutType}
+                  onChange={(e) => setEditWorkoutType(e.target.value)}
+                >
+                  <option value="">Selecteer...</option>
+                  {['Run', 'Strength', 'Hybrid', 'Cardio', 'Mobility', 'Stretching', 'Zen'].map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-cyan-300 mb-2">
+                  Duur (min)
+                </label>
+                <input
+                  type="number"
+                  placeholder="Duur (min)"
+                  className="w-full bg-black/60 border border-cyan-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                  value={editDuration}
+                  onChange={(e) => setEditDuration(parseInt(e.target.value) || 0)}
+                  min="0"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-cyan-300 mb-2">
+                Tijd
+              </label>
+              <input
+                type="time"
+                className="w-full bg-black/60 border border-cyan-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                value={editTime}
+                onChange={(e) => setEditTime(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-cyan-300 mb-2">
+                Kleur
+              </label>
+              <div className="flex gap-2 flex-wrap">
+                {[NEON_GREEN, NEON_ORANGE, NEON_PURPLE, NEON_BLUE, NEON_YELLOW].map((color) => (
+                  <button
+                    key={color}
+                    className={`w-10 h-10 rounded-full border-2 ${
+                      editColor === color ? 'border-white' : 'border-gray-600'
+                    }`}
+                    style={{ backgroundColor: color }}
+                    onClick={() => setEditColor(color)}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-cyan-300 mb-2">
+                🔔 Herinnering (optioneel)
+              </label>
+              <select
+                className="w-full bg-black/60 border border-cyan-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                value={editReminderMinutes}
+                onChange={(e) => setEditReminderMinutes(parseInt(e.target.value) || 0)}
+              >
+                <option value="0">Geen herinnering</option>
+                <option value="15">15 minuten voor</option>
+                <option value="30">30 minuten voor</option>
+                <option value="60">1 uur voor</option>
+                <option value="120">2 uur voor</option>
+                <option value="1440">1 dag voor</option>
+              </select>
+              <p className="text-xs text-cyan-400/60 mt-1">
+                🚧 Herinnering functionaliteit komt binnenkort
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-cyan-300 mb-2">
+                🔄 Herhaling (optioneel)
+              </label>
+              <select
+                className="w-full bg-black/60 border border-cyan-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                value={editRecurringRule}
+                onChange={(e) => setEditRecurringRule(e.target.value)}
+              >
+                <option value="">Geen herhaling</option>
+                <option value="daily">Dagelijks</option>
+                <option value="weekly">Wekelijks</option>
+                <option value="biweekly">Om de 2 weken</option>
+                <option value="monthly">Maandelijks</option>
+              </select>
+              <p className="text-xs text-cyan-400/60 mt-1">
+                🚧 Herhalings functionaliteit komt binnenkort
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-cyan-300 mb-2">
+                Notities
+              </label>
+              <textarea
+                placeholder="Notities"
+                className="w-full bg-black/60 border border-cyan-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                value={editNotes}
+                onChange={(e) => setEditNotes(e.target.value)}
+                rows={3}
+              />
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={async () => {
+                  await handleSaveEdit(editModal.eventId, {
+                    title: editTitle,
+                    duration_min: editDuration,
+                    notes: editNotes,
+                    time: editTime || undefined,
+                    workout_type: editWorkoutType || undefined,
+                    color: editColor || undefined,
+                    recurring_rule: editRecurringRule || undefined,
+                    reminder_minutes: editReminderMinutes || undefined,
+                  });
+                  if (!showRecurringPrompt) {
+                    setEditModal({ open: false, eventId: '' });
+                  }
+                }}
+                className="flex-1 px-4 py-2 rounded-xl bg-cyan-700 hover:bg-cyan-500 text-white font-bold"
+                disabled={loading}
+              >
+                {loading ? 'Bezig...' : 'Opslaan'}
+              </button>
+              <button
+                onClick={() => setEditModal({ open: false, eventId: '' })}
+                className="px-4 py-2 rounded-xl bg-gray-700 hover:bg-gray-600 text-white font-bold"
+                disabled={loading}
+              >
+                Annuleren
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Rest Day Modal */}
+      <Modal
+        isOpen={restDayModal.open}
+        onClose={() => {
+          setRestDayModal({ open: false, date: '', eventId: undefined });
+          setRestDayNotes('');
+        }}
+        title={restDayModal.eventId ? 'Rustdag Bewerken' : 'Rustdag Toevoegen'}
+      >
+        <div className="flex flex-col gap-4">
+          <div>
+            <label className="block text-sm font-semibold text-cyan-300 mb-2">
+              Datum
+            </label>
+            <input
+              type="text"
+              className="w-full bg-black/60 border border-cyan-700 rounded-lg px-3 py-2 text-gray-400 cursor-not-allowed"
+              value={moment(restDayModal.date).format('dddd D MMMM YYYY')}
+              disabled
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-cyan-300 mb-2">
+              Notities (optioneel)
+            </label>
+            <textarea
+              placeholder="Waarom rust je vandaag? Voeg eventueel notities toe..."
+              className="w-full bg-black/60 border border-cyan-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+              value={restDayNotes}
+              onChange={(e) => setRestDayNotes(e.target.value)}
+              rows={4}
+            />
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              onClick={handleSaveRestDay}
+              className="flex-1 px-4 py-2 rounded-xl bg-yellow-600 hover:bg-yellow-500 text-white font-bold"
+              disabled={loading}
             >
-              <FaRegEdit className="text-orange-400" /> Edit Workout
-            </h2>
-            <div className="grid grid-cols-1 gap-3 sm:gap-4">
-              {/* Color Picker */}
-              <div className="flex flex-col gap-2">
-                <label className="font-semibold">Event Color</label>
-                <input
-                  type="color"
-                  className="w-12 h-8 p-0 border-2 rounded"
-                  value={externalForm.color || '#FF7A18'}
-                  onChange={(e) => handleExternalFormChange('color', e.target.value)}
-                  aria-label="Pick event color"
-                />
-              </div>
-              {/* Reminder Picker */}
-              <div className="flex flex-col gap-2">
-                <label className="font-semibold">Reminder</label>
-                <select
-                  className="rounded p-2 border-2 focus:outline-none focus:ring-2 focus:ring-orange-400 bg-black/40 text-white"
-                  value={externalForm.reminder_minutes_before ?? ''}
-                  onChange={(e) =>
-                    handleExternalFormChange(
-                      'reminder_minutes_before',
-                      e.target.value ? Number(e.target.value) : null
-                    )
-                  }
-                >
-                  <option value="">No reminder</option>
-                  <option value="5">5 minutes before</option>
-                  <option value="10">10 minutes before</option>
-                  <option value="30">30 minutes before</option>
-                  <option value="60">1 hour before</option>
-                  <option value="1440">1 day before</option>
-                </select>
-              </div>
-              <div className="flex flex-col gap-2">
-                <label className="font-semibold">Name</label>
-                <input
-                  className="rounded p-2 border-2 focus:outline-none focus:ring-2 focus:ring-orange-400"
-                  style={{
-                    background: 'transparent',
-                    color: '#fff',
-                    borderColor: NEON_ORANGE,
-                  }}
-                  value={externalForm.name}
-                  onChange={(e) => handleExternalFormChange('name', e.target.value)}
-                  placeholder="Workout name"
-                  required
-                  maxLength={60}
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <label className="font-semibold">Notes</label>
-                <textarea
-                  className="rounded p-2 border-2 focus:outline-none focus:ring-2 focus:ring-orange-400"
-                  style={{
-                    background: 'transparent',
-                    color: '#fff',
-                    borderColor: NEON_ORANGE,
-                  }}
-                  value={externalForm.notes}
-                  onChange={(e) => handleExternalFormChange('notes', e.target.value)}
-                  placeholder="Notes"
-                  maxLength={200}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col gap-2">
-                  <label className="font-semibold">Time</label>
-                  <input
-                    type="time"
-                    className="rounded p-2 border-2 focus:outline-none focus:ring-2 focus:ring-orange-400"
-                    style={{
-                      background: 'transparent',
-                      color: '#fff',
-                      borderColor: NEON_ORANGE,
-                    }}
-                    value={externalForm.time}
-                    onChange={(e) => handleExternalFormChange('time', e.target.value)}
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="font-semibold">Duration (min)</label>
-                  <input
-                    type="number"
-                    min={0}
-                    className="rounded p-2 border-2 focus:outline-none focus:ring-2 focus:ring-orange-400"
-                    style={{
-                      background: 'transparent',
-                      color: '#fff',
-                      borderColor: NEON_ORANGE,
-                    }}
-                    value={externalForm.duration}
-                    onChange={(e) =>
-                      handleExternalFormChange('duration', Number(e.target.value || 0))
-                    }
-                    placeholder="e.g. 45"
-                  />
-                </div>
-              </div>
-              <div className="flex flex-col gap-2">
-                <label className="font-semibold">Type</label>
-                <div className="flex gap-2 overflow-x-auto">
-                  {WORKOUT_TYPES.map((type) => {
-                    const selected = externalForm.types.includes(type);
-                    const disabled = !selected && externalForm.types.length >= 3;
-                    return (
-                      <button
-                        key={type}
-                        className={`px-4 py-1 rounded-full font-semibold whitespace-nowrap flex items-center justify-center ${
-                          selected ? 'border-2' : 'border'
-                        }`}
-                        style={{
-                          background: selected ? NEON_ORANGE : 'transparent',
-                          color: selected ? '#181A1B' : NEON_ORANGE,
-                          borderColor: NEON_ORANGE,
-                          minWidth: 110,
-                          maxWidth: 140,
-                          textAlign: 'center',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                        }}
-                        onClick={() => handleTypeToggle(type)}
-                        type="button"
-                        disabled={disabled}
-                        title={selected ? 'Remove type' : disabled ? 'Max 3 types' : 'Select type'}
-                      >
-                        <span style={{ width: '100%', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                          {type}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div className="flex gap-2 mt-2">
-                <button
-                  className="w-full py-3 rounded-xl font-bold shadow-md text-lg tracking-wide"
-                  style={{ background: NEON_ORANGE, color: '#181A1B', fontSize: 18 }}
-                  onClick={handleEditFormSubmit}
-                >
-                  UPDATE
-                </button>
-                <button
-                  className="w-full py-3 rounded-xl font-bold shadow-md text-lg tracking-wide border-2"
-                  style={{
-                    background: 'transparent',
-                    color: NEON_ORANGE,
-                    borderColor: NEON_ORANGE,
-                    fontSize: 18,
-                  }}
-                  onClick={() => editModal.workoutId && handleDeleteWorkout(editModal.workoutId)}
-                >
-                  <FaRegTrashAlt className="inline mr-1" />
-                  DELETE
-                </button>
-              </div>
+              {loading ? 'Bezig...' : restDayModal.eventId ? 'Bijwerken' : 'Toevoegen'}
+            </button>
+            {restDayModal.eventId && (
               <button
-                className="w-full py-3 rounded-xl font-bold shadow-md text-lg tracking-wide border-2 mt-2"
-                style={{
-                  background: 'transparent',
-                  color: NEON_ORANGE,
-                  borderColor: NEON_ORANGE,
-                  fontSize: 18,
-                }}
-                onClick={() => editModal.workoutId && handleCompleteWorkout(editModal.workoutId)}
+                onClick={handleDeleteRestDay}
+                className="px-4 py-2 rounded-xl bg-red-700 hover:bg-red-600 text-white font-bold"
+                disabled={loading}
               >
-                {plannerEvents.find((w) => w.id === editModal.workoutId)?.completed ? (
-                  <>
-                    <FaCheckCircle color={NEON_ORANGE} className="inline mr-1" /> Completed
-                  </>
-                ) : (
-                  'Mark as Complete'
-                )}
+                Verwijderen
               </button>
-              <button
-                className="w-full py-3 rounded-xl font-bold shadow-md text-lg tracking-wide mt-2"
-                style={{
-                  background: NEON_ORANGE,
-                  color: '#181A1B',
-                  border: `1.5px solid ${NEON_ORANGE}`,
-                  fontSize: 18,
-                }}
-                onClick={() => {
-                  const w = plannerEvents.find((x) => x.id === editModal.workoutId);
-                  if (w?.creator_id) handleRunWorkout(w.creator_id);
-                }}
-              >
-                START
-              </button>
-            </div>
+            )}
+            <button
+              onClick={() => {
+                setRestDayModal({ open: false, date: '', eventId: undefined });
+                setRestDayNotes('');
+              }}
+              className="px-4 py-2 rounded-xl bg-gray-700 hover:bg-gray-600 text-white font-bold"
+              disabled={loading}
+            >
+              Annuleren
+            </button>
           </div>
-        </Modal>
-      )}
+        </div>
+      </Modal>
 
+      {/* Recurring Event Update Prompt */}
+      <Modal
+        isOpen={showRecurringPrompt}
+        onClose={() => {
+          setShowRecurringPrompt(false);
+          setPendingEdit(null);
+        }}
+        title="Terugkerende Workout Bijwerken"
+      >
+        <div className="flex flex-col gap-4">
+          <p className="text-cyan-100">
+            Dit is een terugkerende workout. Wil je alleen deze instantie bijwerken, of deze en alle toekomstige instanties?
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={async () => {
+                if (pendingEdit) {
+                  const { success, error } = await updateRecurringEvent(
+                    pendingEdit.eventId,
+                    pendingEdit.updates,
+                    false // Only this instance
+                  );
+                  if (success) {
+                    // Update local state
+                    setEvents((prev) =>
+                      prev.map((e) =>
+                        e.id === pendingEdit.eventId ? { ...e, ...pendingEdit.updates } : e
+                      )
+                    );
+                    toast.success('Workout bijgewerkt! ✅');
+                    setEditModal({ open: false, eventId: '' });
+                  } else {
+                    toast.error('Kon workout niet bijwerken');
+                    console.error('Update error:', error);
+                  }
+                  setShowRecurringPrompt(false);
+                  setPendingEdit(null);
+                }
+              }}
+              className="flex-1 px-4 py-2 rounded-xl bg-cyan-700 hover:bg-cyan-500 text-white font-bold transition-colors"
+            >
+              Alleen deze
+            </button>
+            <button
+              onClick={async () => {
+                if (pendingEdit) {
+                  const { success, error } = await updateRecurringEvent(
+                    pendingEdit.eventId,
+                    pendingEdit.updates,
+                    true // This and all future instances
+                  );
+                  if (success) {
+                    // Reload all events to reflect changes
+                    if (user) {
+                      const { data } = await supabase
+                        .from('planner_events')
+                        .select('*')
+                        .eq('user_id', user.id)
+                        .order('date', { ascending: true });
+                      if (data) {
+                        setEvents(data as CalendarEvent[]);
+                      }
+                    }
+                    toast.success('Alle toekomstige workouts bijgewerkt! ✅');
+                    setEditModal({ open: false, eventId: '' });
+                  } else {
+                    toast.error('Kon workouts niet bijwerken');
+                    console.error('Update error:', error);
+                  }
+                  setShowRecurringPrompt(false);
+                  setPendingEdit(null);
+                }
+              }}
+              className="flex-1 px-4 py-2 rounded-xl bg-purple-700 hover:bg-purple-500 text-white font-bold transition-colors"
+            >
+              Deze en toekomstige
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 });
-
-/** -----------------------------
- *  Simple Modal component
- *  ----------------------------- */
-const Modal: React.FC<{ onClose: () => void; children: React.ReactNode }> = ({
-  onClose,
-  children,
-}) => (
-  <div
-    className="fixed inset-0 z-50 flex items-center justify-center"
-    style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)' }}
-    role="dialog"
-    aria-modal="true"
-  >
-    <div
-      className="bg-gray-900 rounded-xl p-6 w-full max-w-md relative"
-      style={{ boxShadow: '0 4px 32px rgba(0,0,0,0.4)', color: '#fff' }}
-    >
-      <button
-        className="absolute top-2 right-2"
-        style={{ color: NEON_ORANGE }}
-        onClick={onClose}
-        title="Close"
-        aria-label="Close"
-      >
-        <FaRegTimesCircle size={24} />
-      </button>
-      {children}
-    </div>
-  </div>
-);
 
 export default PlannerCalendar;

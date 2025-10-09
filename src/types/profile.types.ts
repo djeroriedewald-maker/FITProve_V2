@@ -40,6 +40,11 @@ export interface UserProfile {
   allowDirectMessages?: boolean;
   allowFollow?: boolean;
   isPublic?: boolean;
+  notification_preferences?: {
+    events: Array<'in_app' | 'email' | 'push'>;
+    todos: Array<'in_app' | 'email' | 'push'>;
+    workouts: Array<'in_app' | 'email' | 'push'>;
+  };
 }
 
 interface UpdateProfileParams {
@@ -57,6 +62,7 @@ interface UpdateProfileParams {
   notificationPreferences?: {
     events: Array<'in_app' | 'email' | 'push'>;
     todos: Array<'in_app' | 'email' | 'push'>;
+    workouts: Array<'in_app' | 'email' | 'push'>;
   };
 }
 

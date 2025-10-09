@@ -21,9 +21,13 @@ import {
   Calendar,
   Award,
   Zap,
+  Clock,
 } from 'lucide-react';
 import { GlassCard } from '../components/ui/GlassCard';
 import { toast } from 'react-hot-toast';
+import { getWorkoutStats } from '../lib/workout-stats.service';
+import { formatDistanceToNow } from 'date-fns';
+import { nl } from 'date-fns/locale';
 
 interface Badge {
   id: string;
@@ -42,6 +46,16 @@ interface UserStats {
   currentStreak: number;
 }
 
+interface RecentActivity {
+  id: string;
+  type: 'workout' | 'achievement' | 'goal';
+  title: string;
+  description: string;
+  icon: string;
+  color: string;
+  created_at: string;
+}
+
 export default function ProfilePage() {
   const navigate = useNavigate();
   const { user, profile, refreshProfile } = useAuth();
@@ -57,6 +71,7 @@ export default function ProfilePage() {
     totalMinutes: 0,
     currentStreak: 0,
   });
+  const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
 
   // Form state voor editable fields
   const [formData, setFormData] = useState({
@@ -284,54 +299,57 @@ export default function ProfilePage() {
     setIsEditing(false);
   };
 
-  // Fetch real user statistics
+  // Fetch real user statistics from planner_events
   const fetchUserStats = useCallback(async () => {
     if (!user) return;
 
     try {
-      // Get workout count
-      const { data: workouts, error: workoutError } = await supabase
-        .from('workout_sessions')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('status', 'completed');
-
-      if (workoutError) throw workoutError;
-
-      // Calculate current streak (simple implementation)
-      const { data: recentWorkouts, error: streakError } = await supabase
-        .from('workout_sessions')
-        .select('started_at')
-        .eq('user_id', user.id)
-        .eq('status', 'completed')
-        .order('started_at', { ascending: false })
-        .limit(30);
-
-      if (streakError) throw streakError;
-
-      let currentStreak = 0;
-      if (recentWorkouts && recentWorkouts.length > 0) {
-        const today = new Date();
-        const workoutDates = recentWorkouts.map((w) => new Date(w.started_at).toDateString());
-        const uniqueDates = [...new Set(workoutDates)];
-
-        // Simple streak calculation - consecutive days with workouts
-        for (let i = 0; i < 7; i++) {
-          const checkDate = new Date(today);
-          checkDate.setDate(today.getDate() - i);
-          if (uniqueDates.includes(checkDate.toDateString())) {
-            currentStreak = Math.max(currentStreak, i + 1);
-          }
-        }
-      }
-
+      const stats = await getWorkoutStats(user.id);
       setUserStats({
-        totalWorkouts: workouts?.length || 0,
-        totalMinutes: (workouts?.length || 0) * 45, // Estimate 45 min per workout
-        currentStreak,
+        totalWorkouts: stats.weeklyWorkouts,
+        totalMinutes: stats.totalMinutes,
+        currentStreak: stats.activeStreak,
       });
     } catch (error) {
       console.error('Error fetching user stats:', error);
+    }
+  }, [user]);
+
+  // Fetch recent activities from planner_events
+  const fetchRecentActivities = useCallback(async () => {
+    if (!user) return;
+
+    try {
+      // Get recent completed workouts
+      const { data: completedWorkouts } = await supabase
+        .from('planner_events')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('completed', true)
+        .order('date', { ascending: false })
+        .limit(5);
+
+      const activities: RecentActivity[] = [];
+
+      if (completedWorkouts) {
+        completedWorkouts.forEach((workout) => {
+          activities.push({
+            id: workout.id,
+            type: 'workout',
+            title: `${workout.workout_type || 'Workout'} voltooid`,
+            description: workout.title || workout.notes || 'Workout sessie',
+            icon: 'dumbbell',
+            color: 'text-blue-400',
+            created_at: workout.date,
+          });
+        });
+      }
+
+      // Sort by date and take most recent 5
+      activities.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      setRecentActivities(activities.slice(0, 5));
+    } catch (error) {
+      console.error('Error fetching recent activities:', error);
     }
   }, [user]);
 
@@ -380,20 +398,46 @@ export default function ProfilePage() {
     const initializePage = async () => {
       try {
         setLoading(true);
-        await Promise.all([fetchBadges(), fetchUserStats()]);
+        await Promise.all([fetchBadges(), fetchUserStats(), fetchRecentActivities()]);
       } catch (error) {
         console.error('Error initializing profile page:', error);
       } finally {
         setLoading(false);
       }
     };
-    
+
     if (user) {
       initializePage();
     } else {
       setLoading(false);
     }
-  }, [fetchBadges, fetchUserStats, user]);
+  }, [fetchBadges, fetchUserStats, fetchRecentActivities, user]);
+
+  // Subscribe to real-time planner updates
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('planner_events_profile')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'planner_events',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          fetchUserStats();
+          fetchRecentActivities();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, fetchUserStats, fetchRecentActivities]);
 
   if (!profile || loading) {
     return (
@@ -761,44 +805,55 @@ export default function ProfilePage() {
               <span className="bg-gradient-to-r from-green-400 to-green-600 bg-clip-text text-transparent">Recente Activiteit</span>
             </h3>
             <div className="space-y-4">
-              {[
-                {
-                  icon: Dumbbell,
-                  text: 'Upper Body Workout voltooid',
-                  time: '2 uur geleden',
-                  color: 'text-blue-400',
-                },
-                {
-                  icon: Trophy,
-                  text: '"Week Warrior" badge verdiend',
-                  time: '1 dag geleden',
-                  color: 'text-yellow-400',
-                },
-                {
-                  icon: Target,
-                  text: 'Wekelijkse doelen behaald',
-                  time: '3 dagen geleden',
-                  color: 'text-green-400',
-                },
-              ].map((activity, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.3, delay: index * 0.1 }}
-                  className="flex items-center space-x-4 p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all duration-300 transform hover:scale-[1.02] hover:shadow-lg border border-white/5 hover:border-white/10 group cursor-pointer"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <div className="p-3 rounded-xl bg-white/10 group-hover:bg-white/20 transition-all duration-300 transform group-hover:scale-110 group-hover:rotate-3">
-                    <activity.icon className={`w-5 h-5 ${activity.color} transition-transform duration-300 group-hover:rotate-12`} />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-white text-sm font-medium group-hover:text-white/90 transition-colors duration-300">{activity.text}</p>
-                    <p className="text-white/60 text-xs group-hover:text-white/70 transition-colors duration-300">{activity.time}</p>
-                  </div>
-                </motion.div>
-              ))}
+              {recentActivities.length > 0 ? (
+                recentActivities.map((activity, index) => {
+                  const activityIconMap: Record<string, React.ComponentType<{ className?: string }>> = {
+                    dumbbell: Dumbbell,
+                    trophy: Trophy,
+                    target: Target,
+                    flame: Flame,
+                    calendar: Calendar,
+                    clock: Clock,
+                  };
+                  const ActivityIcon = activityIconMap[activity.icon] || Dumbbell;
+
+                  return (
+                    <motion.div
+                      key={activity.id}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.3, delay: index * 0.1 }}
+                      className="flex items-center space-x-4 p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all duration-300 transform hover:scale-[1.02] hover:shadow-lg border border-white/5 hover:border-white/10 group cursor-pointer"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <div className="p-3 rounded-xl bg-white/10 group-hover:bg-white/20 transition-all duration-300 transform group-hover:scale-110 group-hover:rotate-3">
+                        <ActivityIcon className={`w-5 h-5 ${activity.color} transition-transform duration-300 group-hover:rotate-12`} />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-white text-sm font-medium group-hover:text-white/90 transition-colors duration-300">
+                          {activity.title}
+                        </p>
+                        <p className="text-white/50 text-xs group-hover:text-white/60 transition-colors duration-300">
+                          {activity.description}
+                        </p>
+                        <p className="text-white/60 text-xs group-hover:text-white/70 transition-colors duration-300 mt-1">
+                          {formatDistanceToNow(new Date(activity.created_at), {
+                            addSuffix: true,
+                            locale: nl,
+                          })}
+                        </p>
+                      </div>
+                    </motion.div>
+                  );
+                })
+              ) : (
+                <div className="flex flex-col items-center justify-center py-8 text-white/60">
+                  <TrendingUp className="w-12 h-12 mb-3 opacity-50" />
+                  <p className="text-sm">Nog geen recente activiteit</p>
+                  <p className="text-xs mt-1">Voltooi workouts om je activiteiten hier te zien</p>
+                </div>
+              )}
             </div>
           </GlassCard>
         </motion.div>

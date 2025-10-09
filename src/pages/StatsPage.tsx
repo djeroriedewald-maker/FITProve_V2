@@ -18,87 +18,170 @@ import { GlassCard, GlassButton } from '../components/ui/GlassCard';
 import { StatsCard } from '../components/ui/WorkoutCard';
 import { ProgressiveImage } from '../components/ui/ProgressiveImage';
 import { supabase } from '../lib/supabase';
-import { UserWorkoutHistory } from '../types/user_workout_history.types';
+import { useAuth } from '../contexts/AuthContext';
+import { getWorkoutStats, getDailyWorkoutData, getWeeklyTrend } from '../lib/workout-stats.service';
+import { WorkoutDailyChart, WorkoutMinutesChart, WorkoutWeeklyChart } from '../components/ui/WorkoutCharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { GoalCard } from '../components/ui/GoalCard';
+import { getUserGoals, createGoal, deleteGoal, completeGoal, updateAllGoalsProgress } from '../lib/goals.service';
+import { Goal, GOAL_TEMPLATES } from '../types/goal.types';
+import { Plus } from 'lucide-react';
 
 
 export function StatsPage() {
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<any>({
+    todayProgress: 0,
+    weeklyWorkouts: 0,
+    activeStreak: 0,
+    caloriesBurned: 0,
+    totalMinutes: 0,
+  });
+  const [dailyData, setDailyData] = useState<any[]>([]);
+  const [weeklyData, setWeeklyData] = useState<any[]>([]);
+  const [workoutTypeData, setWorkoutTypeData] = useState<any[]>([]);
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [showGoalTemplates, setShowGoalTemplates] = useState(false);
+
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, []);
 
-  // --- Supabase: Fetch user workout history ---
-  const [history, setHistory] = useState<UserWorkoutHistory[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
   useEffect(() => {
-    async function fetchHistory() {
+    if (!user) return;
+
+    const loadData = async () => {
       setLoading(true);
-      setError(null);
-      // TODO: Replace with real user ID from auth context
-      const user = supabase.auth.getUser ? await supabase.auth.getUser() : null;
-      const userId = user?.data?.user?.id;
-      if (!userId) {
-        setError('Not logged in');
+      try {
+        const [statsData, dailyChartData, weeklyChartData] = await Promise.all([
+          getWorkoutStats(user.id),
+          getDailyWorkoutData(user.id, 7),
+          getWeeklyTrend(user.id, 4),
+        ]);
+
+        setStats(statsData);
+        setDailyData(dailyChartData);
+        setWeeklyData(weeklyChartData);
+
+        // Fetch workout type breakdown from planner_events
+        const { data: plannerEvents } = await supabase
+          .from('planner_events')
+          .select('workout_type, duration_min')
+          .eq('user_id', user.id)
+          .eq('completed', true);
+
+        if (plannerEvents) {
+          // Group by workout type
+          const typeMap = new Map<string, { count: number; duration: number }>();
+          plannerEvents.forEach((event) => {
+            const type = event.workout_type || 'Other';
+            const existing = typeMap.get(type) || { count: 0, duration: 0 };
+            typeMap.set(type, {
+              count: existing.count + 1,
+              duration: existing.duration + (event.duration_min || 0),
+            });
+          });
+
+          const typeData = Array.from(typeMap.entries()).map(([name, data]) => ({
+            name,
+            value: data.count,
+            duration: data.duration,
+          }));
+
+          setWorkoutTypeData(typeData);
+        }
+
+        // Fetch goals and update their progress
+        const userGoals = await getUserGoals(user.id, 'active');
+        await updateAllGoalsProgress(user.id);
+        const updatedGoals = await getUserGoals(user.id);
+        setGoals(updatedGoals);
+      } catch (error) {
+        console.error('Error loading stats:', error);
+      } finally {
         setLoading(false);
-        return;
       }
-      const { data, error } = await supabase
-        .from('user_workout_history')
-        .select('*')
-        .eq('user_id', userId)
-        .order('workout_date', { ascending: false });
-      if (error) setError(error.message);
-      else setHistory(data as UserWorkoutHistory[]);
-      setLoading(false);
-    }
-    fetchHistory();
-  }, []);
-
-  // --- Aggregate stats from history ---
-  const totalWorkouts = history.length;
-  const totalMinutes = history.reduce((sum, w) => sum + (w.duration_minutes || 0), 0);
-  // Streak logic: count consecutive days with a workout
-  let streak = 0;
-  if (history.length > 0) {
-    let prev = new Date(history[0].workout_date);
-    streak = 1;
-    for (let i = 1; i < history.length; i++) {
-      const curr = new Date(history[i].workout_date);
-      const diff = (prev.getTime() - curr.getTime()) / (1000 * 60 * 60 * 24);
-      if (diff === 1) {
-        streak++;
-        prev = curr;
-      } else {
-        break;
-      }
-    }
-  }
-
-  // Weekly stats: workouts/duration per day (Mon-Sun)
-  const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  const weeklyStats = weekDays.map((day, idx) => {
-    const today = new Date();
-    const weekStart = new Date(today);
-    weekStart.setDate(today.getDate() - today.getDay() + 1); // Monday
-    const dayDate = new Date(weekStart);
-    dayDate.setDate(weekStart.getDate() + idx);
-    const dayStr = dayDate.toISOString().slice(0, 10);
-    const dayWorkouts = history.filter((w) => w.workout_date === dayStr);
-    return {
-      day,
-      workouts: dayWorkouts.length,
-      duration: dayWorkouts.reduce((sum, w) => sum + (w.duration_minutes || 0), 0),
     };
-  });
 
-  // Achievements (example logic)
+    loadData();
+
+    // Subscribe to real-time updates
+    const channel = supabase
+      .channel('planner_events_stats')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'planner_events',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          loadData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
+  // Achievements based on real planner data
   const achievements = [
-    { name: 'First Workout', icon: Star, completed: totalWorkouts > 0, description: 'Complete your first workout session' },
-    { name: '7-Day Streak', icon: Flame, completed: streak >= 7, description: 'Work out for 7 consecutive days' },
-    { name: 'Speed Demon', icon: Zap, completed: history.some((w) => (w.duration_minutes || 0) < 20), description: 'Complete a workout in under 20 minutes' },
-    { name: 'Consistency King', icon: Target, completed: streak >= 30, description: 'Work out 30 days in a row' },
+    { name: 'First Workout', icon: Star, completed: stats.weeklyWorkouts > 0, description: 'Complete your first workout session' },
+    { name: '7-Day Streak', icon: Flame, completed: stats.activeStreak >= 7, description: 'Work out for 7 consecutive days' },
+    { name: 'Speed Demon', icon: Zap, completed: dailyData.some((d) => d.minutes > 0 && d.minutes < 20), description: 'Complete a workout in under 20 minutes' },
+    { name: 'Consistency King', icon: Target, completed: stats.activeStreak >= 30, description: 'Work out 30 days in a row' },
   ];
+
+  // Chart colors for workout types
+  const WORKOUT_COLORS = ['#00E5FF', '#B400FF', '#FF6B00', '#00FF85', '#FF0080', '#FFC700'];
+
+  // Goal handlers
+  const handleCreateGoalFromTemplate = async (template: typeof GOAL_TEMPLATES[0]) => {
+    if (!user) {
+      console.error('No user found');
+      return;
+    }
+
+    console.log('Creating goal from template:', template);
+
+    try {
+      const newGoal = await createGoal(user.id, {
+        type: template.type,
+        title: template.title,
+        description: template.description,
+        target_value: template.target_value,
+        unit: template.unit,
+      });
+
+      if (newGoal) {
+        console.log('Goal created successfully:', newGoal);
+        setGoals([...goals, newGoal]);
+        setShowGoalTemplates(false);
+      } else {
+        console.error('Failed to create goal - returned null');
+      }
+    } catch (error) {
+      console.error('Error in handleCreateGoalFromTemplate:', error);
+    }
+  };
+
+  const handleDeleteGoal = async (goalId: string) => {
+    const success = await deleteGoal(goalId);
+    if (success) {
+      setGoals(goals.filter((g) => g.id !== goalId));
+    }
+  };
+
+  const handleCompleteGoal = async (goalId: string) => {
+    const updated = await completeGoal(goalId);
+    if (updated) {
+      setGoals(goals.map((g) => (g.id === goalId ? updated : g)));
+    }
+  };
 
   return (
     <div className="min-h-screen space-y-8">
@@ -159,87 +242,203 @@ export function StatsPage() {
         >
           <StatsCard
             title="Total Workouts"
-            value="47"
+            value={loading ? '-' : stats.weeklyWorkouts.toString()}
             icon={<Dumbbell className="w-6 h-6" />}
             trend="up"
-            trendValue="+8"
+            trendValue={loading ? '' : `Deze week`}
             glowColor="cyan"
           />
           <StatsCard
             title="Hours Trained"
-            value="32.5"
+            value={loading ? '-' : (stats.totalMinutes / 60).toFixed(1)}
             icon={<Clock className="w-6 h-6" />}
             trend="up"
-            trendValue="+5.2h"
+            trendValue={loading ? '' : `${stats.totalMinutes} min`}
             glowColor="purple"
           />
           <StatsCard
             title="Current Streak"
-            value="7 days"
+            value={loading ? '-' : `${stats.activeStreak} days`}
             icon={<Flame className="w-6 h-6" />}
             trend="up"
-            trendValue="New record!"
+            trendValue={loading ? '' : stats.activeStreak >= 7 ? 'Amazing!' : 'Keep going!'}
             glowColor="orange"
           />
           <StatsCard
             title="Calories Burned"
-            value="12,450"
+            value={loading ? '-' : stats.caloriesBurned.toLocaleString()}
             icon={<Activity className="w-6 h-6" />}
             trend="up"
-            trendValue="+1,200"
+            trendValue={loading ? '' : 'Total'}
             glowColor="green"
           />
         </motion.div>
       </section>
 
-      {/* Weekly Activity Chart */}
+      {/* Weekly Activity Charts */}
       <section>
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.4 }}
         >
+          <h2 className="text-3xl font-bold text-white mb-6">Weekly Activity</h2>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Workout Completion Chart */}
+            <GlassCard variant="workout" className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-xl font-bold text-white mb-2">Last 7 Days</h3>
+                  <p className="text-white/70">Completed vs Planned Workouts</p>
+                </div>
+                <BarChart3 className="w-8 h-8 text-primary" />
+              </div>
+              {loading ? (
+                <div className="flex items-center justify-center h-64">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                </div>
+              ) : dailyData.length > 0 ? (
+                <WorkoutDailyChart data={dailyData} />
+              ) : (
+                <div className="flex flex-col items-center justify-center h-64 text-white/60">
+                  <BarChart3 className="w-16 h-16 mb-4 opacity-50" />
+                  <p>No workout data yet</p>
+                </div>
+              )}
+            </GlassCard>
+
+            {/* Training Minutes Chart */}
+            <GlassCard variant="workout" className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-xl font-bold text-white mb-2">Training Minutes</h3>
+                  <p className="text-white/70">Daily workout duration</p>
+                </div>
+                <Clock className="w-8 h-8 text-accent" />
+              </div>
+              {loading ? (
+                <div className="flex items-center justify-center h-64">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent"></div>
+                </div>
+              ) : dailyData.length > 0 ? (
+                <WorkoutMinutesChart data={dailyData} />
+              ) : (
+                <div className="flex flex-col items-center justify-center h-64 text-white/60">
+                  <Clock className="w-16 h-16 mb-4 opacity-50" />
+                  <p>No workout data yet</p>
+                </div>
+              )}
+            </GlassCard>
+          </div>
+        </motion.div>
+      </section>
+
+      {/* Workout Type Breakdown */}
+      <section>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.6 }}
+        >
           <GlassCard variant="workout" className="p-6">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="text-2xl font-bold text-white mb-2">Weekly Activity</h2>
-                <p className="text-white/70">Your workout consistency this week</p>
+                <h2 className="text-2xl font-bold text-white mb-2">Workout Distribution</h2>
+                <p className="text-white/70">Breakdown by workout type</p>
               </div>
-              <BarChart3 className="w-8 h-8 text-primary" />
+              <Activity className="w-8 h-8 text-secondary" />
             </div>
 
-            {/* Simple Bar Chart */}
-            <div className="space-y-4">
-              {weeklyStats.map((day, index) => (
-                <motion.div
-                  key={day.day}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.5, delay: 0.1 * index }}
-                  className="flex items-center gap-4"
-                >
-                  <div className="w-12 text-white/70 font-medium">{day.day}</div>
-                  
-                  <div className="flex-1 bg-glass-white-light rounded-full h-3 overflow-hidden">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${(day.workouts / 3) * 100}%` }}
-                      transition={{ duration: 0.8, delay: 0.2 + 0.1 * index }}
-                      className="h-full bg-gradient-to-r from-primary to-secondary rounded-full"
+            {loading ? (
+              <div className="flex items-center justify-center h-80">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-secondary"></div>
+              </div>
+            ) : workoutTypeData.length > 0 ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-center">
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={workoutTypeData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      outerRadius={100}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {workoutTypeData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={WORKOUT_COLORS[index % WORKOUT_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        borderRadius: '8px',
+                        color: '#fff',
+                      }}
                     />
-                  </div>
-                  
-                  <div className="flex items-center gap-3 text-sm text-white/80 w-24">
-                    <span>{day.workouts} workouts</span>
-                  </div>
-                  
-                  <div className="flex items-center gap-1 text-sm text-white/60 w-16">
-                    <Clock className="w-3 h-3" />
-                    <span>{day.duration}m</span>
-                  </div>
-                </motion.div>
-              ))}
+                  </PieChart>
+                </ResponsiveContainer>
+
+                <div className="space-y-3">
+                  {workoutTypeData.map((type, index) => (
+                    <div key={type.name} className="flex items-center justify-between p-3 bg-glass-white-light rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="w-4 h-4 rounded-full"
+                          style={{ backgroundColor: WORKOUT_COLORS[index % WORKOUT_COLORS.length] }}
+                        />
+                        <span className="text-white font-medium">{type.name}</span>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-white font-bold">{type.value} workouts</div>
+                        <div className="text-white/60 text-sm">{type.duration} min</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-80 text-white/60">
+                <Activity className="w-16 h-16 mb-4 opacity-50" />
+                <p>Complete workouts to see distribution</p>
+              </div>
+            )}
+          </GlassCard>
+        </motion.div>
+      </section>
+
+      {/* 4-Week Trend */}
+      <section>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.7 }}
+        >
+          <GlassCard variant="workout" className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-bold text-white mb-2">Monthly Progress</h2>
+                <p className="text-white/70">Your workout trend over the past 4 weeks</p>
+              </div>
+              <TrendingUp className="w-8 h-8 text-green-400" />
             </div>
+
+            {loading ? (
+              <div className="flex items-center justify-center h-64">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-400"></div>
+              </div>
+            ) : weeklyData.length > 0 ? (
+              <WorkoutWeeklyChart data={weeklyData} />
+            ) : (
+              <div className="flex flex-col items-center justify-center h-64 text-white/60">
+                <TrendingUp className="w-16 h-16 mb-4 opacity-50" />
+                <p>No weekly trend data yet</p>
+                <p className="text-xs mt-1">Complete workouts to see your monthly progress</p>
+              </div>
+            )}
           </GlassCard>
         </motion.div>
       </section>
@@ -249,7 +448,7 @@ export function StatsPage() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.6 }}
+          transition={{ duration: 0.6, delay: 0.8 }}
         >
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -312,34 +511,80 @@ export function StatsPage() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.8 }}
+          transition={{ duration: 0.6, delay: 1.0 }}
         >
-          <GlassCard variant="workout" className="p-8 text-center">
-            <div className="relative">
-              {/* Background Gradient */}
-              <div className="absolute inset-0 bg-gradient-to-r from-primary/20 via-secondary/20 to-accent/20 rounded-xl" />
-              
-              <div className="relative z-10">
-                <Target className="w-16 h-16 text-primary mx-auto mb-4" />
-                <h2 className="text-3xl font-bold text-white mb-4">Set New Goals</h2>
-                <p className="text-lg text-white/80 mb-8 max-w-2xl mx-auto leading-relaxed">
-                  Ready to take your fitness to the next level? Set personalized goals and track your progress with our advanced analytics.
-                </p>
-                
-                <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <GlassButton size="lg">
-                    <Target className="w-5 h-5 mr-2" />
-                    Set Goals
-                  </GlassButton>
-                  
-                  <GlassButton variant="secondary" size="lg">
-                    <Heart className="w-5 h-5 mr-2" />
-                    View Details
-                  </GlassButton>
-                </div>
-              </div>
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-3xl font-bold text-white mb-2">Your Goals</h2>
+              <p className="text-white/70">Track your fitness goals and celebrate milestones</p>
             </div>
-          </GlassCard>
+            <GlassButton onClick={() => setShowGoalTemplates(!showGoalTemplates)}>
+              <Plus className="w-5 h-5 mr-2" />
+              {showGoalTemplates ? 'Close' : 'New Goal'}
+            </GlassButton>
+          </div>
+
+          {/* Goal Templates */}
+          {showGoalTemplates && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+              className="mb-6"
+            >
+              <GlassCard variant="workout" className="p-6">
+                <h3 className="text-xl font-bold text-white mb-4">Choose a Goal Template</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {GOAL_TEMPLATES.map((template) => (
+                    <button
+                      key={template.type}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log('Button clicked!', template.title);
+                        handleCreateGoalFromTemplate(template);
+                      }}
+                      className="text-left p-4 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 hover:border-white/20 transition-all duration-300 cursor-pointer relative z-10"
+                      type="button"
+                    >
+                      <h4 className="text-lg font-bold text-white mb-1">{template.title}</h4>
+                      <p className="text-sm text-white/60 mb-2">{template.description}</p>
+                      <div className="text-xs text-white/50">
+                        Target: {template.target_value} {template.unit}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </GlassCard>
+            </motion.div>
+          )}
+
+          {/* Goals Grid */}
+          {goals.length > 0 ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {goals.map((goal) => (
+                <GoalCard
+                  key={goal.id}
+                  goal={goal}
+                  onDelete={handleDeleteGoal}
+                  onComplete={handleCompleteGoal}
+                />
+              ))}
+            </div>
+          ) : (
+            <GlassCard variant="workout" className="p-12 text-center">
+              <Target className="w-16 h-16 text-primary mx-auto mb-4 opacity-50" />
+              <h3 className="text-2xl font-bold text-white mb-2">No Goals Yet</h3>
+              <p className="text-white/60 mb-6">
+                Set your first fitness goal and start tracking your progress!
+              </p>
+              <GlassButton onClick={() => setShowGoalTemplates(true)}>
+                <Plus className="w-5 h-5 mr-2" />
+                Create Your First Goal
+              </GlassButton>
+            </GlassCard>
+          )}
         </motion.div>
       </section>
     </div>
