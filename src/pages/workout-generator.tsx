@@ -2336,16 +2336,16 @@ const WorkoutGenerator: React.FC = () => {
 
       <div className="relative z-10 min-h-screen flex flex-col w-full">
         {!showWorkout && (
-          <main className="flex-1 flex items-center justify-center px-4 md:px-8 lg:px-12">
-            <div className="w-full max-w-7xl mx-auto">
+          <main className="flex-1 flex items-center justify-center px-6 md:px-12 lg:px-16">
+            <div className="w-full">
               <AnimatePresence mode="wait">{renderCurrentStep()}</AnimatePresence>
             </div>
           </main>
         )}
 
         {!showWelcome && !showWorkout && totalSteps > 0 && (
-          <div className="sticky bottom-0 left-0 right-0 bg-black/20 backdrop-blur-sm w-full px-4 md:px-8 lg:px-12 py-4">
-            <div className="w-full max-w-7xl mx-auto flex justify-between gap-4">
+          <div className="sticky bottom-0 left-0 right-0 bg-black/20 backdrop-blur-sm w-full px-6 md:px-12 lg:px-16 py-4">
+            <div className="w-full flex justify-between gap-4">
               {currentStep > 0 && (
                 <button
                   onClick={goToPreviousStep}
