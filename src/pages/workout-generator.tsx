@@ -400,6 +400,9 @@ const WorkoutGenerator: React.FC = () => {
   const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false);
   const [showLoadTemplateModal, setShowLoadTemplateModal] = useState(false);
 
+  // Regeneration trigger
+  const [regenerationKey, setRegenerationKey] = useState(0);
+
   const muscleOptions = useMemo(
     () => Object.keys(MUSCLE_UI_TO_CANONICAL),
     []
@@ -855,6 +858,27 @@ const WorkoutGenerator: React.FC = () => {
     // Jump to summary step or regenerate
     setShowWelcome(false);
     setCurrentStep(steps.length - 1); // Go to final step
+  };
+
+  const handleRegenerate = () => {
+    // Keep all preferences, just trigger new workout generation with new exercises
+    resetSaveState();
+    // Force regeneration by updating workoutParams with a timestamp
+    if (workoutParams) {
+      setWorkoutParams({ ...workoutParams, timestamp: Date.now() });
+    }
+    toast.success('🔄 Generating new workout...');
+  };
+
+  const handleModifyAndRegenerate = () => {
+    // Go back to muscle selection step
+    resetSaveState();
+    const muscleStepIndex = steps.findIndex(s => s.key === 'muscles');
+    if (muscleStepIndex !== -1) {
+      setCurrentStep(muscleStepIndex);
+      setShowWorkout(false);
+      toast('✏️ Adjust preferences and regenerate');
+    }
   };
 
   /* --------------------------- Local Step Views -------------------------- */
@@ -1592,6 +1616,36 @@ const WorkoutGenerator: React.FC = () => {
               title="Save your current preferences as a reusable template"
             >
               💾 Save as Template
+            </button>
+          </div>
+
+          {/* Secondary Actions */}
+          <div className="flex flex-wrap items-center gap-3 mb-4">
+            <button
+              type="button"
+              onClick={handleRegenerate}
+              disabled={!workoutParams}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${
+                !workoutParams
+                  ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                  : 'bg-gray-800 hover:bg-gray-700 text-white border border-cyan-600 hover:border-cyan-400'
+              }`}
+              title="Generate new workout with same preferences"
+            >
+              🔄 Regenerate
+            </button>
+            <button
+              type="button"
+              onClick={handleModifyAndRegenerate}
+              disabled={!workoutParams}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${
+                !workoutParams
+                  ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                  : 'bg-gray-800 hover:bg-gray-700 text-white border border-purple-600 hover:border-purple-400'
+              }`}
+              title="Go back to adjust preferences"
+            >
+              ✏️ Modify & Regenerate
             </button>
             {saveError && <span className="text-sm text-red-400">{saveError}</span>}
             {saveSuccess && <span className="text-sm text-green-400">Workout saved to your account.</span>}
