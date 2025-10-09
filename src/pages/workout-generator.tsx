@@ -9,6 +9,10 @@ import { useUserHistory } from '../hooks/useUserHistory';
 import { useSaveWorkout } from '../hooks/useSaveWorkout';
 import { useNavigate } from 'react-router-dom';
 import { buildPlannerSchedulePayload } from '../lib/planner-payload';
+import { SaveTemplateModal } from '../components/ui/SaveTemplateModal';
+import { TemplateModal } from '../components/ui/TemplateModal';
+import { useAuth } from '../contexts/AuthContext';
+import type { WorkoutTemplate } from '../types/template.types';
 
 /* ----------------------------- Types & Data ------------------------------ */
 
@@ -390,6 +394,11 @@ const WorkoutGenerator: React.FC = () => {
     reset: resetSaveState,
   } = useSaveWorkout();
   const navigate = useNavigate();
+  const { user } = useAuth();
+
+  // Template modals
+  const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false);
+  const [showLoadTemplateModal, setShowLoadTemplateModal] = useState(false);
 
   const muscleOptions = useMemo(
     () => Object.keys(MUSCLE_UI_TO_CANONICAL),
@@ -822,6 +831,32 @@ const WorkoutGenerator: React.FC = () => {
     }
   };
 
+  const handleLoadTemplate = (template: WorkoutTemplate) => {
+    const prefs = template.preferences;
+
+    // Map template preferences back to our preferences state
+    setPreferences({
+      gender: (prefs as any).gender || null,
+      age: (prefs as any).age || 25,
+      goal: prefs.goal || '',
+      eventType: (prefs as any).eventType,
+      eventDate: (prefs as any).eventDate ? new Date((prefs as any).eventDate) : undefined,
+      experienceLevel: prefs.experience || '',
+      equipment: prefs.equipment || [],
+      duration: prefs.duration || 30,
+      frequency: prefs.frequency || { days: [], preferredTime: undefined },
+      limitations: (prefs as any).limitations || [],
+      workoutStyle: (prefs as any).workoutStyle || '',
+      music: (prefs as any).music,
+      tracking: (prefs as any).tracking || { social: false, metrics: [] },
+      muscles: prefs.specificMuscles || [],
+    });
+
+    // Jump to summary step or regenerate
+    setShowWelcome(false);
+    setCurrentStep(steps.length - 1); // Go to final step
+  };
+
   /* --------------------------- Local Step Views -------------------------- */
 
   const WelcomeScreen: React.FC<{ onStart: () => void }> = ({ onStart }) => (
@@ -859,17 +894,31 @@ const WorkoutGenerator: React.FC = () => {
           AI-powered workouts tailored just for you, adapting to your goals and progress
         </motion.p>
 
-        <motion.button
+        <motion.div
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.6 }}
-          onClick={onStart}
-          className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-lg font-semibold px-8 py-4 rounded-lg
-          hover:from-purple-500 hover:to-indigo-500 transform hover:scale-105 transition-all duration-300
-          shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50"
+          className="flex flex-col sm:flex-row gap-4 justify-center"
         >
-          Let&apos;s Get Started
-        </motion.button>
+          <button
+            onClick={onStart}
+            className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-lg font-semibold px-8 py-4 rounded-lg
+            hover:from-purple-500 hover:to-indigo-500 transform hover:scale-105 transition-all duration-300
+            shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50"
+          >
+            Let&apos;s Get Started
+          </button>
+          {user && (
+            <button
+              onClick={() => setShowLoadTemplateModal(true)}
+              className="bg-gradient-to-r from-amber-600 to-orange-600 text-white text-lg font-semibold px-8 py-4 rounded-lg
+              hover:from-amber-500 hover:to-orange-500 transform hover:scale-105 transition-all duration-300
+              shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50 flex items-center gap-2 justify-center"
+            >
+              📋 Load Template
+            </button>
+          )}
+        </motion.div>
       </div>
     </motion.div>
   );
@@ -1531,6 +1580,19 @@ const WorkoutGenerator: React.FC = () => {
             >
               {isSavingWorkout ? 'Saving…' : saveSuccess ? 'Saved!' : 'Save Workout'}
             </button>
+            <button
+              type="button"
+              onClick={() => setShowSaveTemplateModal(true)}
+              disabled={!generatedWorkout.plan.length || !user}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${
+                !generatedWorkout.plan.length || !user
+                  ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-amber-600 to-orange-600 text-white hover:from-amber-500 hover:to-orange-500 shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50'
+              }`}
+              title="Save your current preferences as a reusable template"
+            >
+              💾 Save as Template
+            </button>
             {saveError && <span className="text-sm text-red-400">{saveError}</span>}
             {saveSuccess && <span className="text-sm text-green-400">Workout saved to your account.</span>}
           </div>
@@ -1677,6 +1739,41 @@ const WorkoutGenerator: React.FC = () => {
             Back to Onboarding
           </button>
         </div>
+      )}
+
+      {/* Template Modals */}
+      {user && (
+        <>
+          <SaveTemplateModal
+            isOpen={showSaveTemplateModal}
+            onClose={() => setShowSaveTemplateModal(false)}
+            preferences={{
+              goal: preferences.goal,
+              duration: preferences.duration,
+              frequency: preferences.frequency,
+              equipment: preferences.equipment,
+              experience: preferences.experienceLevel,
+              specificMuscles: preferences.muscles,
+              gender: preferences.gender || undefined,
+              age: preferences.age,
+              eventType: preferences.eventType,
+              eventDate: preferences.eventDate?.toISOString(),
+              limitations: preferences.limitations,
+              workoutStyle: preferences.workoutStyle,
+              music: preferences.music,
+              tracking: preferences.tracking,
+            }}
+            userId={user.id}
+            defaultName={`${preferences.goal || 'Custom'} Workout`}
+          />
+
+          <TemplateModal
+            isOpen={showLoadTemplateModal}
+            onClose={() => setShowLoadTemplateModal(false)}
+            onSelectTemplate={handleLoadTemplate}
+            userId={user.id}
+          />
+        </>
       )}
     </div>
   );
