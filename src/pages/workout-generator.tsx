@@ -271,6 +271,7 @@ const mapPreferencesToParams = (prefs: WorkoutPreferences): WorkoutGenerationPar
 type StepKey =
   | 'goal'
   | 'event'
+  | 'profile-experience' // 🌟 NEW: Merged mega-step
   | 'experience'
   | 'profile'
   | 'equipment'
@@ -283,6 +284,7 @@ type StepKey =
 const STEP_LABELS: Record<StepKey, string> = {
   goal: 'Goal',
   event: 'Event',
+  'profile-experience': 'About You', // 🌟 NEW
   experience: 'Experience',
   profile: 'Profile',
   equipment: 'Equipment',
@@ -552,6 +554,220 @@ const WorkoutGenerator: React.FC = () => {
     );
   };
 
+  // 🌟 NEW: Combined Profile + Experience Mega-Step
+  const ProfileExperienceMegaStep = () => {
+    const handleAgeChange = (value: number) => {
+      if (Number.isNaN(value)) return;
+      const clamped = Math.min(90, Math.max(13, value));
+      updatePreferences({ age: clamped });
+    };
+
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -20 }}
+        className="space-y-8"
+      >
+        {/* Hero Header */}
+        <div className="text-center space-y-4">
+          <motion.h2
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent"
+          >
+            👋 Let's Build Your Perfect Workout
+          </motion.h2>
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+            className="text-lg text-gray-300 max-w-2xl mx-auto"
+          >
+            Tell us about yourself so we can personalize every aspect of your training
+          </motion.p>
+        </div>
+
+        {/* Split Layout: Profile | Experience */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+          {/* LEFT: Profile Section */}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.3 }}
+            className="space-y-6"
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-2xl">
+                👤
+              </div>
+              <div>
+                <h3 className="text-2xl font-bold text-white">Your Profile</h3>
+                <p className="text-sm text-gray-400">Help us personalize your experience</p>
+              </div>
+            </div>
+
+            {/* Gender Selection - Compact */}
+            <div className="space-y-3">
+              <label className="text-sm font-semibold text-cyan-300">Gender</label>
+              <div className="grid grid-cols-2 gap-3">
+                {GENDER_OPTIONS.map((option) => {
+                  const selected = preferences.gender === option.id;
+                  return (
+                    <motion.button
+                      key={option.id}
+                      whileHover={{ scale: 1.03 }}
+                      whileTap={{ scale: 0.97 }}
+                      onClick={() => updatePreferences({ gender: option.id })}
+                      className={`relative overflow-hidden rounded-xl h-32 group transition-all ${
+                        selected
+                          ? 'ring-2 ring-cyan-400 shadow-lg shadow-cyan-500/40'
+                          : 'ring-1 ring-gray-700 hover:ring-cyan-400/50'
+                      }`}
+                    >
+                      <img
+                        src={option.image}
+                        alt={option.label}
+                        className="absolute inset-0 w-full h-full object-cover opacity-60"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
+                      <div className="relative z-10 h-full flex flex-col justify-end p-4">
+                        <p className="text-lg font-bold text-white">{option.label}</p>
+                      </div>
+                      {selected && (
+                        <motion.div
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          className="absolute top-2 right-2 bg-cyan-500 rounded-full p-1"
+                        >
+                          <CheckCircleIcon className="w-5 h-5 text-white" />
+                        </motion.div>
+                      )}
+                    </motion.button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Age Selector */}
+            <div className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 rounded-xl p-6 space-y-4 backdrop-blur-sm border border-gray-700/40">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-lg font-semibold text-white">Age</h4>
+                  <p className="text-sm text-gray-400">Helps tune intensity & recovery</p>
+                </div>
+                <span className="text-4xl font-bold bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
+                  {preferences.age}
+                </span>
+              </div>
+              <input
+                type="range"
+                min={13}
+                max={80}
+                value={preferences.age}
+                onChange={(e) => handleAgeChange(Number(e.target.value))}
+                className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                style={{
+                  background: `linear-gradient(to right, #06b6d4 0%, #06b6d4 ${((preferences.age - 13) / (80 - 13)) * 100}%, #374151 ${((preferences.age - 13) / (80 - 13)) * 100}%, #374151 100%)`
+                }}
+              />
+              <div className="flex justify-between text-xs text-gray-500">
+                <span>13</span>
+                <span>80+</span>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* RIGHT: Experience Section */}
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.4 }}
+            className="space-y-6"
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center text-2xl">
+                💪
+              </div>
+              <div>
+                <h3 className="text-2xl font-bold text-white">Experience Level</h3>
+                <p className="text-sm text-gray-400">Where are you in your fitness journey?</p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {EXPERIENCE_LEVELS.map((level) => {
+                const selected = preferences.experienceLevel === level.id;
+                return (
+                  <motion.button
+                    key={level.id}
+                    whileHover={{ scale: 1.02, x: 5 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => updatePreferences({ experienceLevel: level.id })}
+                    className={`w-full text-left rounded-xl p-5 transition-all ${
+                      selected
+                        ? 'bg-gradient-to-r from-purple-600/40 to-pink-600/40 ring-2 ring-purple-400 shadow-lg shadow-purple-500/30'
+                        : 'bg-gray-800/40 hover:bg-gray-800/60 ring-1 ring-gray-700'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h4 className="text-xl font-bold text-white">{level.title}</h4>
+                          {selected && (
+                            <motion.div
+                              initial={{ scale: 0 }}
+                              animate={{ scale: 1 }}
+                            >
+                              <CheckCircleIcon className="w-6 h-6 text-purple-400" />
+                            </motion.div>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-300 mb-2">{level.description}</p>
+                        <div className="flex flex-wrap gap-2">
+                          {level.tips.map((tip, idx) => (
+                            <span
+                              key={idx}
+                              className="text-xs px-2 py-1 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30"
+                            >
+                              {tip}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="ml-4 opacity-40">
+                        <img
+                          src={level.image}
+                          alt={level.title}
+                          className="w-20 h-20 object-cover rounded-lg"
+                        />
+                      </div>
+                    </div>
+                  </motion.button>
+                );
+              })}
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Encouraging Footer */}
+        {preferences.gender && preferences.experienceLevel && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center p-6 rounded-xl bg-gradient-to-r from-cyan-500/10 to-purple-500/10 border border-cyan-500/30"
+          >
+            <p className="text-lg text-cyan-300">
+              ✨ Perfect! A <span className="font-bold">{preferences.age}-year-old {EXPERIENCE_LEVELS.find(l => l.id === preferences.experienceLevel)?.title.toLowerCase()}</span> ready to crush it!
+            </p>
+          </motion.div>
+        )}
+      </motion.div>
+    );
+  };
+
   const EquipmentSelectionStep = () => {
     const toggleEquipment = (id: string) => {
       setPreferences((prev) => {
@@ -641,7 +857,8 @@ const WorkoutGenerator: React.FC = () => {
     if (preferences.goal === 'event') {
       sequence.push('event');
     }
-    sequence.push('experience', 'profile', 'equipment', 'duration', 'frequency', 'limitations');
+    // 🌟 NEW: Use combined profile-experience mega-step
+    sequence.push('profile-experience', 'equipment', 'duration', 'frequency', 'limitations');
     if (shouldPromptForMuscles) {
       sequence.push('muscles');
     }
@@ -667,6 +884,8 @@ const WorkoutGenerator: React.FC = () => {
         return preferences.goal.length > 0;
       case 'event':
         return Boolean(preferences.eventType);
+      case 'profile-experience': // 🌟 NEW: Combined validation
+        return preferences.gender !== null && preferences.age > 0 && preferences.experienceLevel.length > 0;
       case 'experience':
         return preferences.experienceLevel.length > 0;
       case 'profile':
@@ -1450,6 +1669,8 @@ const WorkoutGenerator: React.FC = () => {
         return <GoalSelection />;
       case 'event':
         return <EventSelection />;
+      case 'profile-experience': // 🌟 NEW: Use merged mega-step
+        return <ProfileExperienceMegaStep />;
       case 'experience':
         return <ExperienceSelection />;
       case 'profile':
