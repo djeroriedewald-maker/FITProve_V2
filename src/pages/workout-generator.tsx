@@ -269,12 +269,13 @@ const mapPreferencesToParams = (prefs: WorkoutPreferences): WorkoutGenerationPar
 });
 
 type StepKey =
-  | 'goal-event' // 🎬 NEW: Netflix-style carousel combining goal + event
+  | 'goal-event' // 🎬 Netflix-style carousel combining goal + event
   | 'goal'
   | 'event'
   | 'profile-experience' // 🌟 Merged mega-step (profile + experience)
   | 'experience'
   | 'profile'
+  | 'equipment-duration' // 💪 NEW: Equipment + Duration mega-step
   | 'equipment'
   | 'duration'
   | 'frequency'
@@ -283,12 +284,13 @@ type StepKey =
   | 'summary';
 
 const STEP_LABELS: Record<StepKey, string> = {
-  'goal-event': 'Your Goal', // 🎬 NEW
+  'goal-event': 'Your Goal', // 🎬
   goal: 'Goal',
   event: 'Event',
   'profile-experience': 'About You', // 🌟
   experience: 'Experience',
   profile: 'Profile',
+  'equipment-duration': 'Training Setup', // 💪 NEW
   equipment: 'Equipment',
   duration: 'Duration',
   frequency: 'Schedule',
@@ -787,6 +789,273 @@ const WorkoutGenerator: React.FC = () => {
     );
   };
 
+  // 💪 NEW: Equipment + Duration Mega-Step
+  const EquipmentDurationMegaStep = () => {
+    const [localDuration, setLocalDuration] = useState(preferences.duration);
+
+    const toggleEquipment = (id: string) => {
+      setPreferences((prev) => {
+        const hasItem = prev.equipment.includes(id);
+        const next = hasItem ? prev.equipment.filter((item) => item !== id) : [...prev.equipment, id];
+        return { ...prev, equipment: next };
+      });
+    };
+
+    const handleDurationInput = (value: number) => {
+      if (Number.isNaN(value)) return;
+      const clamped = Math.min(120, Math.max(10, value));
+      setLocalDuration(clamped);
+    };
+
+    const handleDurationCommit = (value: number) => {
+      if (Number.isNaN(value)) return;
+      const clamped = Math.min(120, Math.max(10, value));
+      updatePreferences({ duration: clamped });
+    };
+
+    useEffect(() => {
+      setLocalDuration(preferences.duration);
+    }, [preferences.duration]);
+
+    const isMegaStepComplete = preferences.equipment.length > 0 && preferences.duration > 0;
+
+    // Smart recommendations based on duration
+    const getDurationRecommendation = () => {
+      if (localDuration < 20) return { emoji: '⚡', text: 'Quick & Intense', color: 'text-yellow-400' };
+      if (localDuration < 35) return { emoji: '🔥', text: 'Perfect for Most', color: 'text-orange-400' };
+      if (localDuration < 50) return { emoji: '💪', text: 'Solid Session', color: 'text-purple-400' };
+      if (localDuration < 75) return { emoji: '🏆', text: 'Advanced Training', color: 'text-blue-400' };
+      return { emoji: '🦾', text: 'Beast Mode', color: 'text-red-400' };
+    };
+
+    const recommendation = getDurationRecommendation();
+
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -20 }}
+        className="space-y-8"
+      >
+        {/* Hero Header */}
+        <div className="text-center space-y-3">
+          <h1 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-pink-400 to-purple-400">
+            🏋️ Set Up Your Training Space
+          </h1>
+          <p className="text-lg text-gray-300">
+            Tell us what equipment you have and how long you want to train
+          </p>
+        </div>
+
+        {/* Split Layout: Equipment | Duration */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+          {/* LEFT: Equipment Section */}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.2 }}
+            className="space-y-6"
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-orange-500 to-pink-600 flex items-center justify-center text-2xl">
+                🏋️
+              </div>
+              <div>
+                <h3 className="text-2xl font-bold text-white">Available Equipment</h3>
+                <p className="text-sm text-gray-400">Select everything you can access</p>
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() =>
+                  setPreferences((prev) => ({
+                    ...prev,
+                    equipment: Array.from(new Set(EQUIPMENT_OPTIONS.map((option) => option.id))),
+                  }))
+                }
+                className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs font-semibold shadow-md hover:shadow-lg hover:scale-105 transition-transform"
+              >
+                Select All
+              </button>
+              <button
+                type="button"
+                onClick={() => setPreferences((prev) => ({ ...prev, equipment: [] }))}
+                className="px-3 py-1.5 rounded-lg bg-gray-800 text-gray-200 text-xs font-semibold border border-gray-700 hover:border-purple-400/70 hover:text-white transition-colors"
+              >
+                Clear
+              </button>
+            </div>
+
+            {/* Equipment Grid */}
+            <div className="grid grid-cols-2 gap-3 max-h-[500px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-purple-500/50 scrollbar-track-gray-800/30">
+              {EQUIPMENT_OPTIONS.map((option) => {
+                const selected = preferences.equipment.includes(option.id);
+                return (
+                  <motion.button
+                    key={option.id}
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => toggleEquipment(option.id)}
+                    className={`relative rounded-xl p-3 flex flex-col items-center justify-center gap-2 text-center border transition-all ${
+                      selected
+                        ? 'border-orange-500 bg-orange-500/20 shadow-lg shadow-orange-500/30 ring-2 ring-orange-400'
+                        : 'border-gray-700 bg-gray-800/40 hover:border-orange-400/60'
+                    }`}
+                  >
+                    <img src={option.image} alt={option.label} className="w-12 h-12 object-contain rounded-lg" />
+                    <span className="text-xs font-semibold text-white">{option.label}</span>
+                    {selected && (
+                      <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        className="absolute top-1 right-1 bg-orange-500 rounded-full p-0.5"
+                      >
+                        <CheckCircleIcon className="w-4 h-4 text-white" />
+                      </motion.div>
+                    )}
+                  </motion.button>
+                );
+              })}
+            </div>
+
+            {/* Selected Summary */}
+            <div className="bg-gray-800/40 rounded-xl p-3 border border-gray-700/40 text-xs text-gray-300">
+              {preferences.equipment.length > 0 ? (
+                <>
+                  <span className="text-orange-400 font-semibold">{preferences.equipment.length} selected:</span>{' '}
+                  {preferences.equipment
+                    .map((item) => EQUIPMENT_LABEL_LOOKUP[item] ?? item.replace(/_/g, ' '))
+                    .join(', ')}
+                </>
+              ) : (
+                <span className="text-gray-400">Select at least one option to continue</span>
+              )}
+            </div>
+          </motion.div>
+
+          {/* RIGHT: Duration Section */}
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.3 }}
+            className="space-y-6"
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-2xl">
+                ⏱️
+              </div>
+              <div>
+                <h3 className="text-2xl font-bold text-white">Workout Duration</h3>
+                <p className="text-sm text-gray-400">How long do you want to train?</p>
+              </div>
+            </div>
+
+            {/* Duration Display Card */}
+            <div className="bg-gradient-to-br from-gray-800/60 to-gray-900/60 rounded-2xl p-8 border border-gray-700/40 backdrop-blur-sm">
+              <div className="text-center mb-6">
+                <div className="text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400 mb-2">
+                  {localDuration}
+                </div>
+                <div className="text-2xl text-gray-400 font-semibold">minutes</div>
+                <div className={`text-lg font-bold mt-2 ${recommendation.color}`}>
+                  {recommendation.emoji} {recommendation.text}
+                </div>
+              </div>
+
+              {/* Duration Slider */}
+              <input
+                type="range"
+                min={10}
+                max={120}
+                step={5}
+                value={localDuration}
+                onInput={(e) => handleDurationInput(Number((e.target as HTMLInputElement).value))}
+                onMouseUp={(e) => handleDurationCommit(Number((e.target as HTMLInputElement).value))}
+                onTouchEnd={(e) => handleDurationCommit(Number((e.target as HTMLInputElement).value))}
+                className="w-full h-3 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                style={{
+                  background: `linear-gradient(to right, #a855f7 0%, #a855f7 ${((localDuration - 10) / (120 - 10)) * 100}%, #374151 ${((localDuration - 10) / (120 - 10)) * 100}%, #374151 100%)`
+                }}
+              />
+              <div className="flex justify-between text-xs text-gray-500 mt-2">
+                <span>10 min</span>
+                <span>120 min</span>
+              </div>
+            </div>
+
+            {/* Quick Duration Presets */}
+            <div className="space-y-3">
+              <p className="text-sm font-semibold text-gray-400">Quick Presets</p>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { value: 20, label: 'Express', emoji: '⚡', desc: 'Quick burn' },
+                  { value: 30, label: 'Standard', emoji: '🔥', desc: 'Most popular' },
+                  { value: 45, label: 'Extended', emoji: '💪', desc: 'Solid session' },
+                  { value: 60, label: 'Advanced', emoji: '🏆', desc: 'Full workout' },
+                ].map((preset) => {
+                  const isActive = localDuration === preset.value;
+                  return (
+                    <motion.button
+                      key={preset.value}
+                      whileHover={{ scale: 1.03 }}
+                      whileTap={{ scale: 0.97 }}
+                      onClick={() => {
+                        setLocalDuration(preset.value);
+                        updatePreferences({ duration: preset.value });
+                      }}
+                      className={`p-3 rounded-xl transition-all text-left ${
+                        isActive
+                          ? 'bg-gradient-to-br from-purple-600/40 to-pink-600/40 ring-2 ring-purple-400 shadow-lg shadow-purple-500/30'
+                          : 'bg-gray-800/40 hover:bg-gray-800/60 ring-1 ring-gray-700'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-lg">{preset.emoji}</span>
+                        <span className="text-sm font-bold text-white">{preset.label}</span>
+                      </div>
+                      <div className="text-xs text-gray-400">{preset.value} min • {preset.desc}</div>
+                    </motion.button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Estimated Stats */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-gray-800/40 rounded-lg p-3 border border-gray-700/40">
+                <div className="text-xs text-gray-400 mb-1">Est. Calories</div>
+                <div className="text-xl font-bold text-purple-400">~{Math.round(localDuration * 4.5)}</div>
+              </div>
+              <div className="bg-gray-800/40 rounded-lg p-3 border border-gray-700/40">
+                <div className="text-xs text-gray-400 mb-1">Exercises</div>
+                <div className="text-xl font-bold text-pink-400">~{Math.ceil(localDuration / 6)}</div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Completion Badge */}
+        {isMegaStepComplete && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="p-6 rounded-2xl bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-500/40 text-center"
+          >
+            <CheckCircleIcon className="w-12 h-12 text-green-400 mx-auto mb-2" />
+            <h3 className="text-xl font-bold text-white mb-1">Training Space Ready! 💪</h3>
+            <p className="text-gray-300">
+              {localDuration} min workouts with {preferences.equipment.length} equipment type{preferences.equipment.length !== 1 ? 's' : ''}
+            </p>
+          </motion.div>
+        )}
+      </motion.div>
+    );
+  };
+
   const EquipmentSelectionStep = () => {
     const toggleEquipment = (id: string) => {
       setPreferences((prev) => {
@@ -872,10 +1141,14 @@ const WorkoutGenerator: React.FC = () => {
     setPreferences((prev) => ({ ...prev, ...updates }));
 
   const steps = useMemo<StepKey[]>(() => {
-    // 🎬 NEW PREMIUM FLOW: Start with goal-event carousel mega-step
-    const sequence: StepKey[] = ['goal-event'];
-    // 🌟 Then profile-experience mega-step
-    sequence.push('profile-experience', 'equipment', 'duration', 'frequency', 'limitations');
+    // 🚀 PREMIUM FLOW: Mega-steps for best UX
+    const sequence: StepKey[] = [
+      'goal-event',           // 🎬 Mega-step 1: Goal + Event carousel
+      'profile-experience',   // 🌟 Mega-step 2: Profile + Experience
+      'equipment-duration',   // 💪 Mega-step 3: Equipment + Duration
+      'frequency',
+      'limitations'
+    ];
     if (shouldPromptForMuscles) {
       sequence.push('muscles');
     }
@@ -897,7 +1170,7 @@ const WorkoutGenerator: React.FC = () => {
 
   const isStepComplete = (step: StepKey): boolean => {
     switch (step) {
-      case 'goal-event': // 🎬 NEW: Validates goal selected AND if event goal, event selected too
+      case 'goal-event': // 🎬 Validates goal selected AND if event goal, event selected too
         return preferences.goal.length > 0 && (preferences.goal !== 'event' || Boolean(preferences.eventType));
       case 'goal':
         return preferences.goal.length > 0;
@@ -909,6 +1182,8 @@ const WorkoutGenerator: React.FC = () => {
         return preferences.experienceLevel.length > 0;
       case 'profile':
         return preferences.gender !== null && preferences.age > 0;
+      case 'equipment-duration': // 💪 NEW: Combined validation
+        return preferences.equipment.length > 0 && preferences.duration > 0;
       case 'equipment':
         return preferences.equipment.length > 0;
       case 'duration':
@@ -2000,18 +2275,20 @@ const WorkoutGenerator: React.FC = () => {
     if (showWelcome) return <WelcomeScreen onStart={startOnboarding} />;
 
     switch (activeStepKey) {
-      case 'goal-event': // 🎬 NEW: Netflix-style carousel
+      case 'goal-event': // 🎬 Netflix-style carousel
         return <GoalEventCarousel />;
       case 'goal':
         return <GoalSelection />;
       case 'event':
         return <EventSelection />;
-      case 'profile-experience': // 🌟 Use merged mega-step
+      case 'profile-experience': // 🌟 Merged mega-step
         return <ProfileExperienceMegaStep />;
       case 'experience':
         return <ExperienceSelection />;
       case 'profile':
         return <ProfileStep />;
+      case 'equipment-duration': // 💪 NEW: Equipment + Duration mega-step
+        return <EquipmentDurationMegaStep />;
       case 'equipment':
         return <EquipmentSelectionStep />;
       case 'duration':
