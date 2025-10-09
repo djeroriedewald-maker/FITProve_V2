@@ -558,11 +558,26 @@ const WorkoutGenerator: React.FC = () => {
 
   // 🌟 NEW: Combined Profile + Experience Mega-Step
   const ProfileExperienceMegaStep = () => {
-    const handleAgeChange = (value: number) => {
+    const [localAge, setLocalAge] = useState(preferences.age);
+
+    // Update local state immediately for smooth slider
+    const handleAgeInput = (value: number) => {
       if (Number.isNaN(value)) return;
-      const clamped = Math.min(90, Math.max(13, value));
+      const clamped = Math.min(80, Math.max(13, value));
+      setLocalAge(clamped);
+    };
+
+    // Update preferences only when slider is released
+    const handleAgeCommit = (value: number) => {
+      if (Number.isNaN(value)) return;
+      const clamped = Math.min(80, Math.max(13, value));
       updatePreferences({ age: clamped });
     };
+
+    // Sync local state when preferences change externally
+    useEffect(() => {
+      setLocalAge(preferences.age);
+    }, [preferences.age]);
 
     return (
       <motion.div
@@ -661,18 +676,19 @@ const WorkoutGenerator: React.FC = () => {
                   <p className="text-sm text-gray-400">Helps tune intensity & recovery</p>
                 </div>
                 <span className="text-4xl font-bold bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
-                  {preferences.age}
+                  {localAge}
                 </span>
               </div>
               <input
                 type="range"
                 min={13}
                 max={80}
-                value={preferences.age}
-                onChange={(e) => handleAgeChange(Number(e.target.value))}
+                value={localAge}
+                onInput={(e) => handleAgeInput(Number((e.target as HTMLInputElement).value))}
+                onChange={(e) => handleAgeCommit(Number(e.target.value))}
                 className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-cyan-500"
                 style={{
-                  background: `linear-gradient(to right, #06b6d4 0%, #06b6d4 ${((preferences.age - 13) / (80 - 13)) * 100}%, #374151 ${((preferences.age - 13) / (80 - 13)) * 100}%, #374151 100%)`
+                  background: `linear-gradient(to right, #06b6d4 0%, #06b6d4 ${((localAge - 13) / (80 - 13)) * 100}%, #374151 ${((localAge - 13) / (80 - 13)) * 100}%, #374151 100%)`
                 }}
               />
               <div className="flex justify-between text-xs text-gray-500">
