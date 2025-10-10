@@ -2,20 +2,22 @@ import React from 'react';
 import { createBrowserRouter, Outlet } from 'react-router-dom';
 import ExerciseDetailPage from '../pages/ExerciseDetailPage';
 import HomePage from '../pages/HomePage';
-import ProfilePage from '../pages/ProfilePage';
+import ProfilePagePremium from '../pages/ProfilePagePremium';
 import { FollowingList } from '../components/profile/FollowingList';
 import { CommunityPage } from '../pages/CommunityPage';
 import { ModulesPage } from '../pages/ModulesPage';
 import { WorkoutPage } from '../pages/WorkoutPage';
 import WorkoutLibraryPage from '../pages/workout-library/WorkoutLibraryPage';
+import ProgramDetailPage from '../pages/workout-library/ProgramDetailPage';
+import ProgramBuilderPage from '../pages/workout-library/ProgramBuilderPage';
 import { ExerciseLibraryPage } from '../pages/ExerciseLibraryPage';
 import { WorkoutCreatorPage } from '../pages/workout-creator/WorkoutCreatorPage';
-import { EnhancedExerciseSelectionPage } from '../pages/workout-creator/EnhancedExerciseSelectionPage';
+import { PremiumExerciseSelectionPage } from '../pages/workout-creator/PremiumExerciseSelectionPage';
 import { WorkoutExecutePage } from '../pages/workout-creator/WorkoutExecutePage';
-import { MyWorkoutsPage } from '../pages/workout-creator/MyWorkoutsPage';
+import { MyWorkoutsPage } from '../pages/MyWorkoutsPage';
 import PlannerPage from '../pages/PlannerPage';
 import WorkoutGenerator from '../pages/workout-generator';
-import { CommunityWorkoutsPage } from '../pages/CommunityWorkoutsPage';
+import { PremiumCommunityWorkoutsPage } from '../pages/PremiumCommunityWorkoutsPage';
 import { SignInForm } from '../components/SignInForm';
 import { ResetPasswordPage } from '../pages/ResetPasswordPage';
 import SettingsPage from '../pages/SettingsPage';
@@ -40,7 +42,7 @@ export const router = createBrowserRouter(
         },
         {
           path: '/profile',
-          element: <ProfilePage />,
+          element: <ProfilePagePremium />,
         },
         {
           path: '/coach',
@@ -55,13 +57,15 @@ export const router = createBrowserRouter(
         { path: 'modules/workout/workout-creator', element: <WorkoutCreatorPage /> },
         {
           path: 'modules/workout/workout-creator/select-exercises',
-          element: <EnhancedExerciseSelectionPage />,
+          element: <PremiumExerciseSelectionPage />,
         },
         { path: 'modules/workout/execute/:workoutId', element: <WorkoutExecutePage /> },
         { path: 'modules/workout/my-workouts', element: <MyWorkoutsPage /> },
         { path: 'modules/workout/planner', element: <PlannerPage /> },
         { path: 'modules/workout/workout-library', element: <WorkoutLibraryPage /> },
-        { path: 'modules/workout/community', element: <CommunityWorkoutsPage /> },
+        { path: 'modules/workout/workout-library/:id', element: <ProgramDetailPage /> },
+        { path: 'modules/workout/create-program', element: <ProgramBuilderPage /> },
+        { path: 'modules/workout/community', element: <PremiumCommunityWorkoutsPage /> },
         { path: 'workout-generator', element: <WorkoutGenerator /> },
         { path: 'workouts', element: <WorkoutsPage /> },
         { path: 'community', element: <CommunityPage /> },

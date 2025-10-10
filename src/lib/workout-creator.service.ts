@@ -210,6 +210,160 @@ export class WorkoutCreatorService {
   }
 
   /**
+   * Update an existing workout
+   */
+  static async updateWorkout(
+    workoutId: string,
+    workoutData: WorkoutFormData,
+    userId?: string
+  ): Promise<CustomWorkout | null> {
+    console.log('[updateWorkout] called for workout:', workoutId);
+
+    try {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        throw new Error('User must be authenticated to update workout');
+      }
+
+      const finalUserId = userId || user.id;
+
+      // Verify ownership
+      const { data: existingWorkout } = await supabase
+        .from('custom_workouts')
+        .select('id, user_id')
+        .eq('id', workoutId)
+        .single();
+
+      if (!existingWorkout || existingWorkout.user_id !== finalUserId) {
+        throw new Error('Workout not found or unauthorized');
+      }
+
+      const normalizedExercises = (workoutData.exercises || []).map((exercise) => ({
+        ...exercise,
+        sets: Math.max(exercise.sets ?? 0, 1),
+        rest_seconds: exercise.rest_seconds ?? 60,
+      }));
+      const exerciseCount = normalizedExercises.length;
+      const totalSets = normalizedExercises.reduce((sum, ex) => sum + ex.sets, 0);
+      const estimatedDurationMinutes = Math.max(
+        5,
+        Math.round(
+          normalizedExercises.reduce((total, ex) => {
+            const workTime = ex.sets * 45;
+            const restTime = ex.sets * ex.rest_seconds;
+            return total + workTime + restTime;
+          }, 0) / 60
+        )
+      );
+
+      const uniqueExerciseIds = Array.from(
+        new Set(normalizedExercises.map((ex) => ex.exercise_id).filter((id): id is string => Boolean(id)))
+      );
+
+      let primaryMuscleGroups: string[] = [];
+      let equipmentNeeded: string[] = [];
+
+      if (uniqueExerciseIds.length > 0) {
+        const { data: exerciseRows } = await supabase
+          .from('exercises')
+          .select('id, primary_muscles, secondary_muscles, equipment')
+          .in('id', uniqueExerciseIds);
+
+        if (exerciseRows) {
+          const muscles = new Set<string>();
+          const equipment = new Set<string>();
+          for (const row of exerciseRows as any[]) {
+            (row.primary_muscles || []).forEach((muscle: string) => muscles.add(muscle));
+            (row.secondary_muscles || []).forEach((muscle: string) => muscles.add(muscle));
+            (row.equipment || []).forEach((item: string) => equipment.add(item));
+          }
+          primaryMuscleGroups = Array.from(muscles);
+          equipmentNeeded = Array.from(equipment);
+        }
+      }
+
+      const estimatedCalories = Math.max(estimatedDurationMinutes * 5, 20);
+
+      // Update workout
+      const { data: workout, error: workoutError } = await supabase
+        .from('custom_workouts')
+        .update({
+          name: workoutData.name,
+          description: workoutData.description || 'general fitness',
+          difficulty: workoutData.difficulty || 'beginner',
+          estimated_duration: estimatedDurationMinutes,
+          estimated_calories: estimatedCalories,
+          total_exercises: exerciseCount,
+          exercise_count: exerciseCount,
+          total_sets: totalSets,
+          tags: workoutData.tags || [],
+          hero_image_url: workoutData.hero_image_url || null,
+          is_public: workoutData.is_public ?? false,
+          primary_muscle_groups: primaryMuscleGroups,
+          equipment_needed: equipmentNeeded,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', workoutId)
+        .eq('user_id', finalUserId)
+        .select('*')
+        .single();
+
+      if (workoutError) {
+        console.error('[updateWorkout] Error updating workout:', workoutError);
+        throw workoutError;
+      }
+
+      // Delete existing exercises
+      await supabase
+        .from('custom_workout_exercises')
+        .delete()
+        .eq('custom_workout_id', workoutId);
+
+      // Insert updated exercises
+      if (normalizedExercises.length > 0 && workout?.id) {
+        const exerciseInserts = normalizedExercises.map((exercise, index) => ({
+          custom_workout_id: workout.id,
+          exercise_id: exercise.exercise_id,
+          order_index: index,
+          sets: exercise.sets,
+          reps: exercise.reps || '8-12',
+          weight_suggestion: exercise.weight_suggestion ?? null,
+          rest_seconds: exercise.rest_seconds,
+          notes: exercise.notes || '',
+          is_warmup: exercise.is_warmup || false,
+          is_cooldown: exercise.is_cooldown || false,
+          superset_group: exercise.superset_group ?? null,
+        }));
+
+        const { error: exercisesError } = await supabase
+          .from('custom_workout_exercises')
+          .insert(exerciseInserts);
+
+        if (exercisesError) {
+          console.error('[updateWorkout] Error saving workout exercises:', exercisesError);
+        }
+      }
+
+      return {
+        ...workout,
+        exercise_count: exerciseCount,
+        total_sets: totalSets,
+        primary_muscle_groups: primaryMuscleGroups,
+        equipment_needed: workout?.equipment_needed ?? equipmentNeeded,
+        estimated_duration: workout?.estimated_duration ?? estimatedDurationMinutes,
+        total_exercises: workout?.total_exercises ?? exerciseCount,
+      } as any;
+    } catch (error) {
+      console.error('[updateWorkout] Failed:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Get all workouts for a specific user
    */
   static async getUserWorkouts(): Promise<CustomWorkout[]> {

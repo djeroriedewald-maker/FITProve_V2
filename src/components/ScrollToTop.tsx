@@ -10,9 +10,9 @@ const ScrollToTop: React.FC<ScrollToTopProps> = ({ scrollRef }) => {
   const { pathname } = useLocation();
   useEffect(() => {
     if (scrollRef && scrollRef.current) {
-      scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+      scrollRef.current.scrollTo({ top: 0, behavior: 'instant' });
     } else {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      window.scrollTo({ top: 0, behavior: 'instant' });
     }
   }, [pathname, scrollRef]);
   return null;

@@ -3,12 +3,13 @@ import { Outlet } from 'react-router-dom';
 import { AIChat } from '../AIChat';
 import { Toaster } from 'sonner';
 import { motion } from 'framer-motion';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
  import ScrollToTop from '../ScrollToTop';
 import { MainHeader } from './MainHeader';
 
 export function AppLayout() {
   const [isAIChatOpen, setIsAIChatOpen] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const toggleAIChat = () => {
     setIsAIChatOpen(!isAIChatOpen);
@@ -20,11 +21,14 @@ export function AppLayout() {
       <MainHeader />
 
       {/* Scrollable content area */}
-      <div className="fixed inset-0 top-[72px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+      <div
+        ref={scrollContainerRef}
+        className="fixed inset-0 top-[72px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent"
+      >
         <main className="relative min-h-[calc(100vh-72px)] pb-24">
           <div className="max-w-7xl mx-auto px-4 pt-6">
         {/* Scroll to top on route change */}
-        <ScrollToTop />
+        <ScrollToTop scrollRef={scrollContainerRef} />
             <Outlet />
           </div>
         </main>

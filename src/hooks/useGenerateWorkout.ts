@@ -1,11 +1,16 @@
 import { useMemo } from 'react';
 import { exerciseLibrary } from '../data/exerciseLibrary';
 import { Exercise, MuscleGroup } from '../types/exercise.types';
+import { PeriodizationService } from '../lib/periodization.service';
+import type { PeriodizationState } from '../types/periodization.types';
+import { WorkoutStyleService } from '../lib/workout-style.service';
+import type { WorkoutStyle } from '../types/workout-style.types';
 
 export interface WorkoutGenerationParams {
   gender: string;
   age: number;
   goal: string;
+  eventType?: string; // 🎯 NEW: Specific event (hyrox, spartan, marathon, etc.)
   fitnessLevel: string;
   equipment: string[];
   muscles: string[];
@@ -15,6 +20,7 @@ export interface WorkoutGenerationParams {
   preferredTime?: string;
   recentExercises?: string[];
   progressionLevel?: number;
+  workoutStyle?: WorkoutStyle; // 🎨 NEW: Advanced workout style (EMOM, AMRAP, etc.)
 }
 
 export interface WorkoutPlanItem {
@@ -31,6 +37,8 @@ export interface WorkoutPlanItem {
 export interface GeneratedWorkout {
   exercises: Exercise[];
   plan: WorkoutPlanItem[];
+  periodization?: PeriodizationState;
+  workoutStyle?: WorkoutStyle; // 🎨 NEW: Applied workout style
 }
 
 // 6. Progression: avoid repeating recent exercises, increase difficulty over time
@@ -53,37 +61,177 @@ export function useGenerateWorkout(
     rest?: number;
   };
 
+  // 🎯 DURATION PRECISION: Calculate time per exercise
+  function estimateExerciseDuration(prescription: Prescription): number {
+    // Time-based exercises (cardio, stretches)
+    if (prescription.time) {
+      const match = prescription.time.match(/(\d+)/);
+      const avgMinutes = match ? parseInt(match[0], 10) : 4;
+      return avgMinutes * 60; // Convert to seconds
+    }
+
+    // Distance-based exercises (row, run, ski)
+    if (prescription.distance) {
+      const match = prescription.distance.match(/(\d+)/);
+      const meters = match ? parseInt(match[0], 10) : 500;
+      // Rough estimates: 500m = ~2min, 800m = ~3min
+      const estimatedMinutes = meters / 250;
+      return estimatedMinutes * 60; // Convert to seconds
+    }
+
+    // Sets/reps exercises
+    if (prescription.sets && prescription.reps) {
+      const sets = prescription.sets;
+      const rest = prescription.rest || 60;
+
+      // Estimate work time per set (rep tempo: ~3 seconds per rep)
+      const repsMatch = prescription.reps.match(/(\d+)/);
+      const avgReps = repsMatch ? parseInt(repsMatch[0], 10) : 10;
+      const workTimePerSet = avgReps * 3; // 3 seconds per rep
+
+      // Total = (work time + rest) * sets - last rest
+      const totalSeconds = (workTimePerSet + rest) * sets - rest;
+      return totalSeconds;
+    }
+
+    return 180; // Default 3 minutes
+  }
+
+  // 🎯 GOAL-SPECIFIC TEMPLATES: Evidence-based workout structures
+  const goalTemplates = useMemo(() => ({
+    strength: {
+      // 5x5 or 5x3 for compound lifts, lower reps/higher rest
+      sets: 5,
+      reps: '4-8',
+      rest: 120, // Longer rest for strength
+      focusCompound: true, // Prioritize compound movements
+      cardioRatio: 0.1, // Minimal cardio
+    },
+    muscle: {
+      // Classic hypertrophy: 3-4 sets, 8-12 reps, moderate rest
+      sets: 4,
+      reps: '8-12',
+      rest: 75,
+      focusCompound: false, // Mix of compound and isolation
+      cardioRatio: 0.15,
+    },
+    endurance: {
+      // High reps, short rest, circuit-style
+      sets: 2,
+      reps: '15-25',
+      rest: 45,
+      focusCompound: false,
+      cardioRatio: 0.4, // More cardio emphasis
+    },
+    weight: {
+      // Fat loss: moderate volume, higher reps, short rest
+      sets: 3,
+      reps: '12-20',
+      rest: 60,
+      focusCompound: false,
+      cardioRatio: 0.3, // Significant cardio component
+    },
+    wellness: {
+      // General fitness: balanced approach
+      sets: 3,
+      reps: '10-15',
+      rest: 60,
+      focusCompound: false,
+      cardioRatio: 0.25,
+    },
+    event: {
+      // Event-specific: work capacity focused
+      sets: 3,
+      reps: '8-15',
+      rest: 75,
+      focusCompound: true,
+      cardioRatio: 0.3,
+    },
+  }), []);
+
+  // 🎯 PROGRESSIVE OVERLOAD with PERIODIZATION: Apply progression based on workout history and macro/micro cycles
+  function applyProgressiveOverload(prescription: Prescription, progressionLevel: number): Prescription {
+    if (progressionLevel === 0) return prescription; // First workout
+
+    // Calculate periodization state
+    const periodizationState = PeriodizationService.calculatePeriodizationState(
+      progressionLevel,
+      params.goal
+    );
+
+    // Apply periodization multipliers to prescription
+    const periodized = PeriodizationService.applyPeriodization(
+      prescription.sets ?? 3,
+      prescription.reps ?? '8-12',
+      prescription.rest ?? 60,
+      periodizationState
+    );
+
+    prescription.sets = periodized.sets;
+    prescription.reps = periodized.reps;
+    prescription.rest = periodized.rest;
+
+    // Additional progressive overload on top of periodization (for non-deload weeks)
+    if (!periodizationState.isDeloadWeek) {
+      const phase = progressionLevel % 3; // 0, 1, 2
+
+      // Strategy based on phase
+      if (phase === 0) {
+        // Week 1 of cycle: Increase volume (add 1 set)
+        if (prescription.sets) {
+          prescription.sets = Math.min(6, prescription.sets + 1);
+        }
+      } else if (phase === 1) {
+        // Week 2 of cycle: Increase intensity (reduce reps, imply heavier weight)
+        if (prescription.reps && prescription.reps.includes('-')) {
+          const [low, high] = prescription.reps.split('-').map(Number);
+          prescription.reps = `${Math.max(3, low - 2)}-${Math.max(5, high - 2)}`;
+        }
+      } else {
+        // Week 3 of cycle: Reduce rest periods (increase density)
+        if (prescription.rest) {
+          prescription.rest = Math.max(30, prescription.rest - 10);
+        }
+      }
+    }
+
+    return prescription;
+  }
+
   function getSetsReps(ex: Exercise, goal: string, level: string): Prescription {
     // Cardio/endurance: prescribe distance or time, not sets/reps
     const isCardio = (ex.category && ['cardio', 'endurance'].includes(ex.category.toLowerCase())) ||
       (ex.tags && (ex.tags.includes('cardio') || ex.tags.includes('endurance')));
     if (isCardio) {
       if (ex.name.toLowerCase().includes('row') || ex.name.toLowerCase().includes('ski') || ex.name.toLowerCase().includes('bike') || ex.name.toLowerCase().includes('run')) {
-        return { distance: '400-800m', rest: 60 };
+        // 🎯 PROGRESSIVE OVERLOAD: Increase cardio distance over time
+        const baseDistance = 400 + (params.progressionLevel ?? 0) * 50;
+        const maxDistance = Math.min(1000, baseDistance);
+        return { distance: `${maxDistance}m`, rest: 60 };
       }
       return { time: '3-5 min', rest: 45 };
     }
-    // Strength/bodyweight: prescribe sets/reps
-    let sets = ex.recommended_sets || 3;
-    let reps = ex.recommended_reps || '8-12';
-    let rest = 60;
-    if (goal?.toLowerCase().includes('endurance')) {
-      sets = 2;
-      reps = '15-25';
-      rest = 45;
-    } else if (goal?.toLowerCase().includes('strength')) {
-      sets = 5;
-      reps = '4-8';
-      rest = 90;
-    } else if (goal?.toLowerCase().includes('muscle')) {
-      sets = 4;
-      reps = '8-15';
-      rest = 75;
-    } else if (goal?.toLowerCase().includes('weight')) {
-      sets = 3;
-      reps = '12-20';
-      rest = 60;
-    }
+
+    // 🎯 GOAL TEMPLATES: Use goal-specific templates as base
+    const normalizedGoal = goal?.toLowerCase() ?? '';
+    let template = goalTemplates.wellness; // Default
+
+    if (normalizedGoal.includes('strength')) template = goalTemplates.strength;
+    else if (normalizedGoal.includes('muscle')) template = goalTemplates.muscle;
+    else if (normalizedGoal.includes('endurance')) template = goalTemplates.endurance;
+    else if (normalizedGoal.includes('weight') || normalizedGoal.includes('loss')) template = goalTemplates.weight;
+    else if (normalizedGoal.includes('event')) template = goalTemplates.event;
+
+    // Start with template values
+    let sets = template.sets;
+    let reps = template.reps;
+    let rest = template.rest;
+
+    // Apply exercise-specific overrides if they exist
+    if (ex.recommended_sets) sets = ex.recommended_sets;
+    if (ex.recommended_reps) reps = ex.recommended_reps;
+
+    // 🎯 EXPERIENCE LEVEL ADJUSTMENTS
     const normalizedLevel = level?.toLowerCase();
     if (normalizedLevel === 'beginner') {
       sets = Math.max(2, sets - 1);
@@ -93,8 +241,77 @@ export function useGenerateWorkout(
       sets = sets + 1;
       rest = rest + 15;
     }
-    return { sets, reps, rest };
+
+    let prescription: Prescription = { sets, reps, rest };
+
+    // 🎯 PROGRESSIVE OVERLOAD: Apply progression
+    prescription = applyProgressiveOverload(prescription, params.progressionLevel ?? 0);
+
+    return prescription;
   }
+
+  // 🎯 EVENT-SPECIFIC CONFIGURATION
+  const eventConfig = useMemo(() => {
+    if (!params.eventType || params.goal !== 'event') return null;
+
+    const configs: Record<string, {
+      priorityMovements: string[];
+      priorityTags: string[];
+      focusAreas: MuscleGroup[];
+      cardioRatio: number;
+      strengthRatio: number;
+      workCapacityFocus: boolean;
+      recommendedDuration?: number;
+    }> = {
+      hyrox: {
+        priorityMovements: ['row', 'ski', 'sled', 'sandbag', 'wall ball', 'burpee', 'lunge'],
+        priorityTags: ['hyrox', 'functional', 'conditioning', 'rowing', 'sled'],
+        focusAreas: ['back', 'quadriceps', 'shoulders', 'hamstrings'],
+        cardioRatio: 0.4,
+        strengthRatio: 0.6,
+        workCapacityFocus: true,
+        recommendedDuration: 50
+      },
+      spartan: {
+        priorityMovements: ['pull', 'rope', 'carry', 'climb', 'run', 'burpee', 'lunge', 'farmer'],
+        priorityTags: ['obstacle', 'grip', 'pull', 'carry', 'functional'],
+        focusAreas: ['back', 'forearms', 'abs', 'quadriceps', 'shoulders'],
+        cardioRatio: 0.5,
+        strengthRatio: 0.5,
+        workCapacityFocus: true,
+        recommendedDuration: 45
+      },
+      marathon: {
+        priorityMovements: ['run', 'jog', 'sprint', 'lunge', 'step'],
+        priorityTags: ['cardio', 'endurance', 'running', 'legs'],
+        focusAreas: ['quadriceps', 'hamstrings', 'calves', 'glutes', 'abs'],
+        cardioRatio: 0.7,
+        strengthRatio: 0.3,
+        workCapacityFocus: false,
+        recommendedDuration: 60
+      },
+      triathlon: {
+        priorityMovements: ['swim', 'bike', 'run', 'row', 'plank'],
+        priorityTags: ['cardio', 'endurance', 'swimming', 'cycling', 'running'],
+        focusAreas: ['back', 'shoulders', 'quadriceps', 'hamstrings', 'abs'],
+        cardioRatio: 0.8,
+        strengthRatio: 0.2,
+        workCapacityFocus: false,
+        recommendedDuration: 60
+      },
+      crossfit: {
+        priorityMovements: ['snatch', 'clean', 'jerk', 'thruster', 'pull-up', 'box', 'burpee', 'row'],
+        priorityTags: ['olympic', 'crossfit', 'wod', 'functional', 'barbell'],
+        focusAreas: ['back', 'shoulders', 'quadriceps', 'glutes', 'abs'],
+        cardioRatio: 0.3,
+        strengthRatio: 0.7,
+        workCapacityFocus: true,
+        recommendedDuration: 45
+      }
+    };
+
+    return configs[params.eventType.toLowerCase()] || null;
+  }, [params.eventType, params.goal]);
 
   const kneeSensitiveNames = ['jump', 'plyo', 'box', 'burpee', 'lunge', 'step-up'];
   const backSensitiveNames = ['deadlift', 'good morning', 'good-morning', 'snatch', 'clean', 'goodmorning'];
@@ -110,17 +327,58 @@ export function useGenerateWorkout(
     return tags.some((tag) => patterns.some((pattern) => tag.includes(pattern)));
   }
 
+  // 🎯 ENHANCED LIMITATION HANDLING: More comprehensive injury-safe filtering
   const limitationFilters: Record<string, (ex: Exercise) => boolean> = {
     knee: (ex) =>
       !hasSensitiveName(ex, kneeSensitiveNames) &&
-      !hasSensitiveTag(ex, ['jump', 'plyometric', 'plyo', 'box', 'deep squat']),
+      !hasSensitiveTag(ex, ['jump', 'plyometric', 'plyo', 'box', 'deep squat', 'sprint']) &&
+      // Allow: seated exercises, upper body, gentle leg work
+      (ex.category !== 'power' || !ex.primary_muscles?.some(m => ['quadriceps', 'hamstrings'].includes(m))),
     back: (ex) =>
       !hasSensitiveName(ex, backSensitiveNames) &&
-      !hasSensitiveTag(ex, ['heavy hinge', 'hinge', 'barbell hinge']),
+      !hasSensitiveTag(ex, ['heavy hinge', 'hinge', 'barbell hinge', 'spinal loading']) &&
+      // Allow: supported back exercises, avoid heavy spinal loading
+      !ex.name.toLowerCase().includes('heavy'),
     shoulder: (ex) =>
       !hasSensitiveName(ex, shoulderSensitiveNames) &&
-      !hasSensitiveTag(ex, ['overhead', 'press']),
+      !hasSensitiveTag(ex, ['overhead', 'press', 'handstand', 'dip']) &&
+      // Allow: neutral grip, lateral raises, posterior delt work at light intensity
+      (!ex.primary_muscles?.includes('shoulders') || ex.difficulty === 'beginner'),
+    wrist: (ex) =>
+      // Common wrist issues: push-ups, planks, heavy pressing
+      !ex.name.toLowerCase().includes('push-up') &&
+      !ex.name.toLowerCase().includes('plank') &&
+      !ex.name.toLowerCase().includes('handstand') &&
+      !hasSensitiveTag(ex, ['wrist-intensive', 'handstand']),
+    ankle: (ex) =>
+      // Ankle issues: jumping, running, calf raises
+      !hasSensitiveName(ex, ['jump', 'hop', 'skip', 'run', 'sprint']) &&
+      !ex.primary_muscles?.includes('calves') &&
+      !hasSensitiveTag(ex, ['plyometric', 'plyo', 'agility']),
   };
+
+  // 🎯 GENDER-SPECIFIC CONSIDERATIONS
+  const genderAdjustments = useMemo(() => {
+    const gender = params.gender?.toLowerCase();
+
+    return {
+      // Female athletes: typically excel at endurance, may need more upper body focus
+      femaleConsiderations: gender === 'female' ? {
+        upperBodyEmphasis: true, // Many women want upper body strength development
+        coreEmphasis: true, // Pelvic floor and core strength important
+        lowerBodyStrength: true, // Already strong, but focus on posterior chain balance
+        safetyPriority: ['hip stability', 'knee tracking', 'pelvic floor'],
+      } : null,
+
+      // Male athletes: typically more upper body strength, may need leg/mobility work
+      maleConsiderations: gender === 'male' ? {
+        mobilityEmphasis: true, // Men often have less flexibility
+        posteriorChain: true, // Emphasize hamstrings, glutes, back
+        legDevelopment: true, // Many men skip leg day
+        safetyPriority: ['shoulder health', 'lower back', 'hip flexibility'],
+      } : null,
+    };
+  }, [params.gender]);
 
   // Helper: pick at least one exercise per selected muscle
   function pickExercisesForMuscles(exercises: Exercise[], muscles: Array<string | MuscleGroup>): Exercise[] {
@@ -140,7 +398,47 @@ export function useGenerateWorkout(
     return picked;
   }
 
-  // Helper: fill with variety
+  // 🎯 MUSCLE BALANCE: Categorize muscles as push/pull/legs
+  const PUSH_MUSCLES: MuscleGroup[] = ['chest', 'shoulders', 'triceps'];
+  const PULL_MUSCLES: MuscleGroup[] = ['back', 'biceps', 'forearms'];
+  const LEG_MUSCLES: MuscleGroup[] = ['quadriceps', 'hamstrings', 'glutes', 'calves'];
+  const CORE_MUSCLES: MuscleGroup[] = ['abs', 'obliques', 'lower_back'];
+
+  function getMuscleCategory(muscles: MuscleGroup[]): 'push' | 'pull' | 'legs' | 'core' | 'mixed' {
+    if (!muscles || muscles.length === 0) return 'mixed';
+
+    const hasPush = muscles.some(m => PUSH_MUSCLES.includes(m));
+    const hasPull = muscles.some(m => PULL_MUSCLES.includes(m));
+    const hasLegs = muscles.some(m => LEG_MUSCLES.includes(m));
+    const hasCore = muscles.some(m => CORE_MUSCLES.includes(m));
+
+    const categories = [hasPush, hasPull, hasLegs, hasCore].filter(Boolean).length;
+
+    if (categories > 1) return 'mixed';
+    if (hasPush) return 'push';
+    if (hasPull) return 'pull';
+    if (hasLegs) return 'legs';
+    if (hasCore) return 'core';
+    return 'mixed';
+  }
+
+  function getBalanceScore(exercises: Exercise[]): { pushCount: number; pullCount: number; isBalanced: boolean } {
+    // Count push/pull exercises
+    const pushCount = exercises.filter(ex =>
+      getMuscleCategory(ex.primary_muscles || []) === 'push'
+    ).length;
+    const pullCount = exercises.filter(ex =>
+      getMuscleCategory(ex.primary_muscles || []) === 'pull'
+    ).length;
+
+    // Check if balanced (within 1.5:1 ratio)
+    const ratio = pullCount > 0 ? pushCount / pullCount : pushCount;
+    const isBalanced = ratio >= 0.67 && ratio <= 1.5;
+
+    return { pushCount, pullCount, isBalanced };
+  }
+
+  // 🎯 MUSCLE BALANCE: Fill with variety while maintaining push/pull balance
   function fillWithVariety(
     pool: Exercise[],
     picked: Exercise[],
@@ -149,7 +447,26 @@ export function useGenerateWorkout(
   ): Exercise[] {
     const usedIds = new Set(picked.map((e) => e.id));
     const result = [...picked];
-    for (const ex of pool) {
+
+    // Prioritize balance: alternate push/pull when possible
+    const balance = getBalanceScore(result);
+    const needsMorePull = balance.pushCount > balance.pullCount + 1;
+    const needsMorePush = balance.pullCount > balance.pushCount + 1;
+
+    // Sort pool to prioritize balancing exercises
+    const sortedPool = [...pool].sort((a, b) => {
+      const catA = getMuscleCategory(a.primary_muscles || []);
+      const catB = getMuscleCategory(b.primary_muscles || []);
+
+      if (needsMorePull && catA === 'pull' && catB !== 'pull') return -1;
+      if (needsMorePull && catB === 'pull' && catA !== 'pull') return 1;
+      if (needsMorePush && catA === 'push' && catB !== 'push') return -1;
+      if (needsMorePush && catB === 'push' && catA !== 'push') return 1;
+
+      return 0; // Keep original order
+    });
+
+    for (const ex of sortedPool) {
       if (disallow?.has(ex.id)) continue;
       if (!usedIds.has(ex.id)) {
         result.push(ex);
@@ -242,6 +559,37 @@ export function useGenerateWorkout(
     recentExerciseSet,
   ]);
 
+  // 🎯 Helper: Score exercises for event-specific priority
+  const scoreExerciseForEvent = (ex: Exercise): number => {
+    if (!eventConfig) return 0;
+
+    let score = 0;
+    const lowerName = ex.name.toLowerCase();
+    const lowerTags = (ex.tags || []).map(t => t.toLowerCase());
+
+    // Priority movements match (highest weight)
+    if (eventConfig.priorityMovements.some(m => lowerName.includes(m))) {
+      score += 10;
+    }
+
+    // Priority tags match
+    if (lowerTags.some(tag => eventConfig.priorityTags.includes(tag))) {
+      score += 5;
+    }
+
+    // Focus area muscles
+    const primaryMuscles = ex.primary_muscles || [];
+    const secondaryMuscles = ex.secondary_muscles || [];
+    if (primaryMuscles.some(m => eventConfig.focusAreas.includes(m))) {
+      score += 3;
+    }
+    if (secondaryMuscles.some(m => eventConfig.focusAreas.includes(m))) {
+      score += 1;
+    }
+
+    return score;
+  };
+
   // Main generator logic
   return useMemo(() => {
     if (!filteredExercises.length) {
@@ -251,12 +599,25 @@ export function useGenerateWorkout(
       };
     }
 
-    const sessionMinutes = params.sessionMinutes ?? 30;
+    // 🎯 EVENT-SPECIFIC DURATION: Use recommended duration if event training
+    const sessionMinutes = eventConfig?.recommendedDuration ?? params.sessionMinutes ?? 30;
     const normalizedGoal = params.goal?.toLowerCase() ?? '';
     const normalizedLevel = params.fitnessLevel?.toLowerCase() ?? '';
     const trainingDays = params.frequencyDays?.length ?? 3;
+
+    // 🎯 DURATION PRECISION: Time budget system
+    // Reserve time for warmup (5 min) and cooldown (5 min)
+    const warmupBudgetSeconds = 5 * 60;
+    const cooldownBudgetSeconds = 5 * 60;
+    const mainWorkBudgetSeconds = (sessionMinutes * 60) - warmupBudgetSeconds - cooldownBudgetSeconds;
+
+    // 🎯 AGE-BASED ADJUSTMENTS
+    const ageMultiplier = params.age >= 50 ? 0.8 : params.age >= 40 ? 0.9 : 1.0;
+
+    // Initial estimate for exercise count (will be refined by time budget)
     let mainCount = Math.round(sessionMinutes / 10) + 1;
-    mainCount = Math.max(3, Math.min(8, mainCount));
+    mainCount = Math.max(3, Math.min(8, Math.floor(mainCount * ageMultiplier)));
+
     if (trainingDays >= 5) mainCount = Math.max(3, mainCount - 1);
     if (trainingDays <= 2) mainCount = Math.min(8, mainCount + 1);
     if (normalizedLevel === 'advanced' || normalizedLevel === 'athlete') {
@@ -264,6 +625,11 @@ export function useGenerateWorkout(
     }
     if (normalizedGoal.includes('endurance')) {
       mainCount = Math.max(3, Math.round(sessionMinutes / 12));
+    }
+
+    // 🎯 EVENT-SPECIFIC: Adjust count based on work capacity focus
+    if (eventConfig?.workCapacityFocus) {
+      mainCount = Math.min(10, mainCount + 2); // More exercises for work capacity
     }
 
     const usedExerciseIds = new Set<string>(recentExerciseSet);
@@ -279,7 +645,17 @@ export function useGenerateWorkout(
       (ex) => !ex.tags?.includes('warmup') && !ex.tags?.includes('cooldown')
     );
 
-    if (normalizedGoal.includes('endurance')) {
+    // 🎯 EVENT-SPECIFIC: Prioritize event-specific exercises
+    if (eventConfig) {
+      const eventPriority = mainPool.filter(ex => scoreExerciseForEvent(ex) > 0);
+      const nonEventSpecific = mainPool.filter(ex => scoreExerciseForEvent(ex) === 0);
+
+      // Sort event-specific exercises by score (highest first)
+      eventPriority.sort((a, b) => scoreExerciseForEvent(b) - scoreExerciseForEvent(a));
+
+      // Prioritize event exercises, then fill with variety
+      mainPool = [...eventPriority, ...nonEventSpecific];
+    } else if (normalizedGoal.includes('endurance')) {
       const cardioFirst = mainPool.filter(
         (ex) =>
           ex.category?.toLowerCase() === 'cardio' ||
@@ -312,7 +688,18 @@ export function useGenerateWorkout(
     );
     cooldowns.forEach((ex) => usedExerciseIds.add(ex.id));
 
-    const fallbackTargets: MuscleGroup[] = ['chest', 'back', 'quadriceps', 'hamstrings', 'shoulders', 'glutes', 'abs'];
+    // 🎯 EVENT-SPECIFIC: Use event focus areas as target muscles
+    let fallbackTargets: MuscleGroup[] = eventConfig?.focusAreas ?? ['chest', 'back', 'quadriceps', 'hamstrings', 'shoulders', 'glutes', 'abs'];
+
+    // 🎯 GENDER-SPECIFIC: Adjust target muscle priorities
+    if (genderAdjustments.femaleConsiderations) {
+      // Females: prioritize upper body, glutes, core
+      fallbackTargets = ['back', 'shoulders', 'chest', 'glutes', 'abs', 'quadriceps', 'triceps', 'biceps'];
+    } else if (genderAdjustments.maleConsiderations) {
+      // Males: ensure leg development, posterior chain, mobility
+      fallbackTargets = ['quadriceps', 'hamstrings', 'back', 'glutes', 'chest', 'shoulders', 'abs', 'calves'];
+    }
+
     const requestedMuscles = (params.muscles ?? []) as MuscleGroup[];
     const targetMuscles =
       requestedMuscles.length > 0
@@ -382,12 +769,39 @@ export function useGenerateWorkout(
       return parts.join(' • ');
     };
 
-    const mainPlan = mainExercises.map<WorkoutPlanItem>((ex) => {
+    // 🎯 DURATION PRECISION: Refine exercise count to match time budget
+    // Build prescriptions for all exercises first, then check total time
+    const mainExercisesWithPrescriptions = mainExercises.map((ex) => {
+      const prescription = getSetsReps(ex, params.goal, params.fitnessLevel);
+      return { ex, prescription };
+    });
+
+    // Calculate cumulative time and trim if needed
+    let cumulativeTime = 0;
+    const timeBudgetedExercises: typeof mainExercisesWithPrescriptions = [];
+
+    for (const item of mainExercisesWithPrescriptions) {
+      const exerciseDuration = estimateExerciseDuration(item.prescription);
+
+      // Check if adding this exercise would exceed budget (with 10% tolerance)
+      if (cumulativeTime + exerciseDuration <= mainWorkBudgetSeconds * 1.1) {
+        timeBudgetedExercises.push(item);
+        cumulativeTime += exerciseDuration;
+      } else if (timeBudgetedExercises.length < 3) {
+        // Always include at least 3 exercises, even if slightly over time
+        timeBudgetedExercises.push(item);
+        cumulativeTime += exerciseDuration;
+      } else {
+        break; // Time budget exhausted
+      }
+    }
+
+    // Build final plan with time-budgeted exercises
+    const mainPlan = timeBudgetedExercises.map<WorkoutPlanItem>(({ ex, prescription }) => {
       usedExerciseIds.add(ex.id);
       const covered = distinctTargetMuscles.filter(
         (m) => (ex.primary_muscles || []).includes(m) || (ex.secondary_muscles || []).includes(m)
       );
-      const prescription = getSetsReps(ex, params.goal, params.fitnessLevel);
       return {
         exercise: ex,
         sets: prescription.sets,
@@ -428,19 +842,44 @@ export function useGenerateWorkout(
       };
     });
 
-    const plan = [...warmupPlan, ...mainPlan, ...cooldownPlan];
+    // Calculate periodization state
+    const periodizationState = PeriodizationService.calculatePeriodizationState(
+      params.progressionLevel ?? 0,
+      params.goal
+    );
+
+    // 🎨 WORKOUT STYLE: Apply advanced training formats
+    // Auto-select style if not provided, or use user's choice
+    const workoutStyle = params.workoutStyle || WorkoutStyleService.selectOptimalStyle(
+      params.goal,
+      params.fitnessLevel,
+      params.sessionMinutes
+    );
+
+    // Combine all workout sections
+    let plan = [...warmupPlan, ...mainPlan, ...cooldownPlan];
+
+    // Apply workout style to the plan (only affects main exercises)
+    plan = WorkoutStyleService.applyStyleToPlan(plan, workoutStyle, params.goal);
 
     return {
       exercises: filteredExercises,
       plan,
+      periodization: periodizationState,
+      workoutStyle,
     };
   }, [
     filteredExercises,
     params.sessionMinutes,
     params.goal,
+    params.eventType, // 🎯 NEW
+    params.age, // 🎯 NEW
     params.fitnessLevel,
     params.frequencyDays,
     params.muscles,
+    params.workoutStyle, // 🎨 NEW
+    params.progressionLevel, // For periodization
     recentExerciseSet,
+    eventConfig, // 🎯 NEW
   ]);
 }

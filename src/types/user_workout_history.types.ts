@@ -1,1 +1,9 @@
-export interface UserWorkoutHistoryEntry {\n  id: string;\n  user_id: string;\n  exercise_id: string;\n  completed_at: string;\n  notes?: string | null;\n  created_at: string;\n  updated_at: string;\n}\n
+export interface UserWorkoutHistoryEntry {
+  id: string;
+  user_id: string;
+  exercise_id: string;
+  completed_at: string;
+  notes?: string | null;
+  created_at: string;
+  updated_at: string;
+}

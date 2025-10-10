@@ -82,7 +82,7 @@ export default function AvatarDropdown() {
       icon: Dumbbell,
       label: 'My Workouts',
       action: () => {
-        navigate('/my-workouts');
+        navigate('/modules/workout/my-workouts');
         setIsOpen(false);
       },
     },

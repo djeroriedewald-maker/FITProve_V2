@@ -1,5 +1,9 @@
-export { SocialFeed } from './SocialFeed';
-export { EditPostModal } from './EditPostModal';
-export { DeleteConfirmation } from './DeleteConfirmation';
-export { ReactionPicker } from './ReactionPicker';
-export { ReactionButton } from './ReactionButton';
+/**
+ * Social Components
+ * Export all social feature components
+ */
+
+export { WorkoutComments } from './WorkoutComments';
+export { WorkoutRating } from './WorkoutRating';
+export { FavoriteButton } from './FavoriteButton';
+export { FollowButton } from './FollowButton';

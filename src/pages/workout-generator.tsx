@@ -5,7 +5,7 @@ import { useGenerateWorkout, WorkoutGenerationParams } from '../hooks/useGenerat
 import { ExerciseService } from '../lib/exercise.service';
 import { Exercise, MuscleGroup } from '../types/exercise.types';
 import { MuscleMapSelector } from '../components/ui/MuscleMapSelector';
-import { useUserHistory } from '../hooks/useUserHistory';
+// import { useUserHistory } from '../hooks/useUserHistory'; // Disabled - table doesn't exist yet
 import { useSaveWorkout } from '../hooks/useSaveWorkout';
 import { useNavigate } from 'react-router-dom';
 import { buildPlannerSchedulePayload } from '../lib/planner-payload';
@@ -14,6 +14,9 @@ import { TemplateModal } from '../components/ui/TemplateModal';
 import { useAuth } from '../contexts/AuthContext';
 import type { WorkoutTemplate } from '../types/template.types';
 import toast from 'react-hot-toast';
+import { generateWeeklyProgram, WeeklyProgram, DailyWorkout } from '../lib/weekly-workout-generator';
+import { WorkoutResults } from '../components/WorkoutResults';
+import { ExerciseVarietyService } from '../lib/exercise-variety.service';
 
 /* ----------------------------- Types & Data ------------------------------ */
 
@@ -258,6 +261,7 @@ const mapPreferencesToParams = (prefs: WorkoutPreferences): WorkoutGenerationPar
   gender: prefs.gender ?? 'prefer-not',
   age: prefs.age,
   goal: prefs.goal,
+  eventType: prefs.eventType, // 🎯 EVENT-SPECIFIC: Pass event type for specialized training
   fitnessLevel: prefs.experienceLevel,
   equipment: Array.from(new Set(prefs.equipment.filter(Boolean))),
   muscles: mapUiMusclesToCanonical(prefs.muscles),
@@ -394,7 +398,11 @@ const WorkoutGenerator: React.FC = () => {
   const [allExercises, setAllExercises] = useState<Exercise[]>([]);
   const [loadingExercises, setLoadingExercises] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const { recentExerciseIds, isLoading: historyLoading } = useUserHistory(30);
+
+  // Temporarily disabled - user_workout_history table doesn't exist yet
+  // const { recentExerciseIds, isLoading: historyLoading } = useUserHistory(30);
+  const recentExerciseIds: string[] = [];
+  const historyLoading = false;
   const {
     saveWorkout,
     isSaving: isSavingWorkout,
@@ -473,10 +481,52 @@ const WorkoutGenerator: React.FC = () => {
     exerciseLibrary: allExercises,
     recentExercises: recentExerciseIds,
   });
-  const canScheduleWorkout = generatedWorkout.plan.length > 0;
+
+  // 🔄 EXERCISE SWAPPING: Manage mutable workout plan state
+  const [workoutPlan, setWorkoutPlan] = useState<typeof generatedWorkout.plan>([]);
+
+  // Create a stable key for the generated workout (based on exercise IDs)
+  const generatedWorkoutKey = useMemo(
+    () => generatedWorkout.plan.map(p => p.exercise.id).join(','),
+    [generatedWorkout.plan]
+  );
+
+  // Track the last key we synced to avoid infinite loops
+  const [lastSyncedKey, setLastSyncedKey] = useState('');
+
+  // Update workout plan only when the generated workout actually changes
   useEffect(() => {
-    console.log('[Generator] Render state - showWorkout:', showWorkout, 'plan length:', generatedWorkout.plan.length, 'canSchedule:', canScheduleWorkout);
-  }, [showWorkout, generatedWorkout.plan.length, canScheduleWorkout]);
+    if (generatedWorkoutKey && generatedWorkoutKey !== lastSyncedKey) {
+      console.log('[WorkoutPlan] Syncing with generated workout, exercises:', generatedWorkout.plan.length);
+      setWorkoutPlan(generatedWorkout.plan);
+      setLastSyncedKey(generatedWorkoutKey);
+    }
+  }, [generatedWorkoutKey, generatedWorkout.plan, lastSyncedKey]);
+
+  // 🎯 GENERATE WEEKLY PROGRAM (Multi-day splits)
+  const weeklyProgram = useMemo(() => {
+    const params = workoutParams ?? defaultParams;
+    return generateWeeklyProgram({
+      ...params,
+      exerciseLibrary: allExercises,
+      recentExercises: recentExerciseIds,
+    } as any);
+  }, [workoutParams, defaultParams, allExercises, recentExerciseIds]);
+
+  // Current day workout (first workout in the program)
+  const currentDay = weeklyProgram.workouts[0] ?? {
+    dayName: 'Workout',
+    dayNumber: 1,
+    focus: 'Full Body',
+    targetMuscles: [],
+    description: 'Your workout',
+    estimatedDuration: 30,
+  };
+
+  const canScheduleWorkout = workoutPlan.length > 0;
+  useEffect(() => {
+    console.log('[Generator] Render state - showWorkout:', showWorkout, 'plan length:', workoutPlan.length, 'canSchedule:', canScheduleWorkout);
+  }, [showWorkout, workoutPlan.length, canScheduleWorkout]);
 
   const ProfileStep = () => {
     const handleAgeChange = (value: number) => {
@@ -1269,7 +1319,7 @@ const WorkoutGenerator: React.FC = () => {
     const payload = buildPlannerSchedulePayload({
       name: workoutName,
       goal: preferences.goal || 'Custom',
-      preferences,
+      preferences: preferences as unknown as Record<string, unknown>,
       frequencyDays: preferences.frequency.days,
       equipment: preferences.equipment,
       durationMinutes: preferences.duration,
@@ -1297,7 +1347,7 @@ const WorkoutGenerator: React.FC = () => {
   };
 
   const handleScheduleFullProgram = () => {
-    console.log('[Generator] Schedule full program clicked');
+    console.log('[Generator] Schedule full program clicked - Weekly program:', weeklyProgram);
     if (!canScheduleWorkout) {
       console.warn('[Generator] Cannot schedule program yet, plan length:', generatedWorkout.plan.length);
       return;
@@ -1308,22 +1358,40 @@ const WorkoutGenerator: React.FC = () => {
       return;
     }
 
-    const workoutName = `${preferences.goal || 'Custom'} Program`;
+    const workoutName = weeklyProgram.programName || `${preferences.goal || 'Custom'} Program`;
+
+    // 🎯 ENHANCED: Pass full weekly program with day-by-day workouts
     const payload = buildPlannerSchedulePayload({
       name: workoutName,
       goal: preferences.goal || 'Custom',
-      preferences,
+      preferences: preferences as unknown as Record<string, unknown>,
       frequencyDays: preferences.frequency.days,
       equipment: preferences.equipment,
       durationMinutes: preferences.duration,
-      plan: generatedWorkout.plan,
+      plan: generatedWorkout.plan, // Current day plan (for backward compatibility)
       generatedAt: new Date().toISOString(),
       suggestedTime: preferences.frequency.preferredTime,
     });
 
-    // Create program scheduling data
+    // 🎯 ENHANCED: Create program scheduling data with full weekly split info
     const programData = {
       payload,
+      weeklyProgram: {
+        programName: weeklyProgram.programName,
+        description: weeklyProgram.description,
+        splitType: weeklyProgram.splitType,
+        totalWorkouts: weeklyProgram.totalWorkouts,
+        restDays: weeklyProgram.restDays,
+        weeklyVolume: weeklyProgram.weeklyVolume,
+        workouts: weeklyProgram.workouts.map(workout => ({
+          dayName: workout.dayName,
+          dayNumber: workout.dayNumber,
+          focus: workout.focus,
+          description: workout.description,
+          targetMuscles: workout.targetMuscles,
+          estimatedDuration: workout.estimatedDuration,
+        })),
+      },
       scheduling: {
         type: 'multi-day-program' as const,
         days: preferences.frequency.days,
@@ -1341,15 +1409,22 @@ const WorkoutGenerator: React.FC = () => {
       }
 
       const storageKey = `planner-program-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      console.log('[Generator] Storing program data under key:', storageKey, programData);
+      console.log('[Generator] Storing enhanced program data with weekly split:', storageKey, programData);
 
       window.sessionStorage.setItem(storageKey, JSON.stringify(programData));
+
+      // Show success toast
+      toast.success(`📅 ${workoutName} ready to schedule!`, {
+        duration: 3000,
+        icon: '🏋️',
+      });
 
       navigate('/modules/workout/planner', {
         state: { plannerProgramId: storageKey },
       });
     } catch (error) {
       console.error('[Generator] Failed to prepare program data', error);
+      toast.error('Failed to prepare program for scheduling');
     }
   };
 
@@ -1384,7 +1459,7 @@ const WorkoutGenerator: React.FC = () => {
     resetSaveState();
     // Force regeneration by updating workoutParams with a timestamp
     if (workoutParams) {
-      setWorkoutParams({ ...workoutParams, timestamp: Date.now() });
+      setWorkoutParams({ ...workoutParams });
     }
     toast.success('🔄 Generating new workout...');
   };
@@ -1392,7 +1467,7 @@ const WorkoutGenerator: React.FC = () => {
   const handleModifyAndRegenerate = () => {
     // Go back to muscle selection step
     resetSaveState();
-    const muscleStepIndex = steps.findIndex(s => s.key === 'muscles');
+    const muscleStepIndex = steps.findIndex(s => s === 'muscles');
     if (muscleStepIndex !== -1) {
       setCurrentStep(muscleStepIndex);
       setShowWorkout(false);
@@ -2764,8 +2839,66 @@ const WorkoutGenerator: React.FC = () => {
         )}
       </div>
 
-      {/* Render generated workout summary */}
+      {/* Render generated workout summary - NEW PREMIUM UI */}
       {showWorkout && (
+        <WorkoutResults
+          weeklyProgram={weeklyProgram}
+          currentDayPlan={workoutPlan}
+          currentDay={currentDay}
+          periodization={generatedWorkout.periodization}
+          workoutStyle={generatedWorkout.workoutStyle}
+          onSchedule={handleScheduleFullProgram}
+          onSave={handleSaveGeneratedWorkout}
+          onModify={() => {
+            startOnboarding();
+          }}
+          onSwapExercise={(exerciseId, newExercise) => {
+            console.log('[Swap] Swapping exercise:', exerciseId, '→', newExercise.name);
+
+            // 🔄 SWAP EXERCISE: Replace exercise in workout plan
+            setWorkoutPlan(currentPlan => {
+              console.log('[Swap] Current plan length:', currentPlan.length);
+              const newPlan = currentPlan.map(item => {
+                if (item.exercise.id === exerciseId) {
+                  console.log('[Swap] Found exercise to swap:', item.exercise.name);
+                  // Keep the same prescription (sets, reps, rest) but swap exercise
+                  return {
+                    ...item,
+                    exercise: newExercise,
+                    reason: `Alternative to ${item.exercise.name}`, // Update reason
+                  };
+                }
+                return item;
+              });
+              console.log('[Swap] New plan created, length:', newPlan.length);
+              return newPlan;
+            });
+
+            toast.success(`Swapped to ${newExercise.name}!`);
+
+            // Track the new exercise
+            if (user) {
+              ExerciseVarietyService.addToHistory(user.id, [newExercise]);
+            }
+          }}
+          exerciseAlternatives={(exerciseId) => {
+            const exercise = workoutPlan.find(item => item.exercise.id === exerciseId)?.exercise;
+            if (!exercise) return [];
+
+            return ExerciseVarietyService.findAlternativeExercises(
+              exercise,
+              allExercises,
+              5
+            );
+          }}
+          isSaving={isSavingWorkout}
+          canSchedule={canScheduleWorkout}
+          user={user}
+        />
+      )}
+
+      {/* OLD UI - HIDDEN (keeping for reference) */}
+      {false && showWorkout && (
         <div className="w-full max-w-2xl mx-auto mt-10">
           <h2 className="text-2xl font-bold text-white mb-4">Your Generated Workout</h2>
           {historyLoading && (
@@ -3048,7 +3181,7 @@ const WorkoutGenerator: React.FC = () => {
             preferences={{
               goal: preferences.goal,
               duration: preferences.duration,
-              frequency: preferences.frequency,
+              frequency: { ...preferences.frequency, type: 'weekly' },
               equipment: preferences.equipment,
               experience: preferences.experienceLevel,
               specificMuscles: preferences.muscles,

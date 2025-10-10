@@ -1,2 +1,2 @@
-// Re-export the new 3D Workout Creator
-export { WorkoutCreatorPage } from './NewWorkoutCreatorPage';
+// Export the mobile-first workout creator
+export { MobileWorkoutCreatorPage as WorkoutCreatorPage } from './MobileWorkoutCreatorPage';

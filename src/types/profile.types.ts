@@ -1,7 +1,7 @@
 
 import { SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
-import type Database from './database.types';
+import type { Database } from './database.types';
 
 export interface UserProfile {
   id: string;
@@ -45,6 +45,22 @@ export interface UserProfile {
     todos: Array<'in_app' | 'email' | 'push'>;
     workouts: Array<'in_app' | 'email' | 'push'>;
   };
+
+  // 🎯 NEW: Fitness Profile Fields (Phase 1)
+  fitnessLevel?: 'beginner' | 'intermediate' | 'advanced';
+  age?: number;
+  eventType?: string; // 'hyrox', 'spartan', 'marathon', etc.
+  limitations?: string[]; // ['knee', 'shoulder', 'back']
+  availableEquipment?: string[]; // ['barbell', 'dumbbells', 'kettlebell']
+  preferredDuration?: number; // Minutes
+  preferredWorkoutStyles?: string[]; // ['emom', 'circuit', 'traditional']
+  preferredMuscles?: string[]; // ['chest', 'legs', 'back']
+  frequencyDays?: string[]; // ['monday', 'wednesday', 'friday']
+  preferredTime?: string; // 'morning' | 'afternoon' | 'evening'
+  onboardingCompleted?: boolean;
+  onboardingCompletedAt?: Date;
+  lastWorkoutGeneratedAt?: Date;
+  totalWorkoutsGenerated?: number;
 }
 
 interface UpdateProfileParams {

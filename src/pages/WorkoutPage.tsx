@@ -1,4 +1,3 @@
-// src/routes/modules/workouts/index.tsx (example path)
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { motion, useScroll, useSpring } from "framer-motion";
@@ -19,16 +18,17 @@ import {
   Clock,
   ArrowUp,
   ArrowDown,
+  Sparkles,
+  Target,
+  TrendingUp,
 } from "lucide-react";
 import { BackButton } from "../components/ui/BackButton";
-import { GlassCard } from "../components/ui/GlassCard";
 
 interface QuickStat {
   icon: React.ElementType;
   label: string;
   value: string | number;
-  /** tailwind classes for color styling, e.g. 'bg-orange-500/20 text-orange-500' */
-  color: string;
+  gradient: string;
 }
 
 interface WorkoutCategory {
@@ -36,65 +36,68 @@ interface WorkoutCategory {
   title: string;
   description: string;
   icon: React.ElementType;
-  /** tailwind color for legacy use (kept for compatibility) */
   color: string;
-  /** tailwind gradient tokens used for background accents */
   gradient: string;
+  accentGradient: string;
   features: string[];
   stats: {
     count: number;
     label: string;
   };
   comingSoon?: boolean;
-  /** route link */
   link: string;
 }
 
 function QuickStatCard({ stat }: { stat: QuickStat }) {
   return (
-    <div className="bg-black/40 backdrop-blur-xl rounded-xl p-4 border border-white/10">
-      <div className="flex items-center gap-3">
-        <div className={`p-2.5 rounded-lg ${stat.color} bg-white/10`}>
-          <stat.icon className="w-5 h-5" />
-        </div>
-        <div>
-          <p className="text-white/80 text-sm font-medium">{stat.label}</p>
-          <p className="text-white font-bold text-xl">{stat.value}</p>
+    <motion.div
+      whileHover={{ y: -4, scale: 1.02 }}
+      className="group relative"
+    >
+      <div className="relative overflow-hidden rounded-2xl bg-black/40 backdrop-blur-xl border border-white/10 p-5 shadow-xl">
+        {/* Gradient overlay on hover */}
+        <div className={`absolute inset-0 bg-gradient-to-br ${stat.gradient} opacity-0 group-hover:opacity-10 transition-opacity`} />
+
+        <div className="relative flex items-center gap-4">
+          {/* Icon with gradient background */}
+          <div className="relative">
+            <div className={`absolute inset-0 bg-gradient-to-br ${stat.gradient} rounded-xl blur opacity-50`} />
+            <div className={`relative p-3 rounded-xl bg-gradient-to-br ${stat.gradient}`}>
+              <stat.icon className="w-6 h-6 text-white" />
+            </div>
+          </div>
+
+          {/* Stats */}
+          <div className="flex-1">
+            <p className="text-white/60 text-xs font-medium mb-1">{stat.label}</p>
+            <p className="text-2xl font-bold text-white">{stat.value}</p>
+          </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
-// Helper function to convert hex color to rgba
-const hexToRgba = (hex: string, alpha: number) => {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-};
-
-// Color map per category for neon accents
-const colorMap = {
+const colorGradients = {
   "workout-generator": {
-    primary: "#f97316",
-    secondary: "#f43f5e",
+    gradient: "from-orange-600 to-pink-600",
+    accentGradient: "from-orange-500/30 to-pink-500/30",
   },
   "workout-creator": {
-    primary: "#a855f7",
-    secondary: "#ec4899",
+    gradient: "from-purple-600 to-pink-600",
+    accentGradient: "from-purple-500/30 to-pink-500/30",
   },
   "community-workouts": {
-    primary: "#10b981",
-    secondary: "#22c55e",
+    gradient: "from-green-600 to-emerald-600",
+    accentGradient: "from-green-500/30 to-emerald-500/30",
   },
   "exercise-library": {
-    primary: "#06b6d4",
-    secondary: "#3b82f6",
+    gradient: "from-cyan-600 to-blue-600",
+    accentGradient: "from-cyan-500/30 to-blue-500/30",
   },
   "workout-library": {
-    primary: "#f59e0b",
-    secondary: "#eab308",
+    gradient: "from-amber-600 to-yellow-600",
+    accentGradient: "from-amber-500/30 to-yellow-500/30",
   },
 } as const;
 
@@ -105,8 +108,9 @@ const defaultWorkoutCategories: WorkoutCategory[] = [
     description:
       "Let us build a workout for you! Answer a few questions and get a personalized plan.",
     icon: Flame,
-    color: "text-orange-500",
-    gradient: "from-orange-400/20 to-red-400/20",
+    color: "text-orange-400",
+    gradient: "from-orange-600 to-pink-600",
+    accentGradient: "from-orange-500/30 to-pink-500/30",
     features: [
       "Personalized onboarding",
       "Smart workout recommendations",
@@ -127,8 +131,9 @@ const defaultWorkoutCategories: WorkoutCategory[] = [
     description:
       "Build your own workouts with our intuitive drag & drop interface. Fully customizable.",
     icon: Wrench,
-    color: "text-purple-500",
-    gradient: "from-purple-400/20 to-pink-400/20",
+    color: "text-purple-400",
+    gradient: "from-purple-600 to-pink-600",
+    accentGradient: "from-purple-500/30 to-pink-500/30",
     features: [
       "Drag & drop interface",
       "Custom exercise selection",
@@ -149,8 +154,9 @@ const defaultWorkoutCategories: WorkoutCategory[] = [
     description:
       "Discover workouts shared by our community. Ratings, reviews, and personal experiences.",
     icon: BookOpen,
-    color: "text-emerald-500",
-    gradient: "from-emerald-400/20 to-green-400/20",
+    color: "text-green-400",
+    gradient: "from-green-600 to-emerald-600",
+    accentGradient: "from-green-500/30 to-emerald-500/30",
     features: [
       "Community created",
       "User ratings & reviews",
@@ -171,8 +177,9 @@ const defaultWorkoutCategories: WorkoutCategory[] = [
     description:
       "Comprehensive database of exercises with instructions, tips, and demonstration videos.",
     icon: LibraryIcon,
-    color: "text-cyan-500",
-    gradient: "from-cyan-400/20 to-blue-400/20",
+    color: "text-cyan-400",
+    gradient: "from-cyan-600 to-blue-600",
+    accentGradient: "from-cyan-500/30 to-blue-500/30",
     features: [
       "Detailed instructions",
       "Video demonstrations",
@@ -193,8 +200,9 @@ const defaultWorkoutCategories: WorkoutCategory[] = [
     description:
       "Pre-made workouts by fitness experts. Tested, optimized, and ready to use.",
     icon: BookOpen,
-    color: "text-amber-500",
-    gradient: "from-amber-400/20 to-yellow-400/20",
+    color: "text-amber-400",
+    gradient: "from-amber-600 to-yellow-600",
+    accentGradient: "from-amber-500/30 to-yellow-500/30",
     features: [
       "Expert designed",
       "Tested & optimized",
@@ -226,12 +234,6 @@ function WorkoutCategoryCard({
   canMoveUp,
   canMoveDown,
 }: WorkoutCategoryCardProps) {
-  const colors = colorMap[category.id] || {
-    primary: "#ffffff",
-    secondary: "#f3f4f6",
-  };
-  const neon = colors.primary;
-
   const bgImage =
     {
       "workout-generator": "/images/workout_generator.webp",
@@ -243,48 +245,46 @@ function WorkoutCategoryCard({
 
   return (
     <motion.div
-      className="group relative h-full"
       initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, ease: "easeOut" }}
-      whileHover={{
-        scale: 1.02,
-        y: -8,
-        transition: { type: "spring", stiffness: 300, damping: 20 },
-      }}
-      whileTap={{ scale: 0.96 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      whileHover={{ y: -8, scale: 1.02 }}
+      transition={{ type: "spring", stiffness: 300, damping: 20 }}
+      className="group relative h-full"
     >
-      <div className="relative h-full glass-card border border-white/10 overflow-hidden group-hover:border-white/20 transition-all duration-500">
-        {/* Background image */}
+      {/* Card Container */}
+      <div className="relative h-full overflow-hidden rounded-2xl bg-black/40 backdrop-blur-xl border border-white/10 shadow-2xl">
+        {/* Background Image */}
         {bgImage && (
-          <motion.img
-            className="absolute inset-0 w-full h-full object-cover opacity-40 group-hover:opacity-60 group-hover:scale-110 transition-all duration-700"
-            src={bgImage}
-            alt={`${category.title} Background`}
-            initial={{ scale: 1 }}
-          />
+          <div className="absolute inset-0">
+            <motion.img
+              className="w-full h-full object-cover"
+              src={bgImage}
+              alt={category.title}
+              initial={{ scale: 1 }}
+              whileHover={{ scale: 1.1 }}
+              transition={{ duration: 0.7 }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-black/50" />
+            <div className={`absolute inset-0 bg-gradient-to-br ${category.accentGradient}`} />
+          </div>
         )}
 
-        {/* Glass overlay & neon glow */}
-        <div
-          className="absolute inset-0"
-          style={{
-            background: `linear-gradient(135deg, rgba(0,0,0,0.2) 0%, transparent 50%, rgba(0,0,0,0.4) 100%), radial-gradient(ellipse at center, ${hexToRgba(
-              colors.primary,
-              0.1
-            )} 0%, transparent 70%)`,
-          }}
-        />
+        {/* Glow Effect on Hover */}
+        <div className={`absolute inset-0 bg-gradient-to-br ${category.gradient} opacity-0 group-hover:opacity-20 transition-opacity duration-500`} />
 
         {/* Content */}
-        <div className="relative z-10 p-6 h-full flex flex-col">
-          {/* Top bar */}
+        <div className="relative z-10 p-6 h-full flex flex-col min-h-[450px]">
+          {/* Top Bar */}
           <div className="flex justify-between items-start mb-4">
+            {/* Move Buttons */}
             {(onMoveUp || onMoveDown) && (
-              <div className="flex flex-col gap-1">
-                <button
+              <div className="flex flex-col gap-1.5">
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
                   type="button"
-                  className="p-1 rounded-full bg-white/10 backdrop-blur-sm hover:bg-white/20 transition-all duration-200"
+                  className="p-1.5 rounded-lg bg-white/10 backdrop-blur-sm hover:bg-white/20 transition-all"
                   onClick={(e) => {
                     e.stopPropagation();
                     e.preventDefault();
@@ -294,11 +294,13 @@ function WorkoutCategoryCard({
                   style={{ opacity: canMoveUp ? 1 : 0.3 }}
                   aria-label="Move card up"
                 >
-                  <ArrowUp className="h-3 w-3 text-white" />
-                </button>
-                <button
+                  <ArrowUp className="h-3.5 w-3.5 text-white" />
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
                   type="button"
-                  className="p-1 rounded-full bg-white/10 backdrop-blur-sm hover:bg-white/20 transition-all duration-200"
+                  className="p-1.5 rounded-lg bg-white/10 backdrop-blur-sm hover:bg-white/20 transition-all"
                   onClick={(e) => {
                     e.stopPropagation();
                     e.preventDefault();
@@ -308,117 +310,105 @@ function WorkoutCategoryCard({
                   style={{ opacity: canMoveDown ? 1 : 0.3 }}
                   aria-label="Move card down"
                 >
-                  <ArrowDown className="h-3 w-3 text-white" />
-                </button>
+                  <ArrowDown className="h-3.5 w-3.5 text-white" />
+                </motion.button>
               </div>
             )}
 
+            {/* Coming Soon Badge */}
             {category.comingSoon && (
-              <div className="px-3 py-1 bg-gradient-to-r from-orange-500/20 to-red-500/20 backdrop-blur-sm border border-orange-400/30 rounded-full">
-                <span className="text-orange-300 text-xs font-medium">Coming Soon</span>
-              </div>
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="ml-auto"
+              >
+                <div className="relative">
+                  <div className="absolute inset-0 bg-white/30 rounded-full blur" />
+                  <div className="relative px-3 py-1.5 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-white text-xs font-bold flex items-center gap-1.5">
+                    <Sparkles className="w-3 h-3" />
+                    COMING SOON
+                  </div>
+                </div>
+              </motion.div>
             )}
 
-            <div className="flex items-center space-x-2 text-right">
-              <div className="text-center">
-                <div className="flex items-center justify-center mb-1">
-                  {React.createElement(category.icon, {
-                    className: "h-5 w-5",
-                    style: {
-                      color: neon,
-                      filter: `drop-shadow(0 0 8px ${neon})`,
-                    },
-                  })}
+            {/* Icon Badge */}
+            <div className="ml-auto">
+              <div className="relative">
+                <div className={`absolute inset-0 bg-gradient-to-br ${category.gradient} rounded-xl blur opacity-50`} />
+                <div className={`relative p-3 rounded-xl bg-gradient-to-br ${category.gradient}`}>
+                  <category.icon className="w-6 h-6 text-white" />
                 </div>
-                <div
-                  className="text-lg font-bold"
-                  style={{
-                    color: neon,
-                    textShadow: `0 0 8px ${neon}, 0 2px 8px #000`,
-                  }}
-                >
-                  {category.stats.count}+
-                </div>
-                <div className="text-xs text-white/70">{category.stats.label}</div>
               </div>
             </div>
           </div>
 
-          {/* Title / description */}
-          <div className="flex-grow">
-            <h3
-              className="text-xl font-bold mb-2 group-hover:scale-105 transition-transform duration-300"
-              style={{
-                color: neon,
-                textShadow: `0 0 12px ${neon}, 0 2px 8px #000`,
-              }}
-            >
+          {/* Title & Description */}
+          <div className="flex-grow mb-6">
+            <h3 className="text-2xl font-bold text-white mb-3 group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:bg-clip-text group-hover:from-white group-hover:to-white/70 transition-all">
               {category.title}
             </h3>
-            <p className="text-white/80 text-sm mb-4 leading-relaxed">
+            <p className="text-white/80 text-sm leading-relaxed mb-4">
               {category.description}
             </p>
 
-            {/* Features */}
-            <div className="space-y-2 mb-4">
+            {/* Features - First 3 */}
+            <div className="space-y-2">
               {category.features.slice(0, 3).map((feature, index) => (
                 <motion.div
                   key={feature}
-                  className="flex items-center space-x-2 text-xs text-white/70"
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: index * 0.1 }}
+                  className="flex items-center gap-2 text-xs text-white/70"
                 >
-                  <div
-                    className="w-1 h-1 rounded-full"
-                    style={{
-                      background: `linear-gradient(90deg, ${neon} 0%, #fff 100%)`,
-                    }}
-                  />
+                  <div className={`w-1.5 h-1.5 rounded-full bg-gradient-to-r ${category.gradient}`} />
                   <span>{feature}</span>
                 </motion.div>
               ))}
               {category.features.length > 3 && (
-                <motion.div
-                  className="text-xs text-white/50 pl-3"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.3 }}
-                >
+                <p className="text-xs text-white/50 pl-3.5">
                   +{category.features.length - 3} more features
-                </motion.div>
+                </p>
               )}
             </div>
           </div>
 
-          {/* Footer row */}
-          <div className="flex items-center justify-between pt-4 border-t border-white/10">
-            <div className="flex items-center space-x-2 text-white/70 text-sm">
-              <Clock
-                className="h-4 w-4"
-                style={{
-                  color: colors.primary,
-                  filter: `drop-shadow(0 0 8px ${colors.primary})`,
-                }}
-              />
-              <span>5-60 min</span>
+          {/* Footer */}
+          <div className="pt-4 border-t border-white/10">
+            <div className="flex items-center justify-between">
+              {/* Duration */}
+              <div className="flex items-center gap-2 text-white/70 text-sm">
+                <Clock className="w-4 h-4" />
+                <span>5-60 min</span>
+              </div>
+
+              {/* Stats Badge */}
+              <div className="flex items-center gap-2">
+                <div className="text-right">
+                  <div className={`text-lg font-bold bg-gradient-to-r ${category.gradient} bg-clip-text text-transparent`}>
+                    {category.stats.count}+
+                  </div>
+                  <div className="text-xs text-white/60">{category.stats.label}</div>
+                </div>
+              </div>
             </div>
+
+            {/* Explore Button */}
+            {!category.comingSoon && (
+              <motion.div
+                whileHover={{ x: 4 }}
+                className="mt-4 flex items-center gap-2 text-sm font-semibold text-white/90 group-hover:text-white"
+              >
+                <span>Explore Now</span>
+                <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+              </motion.div>
+            )}
           </div>
         </div>
 
-        {/* Hover veil */}
-        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-300 pointer-events-none" />
-
-        {/* Floating orb */}
-        <div
-          className="absolute -top-20 -right-20 w-40 h-40 rounded-full opacity-30 group-hover:opacity-50 transition-opacity duration-500 pointer-events-none"
-          style={{
-            background: `radial-gradient(circle at center, ${hexToRgba(
-              colors.primary,
-              0.2
-            )} 0%, transparent 70%)`,
-          }}
-        />
+        {/* Bottom Gradient Border */}
+        <div className={`absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r ${category.gradient} opacity-0 group-hover:opacity-100 transition-opacity`} />
       </div>
     </motion.div>
   );
@@ -437,25 +427,25 @@ export function WorkoutPage() {
       icon: Fire,
       label: "Active Users",
       value: "2.5k+",
-      color: "bg-orange-500/20 text-orange-500",
+      gradient: "from-orange-500 to-red-500",
     },
     {
       icon: Dumbbell,
       label: "Total Workouts",
       value: "15k+",
-      color: "bg-blue-500/20 text-blue-500",
+      gradient: "from-blue-500 to-cyan-500",
     },
     {
       icon: Heart,
       label: "Calories Burned",
       value: "1.2M+",
-      color: "bg-red-500/20 text-red-500",
+      gradient: "from-rose-500 to-pink-500",
     },
     {
       icon: Trophy,
       label: "Goals Achieved",
       value: "8.5k+",
-      color: "bg-yellow-500/20 text-yellow-500",
+      gradient: "from-yellow-500 to-amber-500",
     },
   ]);
 
@@ -474,7 +464,6 @@ export function WorkoutPage() {
         }
       }
     } catch (error) {
-      // eslint-disable-next-line no-console
       console.error("Error loading saved card order:", error);
     }
     return defaultWorkoutCategories;
@@ -498,163 +487,260 @@ export function WorkoutPage() {
     <div className="min-h-screen pb-12">
       {/* Progress bar */}
       <motion.div
-        className="fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-secondary to-accent z-50 origin-left"
+        className="fixed top-[72px] left-0 right-0 h-1 bg-gradient-to-r from-orange-600 via-pink-600 to-purple-600 z-40 origin-left"
         style={{ scaleX }}
       />
 
-      {/* Hero Section */}
-      <section className="relative h-screen w-screen overflow-hidden -mx-4 md:-mx-8 mb-32">
-        <div className="absolute inset-0 w-full h-full">
-          <img
-            src="/images/workout_office_1.webp"
-            alt="Hero Background"
-            className="w-full h-full object-cover object-center"
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/60 to-transparent" />
-        </div>
+      {/* Hero Section - Compact Premium */}
+      <motion.section
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="relative -mx-4 mb-12"
+      >
+        <div className="relative overflow-hidden rounded-3xl">
+          {/* Background */}
+          <div className="absolute inset-0">
+            <img
+              src="/images/workout_office_1.webp"
+              alt="Workout Hero"
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-br from-black/80 via-black/70 to-black/80" />
+            <div className="absolute inset-0 bg-gradient-to-br from-orange-500/20 via-pink-500/20 to-purple-500/20" />
+          </div>
 
-        <div className="relative h-full w-full max-w-[1920px] mx-auto px-4 md:px-8 pt-24 pb-48 flex flex-col justify-center items-center text-center z-20">
-          <BackButton className="fixed top-6 left-6 z-50" />
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-          >
-            <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold mb-8">
-              Transform Your Body,
-              <div className="mt-2 bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">
-                Transform Your Life
-              </div>
-            </h1>
-
-            <p className="text-lg md:text-xl text-white/90 mb-10 max-w-2xl mx-auto leading-relaxed px-4">
-              Access expert-designed workouts, create custom routines, and join a
-              thriving community on your journey to a healthier lifestyle.
-            </p>
-
-            <div className="flex flex-wrap justify-center gap-4">
-              <Link
-                to="/workout-generator"
-                className="px-8 py-4 bg-primary hover:bg-primary/90 text-white rounded-xl font-semibold flex items-center gap-2 transition-colors"
-              >
-                <Zap className="w-5 h-5" />
-                Get Started Now
-              </Link>
-              <Link
-                to="/modules/workout/exercise-library"
-                className="px-8 py-4 bg-white/10 hover:bg-white/20 text-white rounded-xl font-semibold flex items-center gap-2 transition-colors"
-              >
-                Explore Exercises
-                <ArrowRight className="w-5 h-5" />
-              </Link>
-            </div>
-          </motion.div>
-        </div>
-
-        {/* Quick Stats */}
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/90 to-transparent">
-          <div className="container mx-auto px-6 py-8">
+          {/* Animated Orbs */}
+          <div className="absolute inset-0 overflow-hidden">
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.2 }}
-              className="grid grid-cols-2 md:grid-cols-4 gap-6"
+              animate={{
+                scale: [1, 1.2, 1],
+                opacity: [0.3, 0.5, 0.3],
+              }}
+              transition={{ duration: 8, repeat: Infinity }}
+              className="absolute top-10 left-10 w-64 h-64 bg-orange-500/30 rounded-full blur-3xl"
+            />
+            <motion.div
+              animate={{
+                scale: [1.2, 1, 1.2],
+                opacity: [0.3, 0.5, 0.3],
+              }}
+              transition={{ duration: 8, repeat: Infinity, delay: 1 }}
+              className="absolute bottom-10 right-10 w-64 h-64 bg-purple-500/30 rounded-full blur-3xl"
+            />
+          </div>
+
+          {/* Back Button */}
+          <div className="absolute top-6 left-6 z-10">
+            <BackButton />
+          </div>
+
+          {/* Content */}
+          <div className="relative px-8 py-20 md:py-24 text-center">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.2 }}
+              className="max-w-4xl mx-auto"
             >
-              {quickStats.map((stat, index) => (
-                <QuickStatCard key={index} stat={stat} />
-              ))}
+              <div className="flex items-center justify-center gap-2 mb-4">
+                <Target className="w-6 h-6 text-orange-400" />
+                <span className="text-orange-400 font-semibold text-sm uppercase tracking-wider">
+                  Workout Hub
+                </span>
+              </div>
+
+              <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight">
+                Transform Your Body,
+                <span className="block bg-gradient-to-r from-orange-400 via-pink-400 to-purple-400 bg-clip-text text-transparent">
+                  Transform Your Life
+                </span>
+              </h1>
+
+              <p className="text-lg md:text-xl text-white/80 mb-8 max-w-2xl mx-auto leading-relaxed">
+                Access expert-designed workouts, create custom routines, and join a
+                thriving community on your journey to a healthier lifestyle.
+              </p>
+
+              {/* Action Buttons */}
+              <div className="flex flex-wrap gap-3 justify-center">
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                  <Link
+                    to="/workout-generator"
+                    className="px-8 py-4 rounded-xl bg-gradient-to-r from-orange-600 to-pink-600 text-white font-bold shadow-lg shadow-orange-500/25 flex items-center gap-2"
+                  >
+                    <Zap className="w-5 h-5" />
+                    Get Started Now
+                  </Link>
+                </motion.div>
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                  <Link
+                    to="/modules/workout/exercise-library"
+                    className="px-8 py-4 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 text-white font-semibold flex items-center gap-2 hover:bg-white/20 transition-colors"
+                  >
+                    Explore Exercises
+                    <ArrowRight className="w-5 h-5" />
+                  </Link>
+                </motion.div>
+              </div>
             </motion.div>
           </div>
+
+          {/* Bottom Gradient */}
+          <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
         </div>
-      </section>
+      </motion.section>
 
-      {/* Main Content */}
-      <div className="container mx-auto px-4 -mt-20 relative z-10">
-        {/* Categories */}
-        <motion.div
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.4, staggerChildren: 0.1 }}
-        >
-          {workoutCards.map((category, idx) => (
-            <motion.div
-              key={category.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.1 * idx }}
-            >
-              <Link to={category.link} className="block h-full">
-                <WorkoutCategoryCard
-                  category={category}
-                  onMoveUp={() => moveCard(idx, idx - 1)}
-                  onMoveDown={() => moveCard(idx, idx + 1)}
-                  canMoveUp={idx > 0}
-                  canMoveDown={idx < workoutCards.length - 1}
-                />
-              </Link>
-            </motion.div>
-          ))}
-        </motion.div>
+      {/* Quick Stats - Premium Cards */}
+      <motion.section
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-12"
+      >
+        {quickStats.map((stat, index) => (
+          <motion.div
+            key={stat.label}
+            initial={{ opacity: 0, scale: 0.9 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            transition={{ delay: index * 0.1 }}
+          >
+            <QuickStatCard stat={stat} />
+          </motion.div>
+        ))}
+      </motion.section>
 
-        {/* Weekly Challenge */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.8 }}
-          className="mt-12"
-        >
-          <GlassCard className="relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-r from-primary/20 via-secondary/20 to-accent/20" />
-            <div className="relative p-8">
-              <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-                <div>
-                  <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">
-                    Weekly Challenge 🔥
-                  </h2>
-                  <p className="text-white/80 mb-4 max-w-xl">
-                    Join this week&apos;s community challenge! Complete 5 different
-                    workouts and earn exclusive badges and rewards.
-                  </p>
-                  <div className="flex flex-wrap gap-4">
+      {/* Section Header */}
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h2 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
+            <TrendingUp className="w-8 h-8 text-orange-400" />
+            Choose Your Path
+          </h2>
+          <p className="text-white/60">
+            Explore our workout tools and find the perfect fit for your goals
+          </p>
+        </div>
+      </div>
+
+      {/* Workout Category Cards */}
+      <motion.div
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-16"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.4 }}
+      >
+        {workoutCards.map((category, idx) => (
+          <motion.div
+            key={category.id}
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: idx * 0.1 }}
+          >
+            <Link to={category.link} className="block h-full">
+              <WorkoutCategoryCard
+                category={category}
+                onMoveUp={() => moveCard(idx, idx - 1)}
+                onMoveDown={() => moveCard(idx, idx + 1)}
+                canMoveUp={idx > 0}
+                canMoveDown={idx < workoutCards.length - 1}
+              />
+            </Link>
+          </motion.div>
+        ))}
+      </motion.div>
+
+      {/* Weekly Challenge - Premium CTA */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+      >
+        <div className="relative overflow-hidden rounded-3xl bg-black/40 backdrop-blur-xl border border-white/10 p-8 md:p-12">
+          {/* Gradient Background */}
+          <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 via-pink-500/10 to-purple-500/10" />
+
+          {/* Animated Orb */}
+          <motion.div
+            animate={{
+              scale: [1, 1.2, 1],
+              rotate: [0, 180, 360],
+            }}
+            transition={{ duration: 20, repeat: Infinity }}
+            className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-orange-500/20 to-pink-500/20 rounded-full blur-3xl"
+          />
+
+          <div className="relative">
+            <div className="flex flex-col lg:flex-row items-center justify-between gap-8">
+              {/* Left Content */}
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-4">
+                  <Trophy className="w-6 h-6 text-orange-400" />
+                  <span className="text-orange-400 font-semibold text-sm uppercase tracking-wider">
+                    Weekly Challenge
+                  </span>
+                </div>
+
+                <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+                  Join This Week's Challenge
+                </h2>
+                <p className="text-white/80 mb-6 max-w-xl leading-relaxed">
+                  Complete 5 different workouts and earn exclusive badges and rewards.
+                  Compete with the community and push your limits!
+                </p>
+
+                <div className="flex flex-wrap gap-4">
+                  <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                     <Link
                       to="/modules/workout/challenges"
-                      className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl font-semibold flex items-center gap-2 transition-colors"
+                      className="px-6 py-3 rounded-xl bg-gradient-to-r from-orange-600 to-pink-600 text-white font-bold shadow-lg shadow-orange-500/25 flex items-center gap-2"
                     >
                       Join Challenge
                       <ArrowRight className="w-5 h-5" />
                     </Link>
-                    <button
-                      type="button"
-                      className="px-6 py-3 text-white/70 hover:text-white flex items-center gap-2 transition-colors"
-                    >
-                      Learn more
-                      <ChevronRight className="w-5 h-5" />
-                    </button>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="text-center px-6 py-4 bg-black/30 rounded-xl">
-                    <Calendar className="w-6 h-6 text-white mb-2 mx-auto" />
-                    <p className="text-white/70 text-sm">Days Left</p>
-                    <p className="text-white font-bold text-2xl">5</p>
-                  </div>
-                  <div className="text-center px-6 py-4 bg-black/30 rounded-xl">
-                    <Users className="w-6 h-6 text-white mb-2 mx-auto" />
-                    <p className="text-white/70 text-sm">Participants</p>
-                    <p className="text-white font-bold text-2xl">1.2k</p>
-                  </div>
-                  <div className="text-center px-6 py-4 bg-black/30 rounded-xl">
-                    <Trophy className="w-6 h-6 text-white mb-2 mx-auto" />
-                    <p className="text-white/70 text-sm">Prize Pool</p>
-                    <p className="text-white font-bold text-2xl">500</p>
-                  </div>
+                  </motion.div>
+                  <button
+                    type="button"
+                    className="px-6 py-3 text-white/70 hover:text-white flex items-center gap-2 transition-colors"
+                  >
+                    Learn more
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
                 </div>
               </div>
+
+              {/* Right Stats */}
+              <div className="flex gap-4">
+                <motion.div
+                  whileHover={{ y: -4 }}
+                  className="text-center px-6 py-4 rounded-xl bg-white/5 border border-white/10 backdrop-blur-sm"
+                >
+                  <Calendar className="w-6 h-6 text-orange-400 mb-2 mx-auto" />
+                  <p className="text-white/60 text-sm mb-1">Days Left</p>
+                  <p className="text-white font-bold text-2xl">5</p>
+                </motion.div>
+                <motion.div
+                  whileHover={{ y: -4 }}
+                  className="text-center px-6 py-4 rounded-xl bg-white/5 border border-white/10 backdrop-blur-sm"
+                >
+                  <Users className="w-6 h-6 text-pink-400 mb-2 mx-auto" />
+                  <p className="text-white/60 text-sm mb-1">Participants</p>
+                  <p className="text-white font-bold text-2xl">1.2k</p>
+                </motion.div>
+                <motion.div
+                  whileHover={{ y: -4 }}
+                  className="text-center px-6 py-4 rounded-xl bg-white/5 border border-white/10 backdrop-blur-sm"
+                >
+                  <Trophy className="w-6 h-6 text-yellow-400 mb-2 mx-auto" />
+                  <p className="text-white/60 text-sm mb-1">Prize Pool</p>
+                  <p className="text-white font-bold text-2xl">500</p>
+                </motion.div>
+              </div>
             </div>
-          </GlassCard>
-        </motion.div>
-      </div>
+          </div>
+        </div>
+      </motion.div>
     </div>
   );
 }
