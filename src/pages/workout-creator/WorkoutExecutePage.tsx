@@ -10,6 +10,11 @@ import { toast } from 'react-hot-toast';
 import { BackButton } from '../../components/ui/BackButton';
 import { useScrollToTop } from '../../hooks/useScroll';
 import { WorkoutCreatorService } from '../../lib/workout-creator.service';
+import { useAuth } from '../../contexts/AuthContext';
+import { useGamification } from '../../hooks/useGamification';
+import { useWorkoutSession } from '../../hooks/useWorkoutSession';
+import { AchievementUnlockModal } from '../../components/gamification';
+import type { AchievementProgress } from '../../types/gamification.types';
 import {
   WorkoutDetails,
   WorkoutSession,
@@ -22,6 +27,7 @@ export function WorkoutExecutePage() {
 
   const { workoutId } = useParams<{ workoutId: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [workout, setWorkout] = useState<WorkoutDetails | null>(null);
   const [session, setSession] = useState<WorkoutSession | null>(null);
@@ -31,6 +37,30 @@ export function WorkoutExecutePage() {
   const [restTimeRemaining, setRestTimeRemaining] = useState(0);
   const [sessionStartTime] = useState(new Date());
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
+  // Gamification state
+  const [unlockedAchievement, setUnlockedAchievement] = useState<AchievementProgress | null>(null);
+  const [showAchievementModal, setShowAchievementModal] = useState(false);
+  const [levelUpData, setLevelUpData] = useState<{ level: number; xp: number } | null>(null);
+
+  // Gamification hooks
+  const { awardXP, updateStreak, checkAchievements } = useGamification(
+    (newLevel, xp) => {
+      setLevelUpData({ level: newLevel, xp });
+      toast.success(`🎉 Level Up! You're now level ${newLevel}!`, { duration: 5000 });
+    },
+    (achievement) => {
+      setUnlockedAchievement(achievement);
+      setShowAchievementModal(true);
+    },
+    (streak) => {
+      if ([7, 30, 100, 365].includes(streak)) {
+        toast.success(`🔥 ${streak}-Day Streak Milestone! Amazing!`, { duration: 5000 });
+      }
+    }
+  );
+
+  const { startSession: startLiveSession, endSession: endLiveSession } = useWorkoutSession();
   // Always-running session timer
   useEffect(() => {
     const interval = setInterval(() => {
@@ -81,6 +111,14 @@ export function WorkoutExecutePage() {
       if (sessionData) {
         setSession(sessionData);
         toast('Workout session started!');
+
+        // Start live workout session for community tracking
+        const workoutType = workoutData.workout_type?.toLowerCase().includes('strength')
+          ? 'strength'
+          : workoutData.workout_type?.toLowerCase().includes('cardio')
+          ? 'cardio'
+          : 'hybrid';
+        await startLiveSession(workoutType as 'strength' | 'cardio' | 'hybrid');
       }
     } catch (error) {
       console.error('Error starting session:', error);
@@ -152,7 +190,7 @@ export function WorkoutExecutePage() {
   };
 
   const completeWorkout = async () => {
-    if (!session) return;
+    if (!session || !user) return;
 
     try {
       const exerciseResults: WorkoutExerciseResult[] = (workout?.exercises || []).map(
@@ -177,11 +215,44 @@ export function WorkoutExecutePage() {
 
       await WorkoutCreatorService.completeWorkoutSession(session.id, exerciseResults);
 
+      // End live session
+      await endLiveSession();
+
+      // === GAMIFICATION INTEGRATION ===
+      const duration = Math.round((Date.now() - sessionStartTime.getTime()) / 60000); // minutes
+      const exerciseCount = workout?.exercises?.length || 0;
+
+      // Calculate XP based on workout metrics
+      const baseXP = 100; // Base XP for completing a workout
+      const durationBonus = Math.min(duration * 5, 200); // 5 XP per minute, max 200
+      const exerciseBonus = exerciseCount * 10; // 10 XP per exercise
+      const totalXP = baseXP + durationBonus + exerciseBonus;
+
+      // Award XP (triggers level-up callback if leveling up)
+      await awardXP(totalXP, `Completed ${workout?.name}`, 'workout_completion', session.id);
+
+      // Update daily streak (triggers streak milestone callback if milestone reached)
+      await updateStreak();
+
+      // Check for achievement unlocks
+      // Note: You'll need to track total workouts completed - this is a placeholder
+      const totalWorkouts = 1; // TODO: Get actual count from user profile
+      await checkAchievements('workout_count', totalWorkouts);
+
+      if (duration >= 30) {
+        await checkAchievements('workout_duration', duration);
+      }
+
+      if (exerciseCount >= 10) {
+        await checkAchievements('exercise_count', exerciseCount);
+      }
+      // === END GAMIFICATION ===
+
       setIsWorkoutCompleted(true);
-      toast('Workout completed! Great job! 🎉');
+      toast.success(`Workout completed! +${totalXP} XP 🎉`, { duration: 4000 });
     } catch (error) {
       console.error('Error completing workout:', error);
-      toast('Failed to save workout completion');
+      toast.error('Failed to save workout completion');
     }
   };
 
@@ -515,6 +586,16 @@ function ExerciseScreen({ exercise, currentSet, onLogSet, previousSets }: Exerci
           </div>
         </div>
       )}
+
+      {/* Achievement Unlock Modal */}
+      <AchievementUnlockModal
+        achievement={unlockedAchievement}
+        isOpen={showAchievementModal}
+        onClose={() => {
+          setShowAchievementModal(false);
+          setUnlockedAchievement(null);
+        }}
+      />
     </div>
   );
 }
